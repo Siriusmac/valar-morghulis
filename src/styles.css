@@ -165,6 +165,87 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .directory-grid small svg { width: 12px; }
 .category-dot { width: 12px; height: 46px; border-radius: 8px; flex: 0 0 auto; }
 
+.heading-actions { display: flex; gap: 10px; align-items: center; }
+.movement-toolbar { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); margin-top: -18px; }
+.movement-tabs { border-bottom: 0; }
+.tabs .tab-income.active { color: var(--positive); border-color: var(--positive); }
+.month-field { height: 40px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: white; }
+.month-field svg { width: 16px; color: var(--muted); }
+.month-field input { border: 0; background: transparent; color: var(--ink); font-size: 11px; outline: 0; }
+.donut-section { padding: 28px 0 34px; border-bottom: 1px solid var(--line); }
+.donut-section > h2 { font-size: 22px; margin-bottom: 20px; }
+.donut-layout { display: grid; grid-template-columns: 260px minmax(300px, 520px); gap: 44px; align-items: center; }
+.donut { width: 210px; height: 210px; border-radius: 50%; background: conic-gradient(#e8e5df 0 100%); display: grid; place-items: center; position: relative; }
+.donut::after { content: ''; position: absolute; inset: 31px; background: #fbfaf8; border-radius: 50%; }
+.donut > div { position: relative; z-index: 1; display: grid; text-align: center; }
+.donut small { color: var(--muted); font-size: 10px; }
+.donut strong { font: 600 25px/1.15 'Newsreader', Georgia, serif; }
+.donut--income strong { color: var(--positive); }
+.donut-legend { display: grid; gap: 13px; }
+.donut-legend > div { display: grid; grid-template-columns: 10px 1fr 100px 40px; gap: 10px; align-items: center; font-size: 12px; }
+.donut-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.donut-legend strong { text-align: right; font: 600 14px/1 'Newsreader', Georgia, serif; }
+.donut-legend small { color: var(--muted); text-align: right; }
+.donut-legend > p { color: var(--muted); font-size: 12px; }
+.donut-section--compact { padding: 26px 22px 30px; border-bottom: 0; }
+.donut-section--compact .donut-layout { grid-template-columns: 155px 1fr; gap: 24px; }
+.donut-section--compact .donut { width: 145px; height: 145px; }
+.donut-section--compact .donut::after { inset: 22px; }
+.donut-section--compact .donut strong { font-size: 20px; }
+.donut-section--compact .donut-legend > div { grid-template-columns: 9px 1fr 76px; }
+.donut-section--compact .donut-legend small { display: none; }
+.shared-donuts { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+.shared-donuts > section + section { border-left: 1px solid var(--line); }
+.movements-ledger { padding-top: 32px; }
+.movements-ledger > .section-title-row { padding-bottom: 14px; }
+.movements-ledger .search-field { width: 260px; }
+.movement-list { border-top: 1px solid var(--line); }
+.movement-row { min-height: 75px; display: grid; grid-template-columns: 40px minmax(150px, 1.25fr) minmax(110px, .75fr) minmax(105px, .75fr) 92px 96px 105px 76px; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+.movement-row__icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; }
+.movement-row__icon svg { width: 17px; }
+.movement-row__icon--expense { color: var(--accent); background: var(--accent-soft); }
+.movement-row__icon--income { color: var(--positive); background: var(--positive-soft); }
+.movement-row__name, .movement-row__meta { display: grid; min-width: 0; }
+.movement-row__name strong { font: 600 15px/1.25 'Newsreader', Georgia, serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.movement-row__name small, .movement-row__meta small { color: var(--muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.movement-row__meta span { display: flex; align-items: center; gap: 6px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.movement-row__meta i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.movement-row time { color: var(--muted); font-size: 10px; }
+.movement-row__amount { text-align: right; font: 600 15px/1 'Newsreader', Georgia, serif; }
+.movement-row__amount--expense { color: var(--accent); }
+.movement-row__amount--income { color: var(--positive); }
+.movement-list--compact .movement-row { grid-template-columns: 38px minmax(145px, 1fr) 105px 105px 90px; }
+.movement-list--compact .scope-label, .movement-list--compact .movement-row time, .movement-list--compact .row-actions { display: none; }
+.movement-type { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.movement-type button { height: 44px; border: 0; background: white; cursor: pointer; font-weight: 600; font-size: 12px; }
+.movement-type button + button { border-left: 1px solid var(--line); }
+.movement-type button.active { color: var(--accent); background: var(--accent-soft); }
+.movement-type button.movement-type__income.active { color: var(--positive); background: var(--positive-soft); }
+.amount-field--income span, .amount-field--income input { color: var(--positive); }
+.family-account-note { border: 1px solid #b9c9b7; background: var(--positive-soft); border-radius: 7px; padding: 13px 15px; display: flex; align-items: center; gap: 13px; color: var(--positive); }
+.family-account-note > svg { width: 21px; }
+.family-account-note > span { display: grid; }
+.family-account-note strong { font-size: 12px; }
+.family-account-note small { color: var(--muted); font-size: 10px; }
+.detail-button { border: 0; background: transparent; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; cursor: pointer; }
+.detail-button svg { width: 15px; }
+.management-row { grid-template-columns: 52px 1fr auto auto; }
+.directory-grid article { position: relative; }
+.directory-grid article > .icon-button { margin-left: auto; }
+.directory-grid article > div { min-width: 0; }
+.directory-grid article > div strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-reports { display: grid; gap: 24px; }
+.tag-reports > section { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(230px, .7fr) 1.3fr; align-items: center; }
+.tag-report__heading { padding: 28px 24px 28px 0; display: grid; grid-template-columns: 48px 1fr; gap: 15px; align-items: center; }
+.tag-report__heading h2 { font-size: 24px; }
+.tag-report__heading p { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.tag-report__heading .detail-button { grid-column: 2; justify-self: start; margin-top: 6px; }
+.tag-reports .donut-section { border-left: 1px solid var(--line); }
+.transfer-form { display: grid; gap: 14px; }
+.transfer-form > .reimbursement-form__icon { margin: 0 auto 8px; }
+.transfer-form label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
+.transfer-form input, .transfer-form select, .reimbursement-form select { height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
+
 .modal-layer { position: fixed; inset: 0; z-index: 100; background: rgba(20,36,58,.44); display: flex; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(3px); animation: fade-in .18s ease; }
 .modal { width: min(460px, 100%); max-height: calc(100vh - 48px); overflow: auto; border-radius: 10px; background: #fff; box-shadow: var(--shadow); animation: modal-in .22s ease; }
 .modal--wide { width: min(720px, 100%); }
@@ -257,6 +338,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .directory-grid article:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--line); }
   .inline-form { grid-template-columns: 1fr; align-items: start; }
   .inline-form__actions { justify-content: flex-end; }
+  .movement-row { grid-template-columns: 40px minmax(150px, 1fr) 110px 95px 90px; }
+  .movement-row .movement-row__meta:nth-of-type(3), .movement-row .scope-label, .movement-row time { display: none; }
+  .shared-donuts { grid-template-columns: 1fr; }
+  .shared-donuts > section + section { border-left: 0; border-top: 1px solid var(--line); }
+  .tag-reports > section { grid-template-columns: 1fr; }
+  .tag-reports .donut-section { border-left: 0; border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 720px) {
@@ -280,6 +367,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .page-heading p { font-size: 11px; max-width: 250px; }
   .date-caption { display: none; }
   .desktop-action { display: none; }
+  .heading-actions { gap: 6px; }
+  .heading-actions .button { padding-inline: 12px; font-size: 11px; }
   .balance-zone { border-top: 0; }
   .balance-summary { padding: 26px 0 28px; grid-template-columns: 60px 1fr; column-gap: 15px; }
   .balance-summary__icon { width: 60px; height: 60px; }
@@ -304,6 +393,25 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .bottom-nav__item svg { width: 19px; }
   .bottom-nav__item--active { color: var(--accent); font-weight: 600; }
   .list-toolbar { align-items: stretch; flex-direction: column; }
+  .movement-toolbar { align-items: stretch; flex-direction: column; gap: 12px; padding-bottom: 14px; }
+  .movement-tabs { width: 100%; }
+  .month-field { align-self: flex-start; }
+  .donut-section { padding: 26px 0 30px; }
+  .donut-layout, .donut-section--compact .donut-layout { grid-template-columns: 1fr; justify-items: center; gap: 24px; }
+  .donut { width: 190px; height: 190px; }
+  .donut-legend { width: 100%; }
+  .donut-legend > div, .donut-section--compact .donut-legend > div { grid-template-columns: 9px 1fr 90px 35px; }
+  .donut-section--compact .donut-legend small { display: block; }
+  .donut-section--compact { padding-inline: 0; }
+  .movements-ledger .section-title-row { align-items: stretch; flex-direction: column; }
+  .movements-ledger .search-field { width: 100%; }
+  .movement-row, .movement-list--compact .movement-row { grid-template-columns: 38px 1fr auto; min-height: 70px; gap: 10px; }
+  .movement-row .movement-row__meta, .movement-row .scope-label, .movement-row time, .movement-row .row-actions { display: none !important; }
+  .movement-row__amount { grid-column: 3; }
+  .management-row { grid-template-columns: 46px 1fr auto; }
+  .management-row .detail-button { grid-column: 2; justify-self: start; }
+  .management-row__value { grid-column: 3; grid-row: 1; text-align: right; margin-top: 0; padding-bottom: 0; }
+  .tag-report__heading { padding-right: 0; }
   .tabs { overflow-x: auto; }
   .tabs button { flex: 1; }
   .search-field { width: 100%; }

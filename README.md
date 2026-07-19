@@ -1,18 +1,21 @@
 # Valar Morghulis
 
-Web app mobile-first per gestire spese personali e familiari, conti, categorie e beneficiari. Le spese condivise vengono divise al 50% e il saldo tra i membri si aggiorna automaticamente.
+Web app mobile-first per gestire entrate e spese personali e familiari, conti, categorie, beneficiari e tag. I movimenti condivisi vengono divisi al 50% e il saldo tra i membri si aggiorna automaticamente.
 
-![Dashboard di Valar Morghulis](docs/dashboard-desktop.png)
+![Spese ed Entrate di Valar Morghulis](docs/movements-desktop.png)
 
 **Demo online:** [siriusmac.github.io/valar-morghulis](https://siriusmac.github.io/valar-morghulis/)
 
 ## Funzioni della prima versione
 
 - accesso demo come Simone o Anna;
-- spese personali private e spese condivise visibili alla famiglia;
-- saldo automatico 50/50 e registrazione rimborsi;
-- gestione di conti, categorie e beneficiari;
-- modifica consentita solo all'autore della spesa;
+- entrate e spese personali private, oppure condivise con la famiglia;
+- grafici mensili per categoria su spese, entrate e movimenti condivisi;
+- saldo automatico 50/50, rimborsi e conti condivisi esclusi dal debito/credito;
+- conti personali e condivisi, contanti e giro fondi tra conti;
+- categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
+- bilancio e grafico delle spese per ogni tag;
+- modifica consentita solo all'autore del movimento;
 - dati demo salvati nel browser;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
 

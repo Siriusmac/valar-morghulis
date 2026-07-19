@@ -1,4 +1,4 @@
-import { ArrowRight, Landmark, ReceiptText, Scale, WalletCards } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, WalletCards } from 'lucide-react'
 import { accountBalance, sharedBalance } from '../lib/calculations'
 import { formatDate, formatMoney } from '../lib/format'
 import { users } from '../lib/seed'
@@ -14,9 +14,10 @@ interface Props {
 export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
   const balance = sharedBalance(data, user.id)
   const other = users.find((item) => item.id !== user.id)!
-  const shared = data.expenses.filter((item) => item.shared).toSorted((a, b) => b.date.localeCompare(a.date))
-  const ownAccounts = data.accounts.filter((item) => item.ownerId === user.id)
-  const monthlyTotal = shared.reduce((total, item) => total + item.amount, 0)
+  const sharedAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
+  const shared = data.movements.filter((item) => item.shared || sharedAccountIds.has(item.accountId)).toSorted((a, b) => b.date.localeCompare(a.date))
+  const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const monthlyTotal = shared.filter((item) => item.type === 'expense').reduce((total, item) => total + item.amount, 0)
   const bars = [18, 32, 24, 45, 68, 38, 82, 54, 92, 42, 31, 62, 35, 73, 47, 28, 56, 39]
 
   return (
@@ -46,19 +47,19 @@ export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
       </section>
 
       <section className="dashboard-section">
-        <div className="section-title-row"><div><h2>Ultime spese condivise</h2><p>Visibili a entrambi</p></div><button className="text-button" onClick={() => onNavigate('expenses')}>Vedi tutte <ArrowRight /></button></div>
+        <div className="section-title-row"><div><h2>Ultimi movimenti condivisi</h2><p>Entrate e spese visibili a entrambi</p></div><button className="text-button" onClick={() => onNavigate('movements')}>Vedi tutti <ArrowRight /></button></div>
         <div className="expense-list expense-list--dashboard">
-          {shared.slice(0, 4).map((expense) => {
-            const category = data.categories.find((item) => item.id === expense.categoryId)
-            const beneficiary = data.beneficiaries.find((item) => item.id === expense.beneficiaryId)
-            const payer = users.find((item) => item.id === expense.payerId)
+          {shared.slice(0, 4).map((movement) => {
+            const category = data.categories.find((item) => item.id === movement.categoryId)
+            const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
+            const member = users.find((item) => item.id === movement.memberId)
             return (
-              <article className="expense-row" key={expense.id}>
-                <span className="expense-row__icon" style={{ color: category?.color }}><ReceiptText /></span>
-                <div className="expense-row__name"><strong>{category?.name ?? expense.description}</strong><small>{beneficiary?.name ?? expense.description}</small></div>
-                <div className="expense-row__payer"><small>Pagato da</small><span>{payer?.name}</span></div>
-                <time>{formatDate(expense.date)}</time>
-                <strong className="expense-row__amount">{formatMoney(expense.amount)}</strong>
+              <article className="expense-row" key={movement.id}>
+                <span className="expense-row__icon" style={{ color: category?.color }}>{movement.type === 'income' ? <ArrowDownLeft /> : <ReceiptText />}</span>
+                <div className="expense-row__name"><strong>{movement.description}</strong><small>{category?.name} · {beneficiary?.name}</small></div>
+                <div className="expense-row__payer"><small>{movement.type === 'income' ? 'Ricevuto da' : 'Pagato da'}</small><span>{member?.name}</span></div>
+                <time>{formatDate(movement.date)}</time>
+                <strong className={`expense-row__amount ${movement.type === 'income' ? 'positive-text' : ''}`}>{movement.type === 'income' ? '+' : '−'}{formatMoney(movement.amount)}</strong>
               </article>
             )
           })}
@@ -66,7 +67,7 @@ export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
       </section>
 
       <section className="dashboard-section">
-        <div className="section-title-row"><div><h2>I tuoi conti</h2><p>Il saldo include le spese registrate</p></div><button className="text-button" onClick={() => onNavigate('accounts')}>Gestisci <ArrowRight /></button></div>
+        <div className="section-title-row"><div><h2>I tuoi conti</h2><p>Il saldo include tutti i movimenti</p></div><button className="text-button" onClick={() => onNavigate('accounts')}>Gestisci <ArrowRight /></button></div>
         <div className="account-rail">
           {ownAccounts.map((account) => (
             <article key={account.id}>

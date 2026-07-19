@@ -1,6 +1,6 @@
 import {
   Building2, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
-  ReceiptText, Tags, UsersRound, X,
+  ReceiptText, Tag, Tags, UsersRound, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Brand } from './Brand'
@@ -8,10 +8,11 @@ import type { PageId, User } from '../types'
 
 const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Bacheca', icon: LayoutDashboard },
-  { id: 'expenses', label: 'Spese', icon: ReceiptText },
+  { id: 'movements', label: 'Spese ed Entrate', icon: ReceiptText },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari', icon: Building2 },
+  { id: 'tags', label: 'Tag', icon: Tag },
 ]
 
 interface Props {
@@ -19,11 +20,11 @@ interface Props {
   page: PageId
   user: User
   onPageChange: (page: PageId) => void
-  onAddExpense: () => void
+  onAddMovement: () => void
   onLogout: () => void
 }
 
-export function AppShell({ children, page, user, onPageChange, onAddExpense, onLogout }: Props) {
+export function AppShell({ children, page, user, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const selectPage = (id: PageId) => {
     onPageChange(id)
@@ -57,10 +58,10 @@ export function AppShell({ children, page, user, onPageChange, onAddExpense, onL
         <header className="topbar">
           <button className="icon-button menu-button" onClick={() => setMenuOpen(true)} aria-label="Apri menu"><Menu /></button>
           <div className="mobile-brand"><Brand compact /></div>
-          <button className="button button--primary topbar__action" onClick={onAddExpense}><Plus /> <span>Aggiungi spesa</span></button>
+          <button className="button button--primary topbar__action" onClick={onAddMovement}><Plus /> <span>Aggiungi movimento</span></button>
         </header>
         {children}
-        <button className="fab" onClick={onAddExpense} aria-label="Aggiungi spesa"><Plus /></button>
+        <button className="fab" onClick={onAddMovement} aria-label="Aggiungi movimento"><Plus /></button>
         <nav className="bottom-nav" aria-label="Navigazione mobile">
           {items.slice(0, 4).map(({ id, label, icon: Icon }) => (
             <button key={id} className={page === id ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'} onClick={() => selectPage(id)}>

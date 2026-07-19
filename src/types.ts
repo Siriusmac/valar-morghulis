@@ -1,5 +1,7 @@
 export type UserId = 'simone' | 'anna'
-export type PageId = 'dashboard' | 'expenses' | 'accounts' | 'categories' | 'beneficiaries'
+export type PageId = 'dashboard' | 'movements' | 'accounts' | 'categories' | 'beneficiaries' | 'tags'
+export type MovementType = 'expense' | 'income'
+export type Scope = 'family' | 'personal'
 
 export interface User {
   id: UserId
@@ -10,40 +12,62 @@ export interface User {
 
 export interface Account {
   id: string
-  ownerId: UserId
+  ownerId?: UserId
   name: string
   institution: string
   type: 'bank' | 'credit' | 'cash'
+  scope: Scope
   openingBalance: number
 }
 
 export interface Category {
   id: string
   name: string
-  scope: 'family' | 'personal'
+  scope: Scope
   ownerId?: UserId
+  movementType: MovementType
   color: string
 }
 
 export interface Beneficiary {
   id: string
   name: string
-  scope: 'family' | 'personal'
+  scope: Scope
   ownerId?: UserId
 }
 
-export interface Expense {
+export interface Tag {
   id: string
+  name: string
+  scope: Scope
+  ownerId?: UserId
+  color: string
+}
+
+export interface Movement {
+  id: string
+  type: MovementType
   authorId: UserId
-  payerId: UserId
+  memberId: UserId
   amount: number
   date: string
   description: string
   categoryId: string
   beneficiaryId: string
   accountId: string
+  tagId?: string
   shared: boolean
   createdAt: string
+}
+
+export interface Transfer {
+  id: string
+  authorId: UserId
+  fromAccountId: string
+  toAccountId: string
+  amount: number
+  date: string
+  description: string
 }
 
 export interface Reimbursement {
@@ -53,13 +77,17 @@ export interface Reimbursement {
   amount: number
   date: string
   authorId: UserId
+  fromAccountId: string
+  toAccountId?: string
 }
 
 export interface AppData {
-  version: 1
+  version: 2
   accounts: Account[]
   categories: Category[]
   beneficiaries: Beneficiary[]
-  expenses: Expense[]
+  tags: Tag[]
+  movements: Movement[]
+  transfers: Transfer[]
   reimbursements: Reimbursement[]
 }
