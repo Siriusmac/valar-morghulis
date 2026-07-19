@@ -4,6 +4,8 @@ Web app mobile-first per gestire spese personali e familiari, conti, categorie e
 
 ![Dashboard di Valar Morghulis](docs/dashboard-desktop.png)
 
+**Demo online:** [siriusmac.github.io/valar-morghulis](https://siriusmac.github.io/valar-morghulis/)
+
 ## Funzioni della prima versione
 
 - accesso demo come Simone o Anna;
