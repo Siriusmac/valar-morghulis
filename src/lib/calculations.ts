@@ -6,7 +6,7 @@ export function sharedBalance(data: AppData, userId: UserId) {
     if (!movement.shared) continue
     const account = data.accounts.find((item) => item.id === movement.accountId)
     if (account?.scope === 'family') continue
-    const half = movement.amount / 2
+    const half = (movement.sharedSettlementAmount ?? movement.amount) / 2
     const direction = movement.type === 'expense' ? 1 : -1
     net += movement.memberId === userId ? half * direction : -half * direction
   }

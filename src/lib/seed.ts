@@ -6,13 +6,15 @@ export const users: User[] = [
 ]
 
 export const defaultData: AppData = {
-  version: 2,
+  version: 3,
   accounts: [
     { id: 'simone-bank', ownerId: 'simone', name: 'Conto corrente', institution: 'Intesa Sanpaolo', type: 'bank', scope: 'personal', openingBalance: 2450 },
     { id: 'simone-card', ownerId: 'simone', name: 'Carta di credito', institution: 'Visa •••• 1234', type: 'credit', scope: 'personal', openingBalance: 0 },
     { id: 'simone-cash', ownerId: 'simone', name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 180 },
+    { id: 'simone-paypal', ownerId: 'simone', name: 'PayPal', institution: 'Conto PayPal personale', type: 'paypal', scope: 'personal', openingBalance: 0 },
     { id: 'anna-bank', ownerId: 'anna', name: 'Conto corrente', institution: 'Banca personale', type: 'bank', scope: 'personal', openingBalance: 2160 },
     { id: 'anna-cash', ownerId: 'anna', name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 90 },
+    { id: 'anna-paypal', ownerId: 'anna', name: 'PayPal', institution: 'Conto PayPal personale', type: 'paypal', scope: 'personal', openingBalance: 0 },
     { id: 'family-bank', name: 'Conto di famiglia', institution: 'Cointestato', type: 'bank', scope: 'family', openingBalance: 3200 },
   ],
   categories: [
@@ -38,11 +40,13 @@ export const defaultData: AppData = {
     { id: 'octopus-energy', name: 'Octopus Energy', scope: 'family' },
     { id: 'datore-lavoro', name: 'Datore di lavoro', scope: 'family' },
     { id: 'hotel-paris', name: 'Hôtel Paris Centre', scope: 'family' },
+    { id: 'amazon', name: 'Amazon', scope: 'family' },
   ],
   tags: [
     { id: 'vacanza-parigi', name: 'Vacanza a Parigi', scope: 'family', color: '#c64e2f' },
     { id: 'casa-2026', name: 'Casa 2026', scope: 'family', color: '#617c69' },
   ],
+  tagReportIds: ['vacanza-parigi', 'casa-2026'],
   movements: [
     { id: 'seed-1', type: 'expense', authorId: 'simone', memberId: 'simone', amount: 30, date: '2026-07-16', description: 'Spesa settimanale', categoryId: 'alimentari', beneficiaryId: 'lidl', accountId: 'simone-bank', shared: true, createdAt: '2026-07-16T18:30:00.000Z' },
     { id: 'seed-2', type: 'expense', authorId: 'anna', memberId: 'anna', amount: 50, date: '2026-07-17', description: 'Spesa per casa', categoryId: 'alimentari', beneficiaryId: 'eurospar', accountId: 'anna-bank', shared: true, createdAt: '2026-07-17T17:00:00.000Z' },
@@ -51,6 +55,11 @@ export const defaultData: AppData = {
     { id: 'seed-5', type: 'expense', authorId: 'simone', memberId: 'simone', amount: 180, date: '2026-07-08', description: 'Hotel Parigi', categoryId: 'accessori-casa', beneficiaryId: 'hotel-paris', accountId: 'simone-card', shared: false, tagId: 'vacanza-parigi', createdAt: '2026-07-08T10:00:00.000Z' },
     { id: 'seed-6', type: 'expense', authorId: 'anna', memberId: 'anna', amount: 64, date: '2026-07-09', description: 'Cena a Parigi', categoryId: 'ristorante', beneficiaryId: 'hotel-paris', accountId: 'anna-bank', shared: true, tagId: 'vacanza-parigi', createdAt: '2026-07-09T20:00:00.000Z' },
     { id: 'seed-7', type: 'income', authorId: 'anna', memberId: 'anna', amount: 400, date: '2026-07-05', description: 'Assegno familiare', categoryId: 'assegni-previdenziali', beneficiaryId: 'datore-lavoro', accountId: 'family-bank', shared: true, createdAt: '2026-07-05T09:00:00.000Z' },
+    { id: 'seed-installment-1', type: 'expense', authorId: 'simone', memberId: 'simone', amount: 40, date: '2026-07-12', description: 'Accessori casa · rata 1/3', categoryId: 'accessori-casa', beneficiaryId: 'amazon', accountId: 'simone-card', shared: false, installmentPlanId: 'seed-plan', installmentProvider: 'Amazon', installmentNumber: 1, installmentCount: 3, createdAt: '2026-07-12T10:00:00.000Z' },
+  ],
+  scheduledPayments: [
+    { id: 'seed-payment-2', planId: 'seed-plan', authorId: 'simone', memberId: 'simone', amount: 40, dueDate: '2026-08-12', description: 'Accessori casa', categoryId: 'accessori-casa', beneficiaryId: 'amazon', accountId: 'simone-card', shared: false, provider: 'Amazon', installmentNumber: 2, installmentCount: 3, status: 'scheduled' },
+    { id: 'seed-payment-3', planId: 'seed-plan', authorId: 'simone', memberId: 'simone', amount: 40, dueDate: '2026-09-12', description: 'Accessori casa', categoryId: 'accessori-casa', beneficiaryId: 'amazon', accountId: 'simone-card', shared: false, provider: 'Amazon', installmentNumber: 3, installmentCount: 3, status: 'scheduled' },
   ],
   transfers: [],
   reimbursements: [],

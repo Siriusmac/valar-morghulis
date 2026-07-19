@@ -29,7 +29,7 @@ export function MovementsPage({ data, user, onEdit, onDelete }: Props) {
       const category = data.categories.find((entry) => entry.id === item.categoryId)?.name ?? ''
       const beneficiary = data.beneficiaries.find((entry) => entry.id === item.beneficiaryId)?.name ?? ''
       const tag = data.tags.find((entry) => entry.id === item.tagId)?.name ?? ''
-      return `${item.description} ${category} ${beneficiary} ${tag}`.toLowerCase().includes(deferredQuery)
+      return `${item.description} ${item.comments ?? ''} ${category} ${beneficiary} ${tag}`.toLowerCase().includes(deferredQuery)
     }).toSorted((a, b) => b.date.localeCompare(a.date))
 
   return <div className="page movements-page">

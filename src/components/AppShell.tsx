@@ -1,5 +1,5 @@
 import {
-  Building2, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
+  Building2, CalendarClock, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
   ReceiptText, Tag, Tags, UsersRound, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -9,6 +9,7 @@ import type { PageId, User } from '../types'
 const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Bacheca', icon: LayoutDashboard },
   { id: 'movements', label: 'Spese ed Entrate', icon: ReceiptText },
+  { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari', icon: Building2 },
@@ -63,7 +64,7 @@ export function AppShell({ children, page, user, onPageChange, onAddMovement, on
         {children}
         <button className="fab" onClick={onAddMovement} aria-label="Aggiungi movimento"><Plus /></button>
         <nav className="bottom-nav" aria-label="Navigazione mobile">
-          {items.slice(0, 4).map(({ id, label, icon: Icon }) => (
+          {items.filter((item) => ['dashboard', 'movements', 'accounts', 'categories'].includes(item.id)).map(({ id, label, icon: Icon }) => (
             <button key={id} className={page === id ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'} onClick={() => selectPage(id)}>
               <Icon /><span>{label}</span>
             </button>

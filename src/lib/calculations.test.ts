@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
 import { accountBalance, sharedBalance } from './calculations'
+import { addMonthsISO, splitAmount } from './format'
+import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
 
 const expense = (id: string, memberId: 'simone' | 'anna', amount: number, accountId: string): Movement => ({
@@ -38,6 +40,36 @@ describe('sharedBalance', () => {
     data.reimbursements = [{ id: 'r1', fromId: 'simone', toId: 'anna', amount: 10, date: '2026-07-18', authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-bank' }]
     expect(sharedBalance(data, 'simone')).toBe(0)
     expect(sharedBalance(data, 'anna')).toBe(0)
+  })
+
+  it('settles a shared installment purchase immediately, without counting later installments twice', () => {
+    const data = cleanData()
+    data.movements = [
+      { ...expense('first', 'simone', 40, 'simone-card'), sharedSettlementAmount: 120, installmentPlanId: 'plan' },
+      { ...expense('second', 'simone', 40, 'simone-card'), sharedSettlementAmount: 0, installmentPlanId: 'plan' },
+    ]
+    expect(sharedBalance(data, 'simone')).toBe(60)
+    expect(sharedBalance(data, 'anna')).toBe(-60)
+  })
+})
+
+describe('scheduled installments', () => {
+  it('splits cents exactly and keeps the day where the next month allows it', () => {
+    expect(splitAmount(100, 3)).toEqual([33.33, 33.33, 33.34])
+    expect(addMonthsISO('2026-01-31', 1)).toBe('2026-02-28')
+    expect(addMonthsISO('2026-01-31', 2)).toBe('2026-03-31')
+  })
+
+  it('posts only installments whose due date has arrived', () => {
+    const data = cleanData()
+    data.scheduledPayments = [
+      { id: 'due', planId: 'plan', authorId: 'simone', memberId: 'simone', amount: 20, dueDate: '2026-07-18', description: 'Acquisto', categoryId: 'alimentari', beneficiaryId: 'amazon', accountId: 'simone-card', shared: false, installmentNumber: 2, installmentCount: 3, status: 'scheduled' },
+      { id: 'future', planId: 'plan', authorId: 'simone', memberId: 'simone', amount: 20, dueDate: '2026-08-18', description: 'Acquisto', categoryId: 'alimentari', beneficiaryId: 'amazon', accountId: 'simone-card', shared: false, installmentNumber: 3, installmentCount: 3, status: 'scheduled' },
+    ]
+    const updated = materializeDuePayments(data, '2026-07-18')
+    expect(updated.movements).toHaveLength(1)
+    expect(updated.movements[0].amount).toBe(20)
+    expect(updated.scheduledPayments.map((item) => item.status)).toEqual(['paid', 'scheduled'])
   })
 })
 

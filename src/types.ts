@@ -1,5 +1,5 @@
 export type UserId = 'simone' | 'anna'
-export type PageId = 'dashboard' | 'movements' | 'accounts' | 'categories' | 'beneficiaries' | 'tags'
+export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
 
@@ -15,7 +15,7 @@ export interface Account {
   ownerId?: UserId
   name: string
   institution: string
-  type: 'bank' | 'credit' | 'cash'
+  type: 'bank' | 'credit' | 'cash' | 'paypal'
   scope: Scope
   openingBalance: number
 }
@@ -56,8 +56,35 @@ export interface Movement {
   beneficiaryId: string
   accountId: string
   tagId?: string
+  comments?: string
   shared: boolean
+  installmentPlanId?: string
+  installmentProvider?: string
+  installmentNumber?: number
+  installmentCount?: number
+  sharedSettlementAmount?: number
   createdAt: string
+}
+
+export interface ScheduledPayment {
+  id: string
+  planId: string
+  authorId: UserId
+  memberId: UserId
+  amount: number
+  dueDate: string
+  description: string
+  categoryId: string
+  beneficiaryId: string
+  accountId: string
+  tagId?: string
+  comments?: string
+  shared: boolean
+  provider?: string
+  installmentNumber: number
+  installmentCount: number
+  status: 'scheduled' | 'paid'
+  paidMovementId?: string
 }
 
 export interface Transfer {
@@ -82,12 +109,14 @@ export interface Reimbursement {
 }
 
 export interface AppData {
-  version: 2
+  version: 3
   accounts: Account[]
   categories: Category[]
   beneficiaries: Beneficiary[]
   tags: Tag[]
+  tagReportIds: string[]
   movements: Movement[]
+  scheduledPayments: ScheduledPayment[]
   transfers: Transfer[]
   reimbursements: Reimbursement[]
 }

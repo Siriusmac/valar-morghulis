@@ -16,8 +16,13 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - saldo automatico 50/50 e conti condivisi esclusi dal debito/credito;
 - rimborsi registrati indicando il conto di origine del debitore e quello di destinazione del creditore;
 - conti personali e condivisi, contanti e giro fondi tra conti;
+- PayPal come conto personale;
 - categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
+- nomi delle categorie modificabili e commenti facoltativi sui movimenti;
 - bilancio e grafico delle spese per ogni tag;
+- righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
+- spese in 3 o 5 rate con prima rata immediata e pagamenti successivi programmati;
+- saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - modifica consentita solo all'autore del movimento;
 - dati demo salvati nel browser;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
@@ -30,7 +35,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 | Simone | `simone@valarmorghulis.demo` | `demo1234` |
 | Anna | `anna@valarmorghulis.demo` | `demo1234` |
 
-I dati sono salvati nel browser tramite `localStorage`. Questa modalità è adatta alla demo, non alla gestione reale di dati finanziari.
+I dati sono salvati nel browser tramite `localStorage` con migrazione automatica tra le versioni. Questa modalità è adatta alla demo, non alla gestione reale di dati finanziari.
 
 ## Avvio locale
 

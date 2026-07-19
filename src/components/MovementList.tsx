@@ -22,7 +22,7 @@ export function MovementList({ data, movements, user, onEdit, onDelete, compact 
       const canEdit = user?.id === movement.authorId
       return <article className="movement-row" key={movement.id}>
         <span className={`movement-row__icon movement-row__icon--${movement.type}`}>{movement.type === 'income' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
-        <div className="movement-row__name"><strong>{movement.description}</strong><small>{beneficiary?.name}{tag ? ` · #${tag.name}` : ''}</small></div>
+        <div className="movement-row__name"><strong>{movement.description}</strong><small>{beneficiary?.name}{tag ? ` · #${tag.name}` : ''}{movement.comments ? ` · ${movement.comments}` : ''}</small></div>
         <div className="movement-row__meta"><small>Categoria</small><span><i style={{ background: category?.color }} />{category?.name}</span></div>
         <div className="movement-row__meta"><small>Conto</small><span>{account?.name}</span></div>
         <span className={`scope-label ${movement.shared || account?.scope === 'family' ? 'scope-label--shared' : ''}`}>{movement.shared || account?.scope === 'family' ? <Share2 /> : <LockKeyhole />}{movement.shared || account?.scope === 'family' ? 'Condiviso' : 'Personale'}</span>

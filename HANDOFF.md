@@ -4,7 +4,7 @@ Aggiornato il 19 luglio 2026.
 
 ## Stato del prodotto
 
-L’MVP è una web app React + Vite mobile-first in italiano. Funziona interamente nel browser e include due utenti demo, Simone e Anna. I dati sono persistiti in `localStorage` con chiave `valar-morghulis:v2`; `src/lib/storage.ts` migra anche i dati della prima versione.
+L’MVP è una web app React + Vite mobile-first in italiano. Funziona interamente nel browser e include due utenti demo, Simone e Anna. I dati sono persistiti in `localStorage` con chiave `valar-morghulis:v3`; `src/lib/storage.ts` migra anche i dati delle versioni precedenti.
 
 Funzioni disponibili:
 
@@ -13,7 +13,11 @@ Funzioni disponibili:
 - esclusione dal saldo dei movimenti effettuati con un conto condiviso;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
 - categorie, beneficiari e tag creabili durante l’uso;
+- modifica del nome delle categorie e commenti sui movimenti;
 - grafici mensili per categoria e bilancio per tag;
+- righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
+- PayPal come conto personale;
+- rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi con conto di origine del debitore e conto di destinazione del creditore obbligatori;
 - modifica dei movimenti riservata all’autore;
 - logo, favicon, Apple touch icon e manifest installabile.
@@ -24,6 +28,9 @@ Funzioni disponibili:
 - Ripartizione delle spese e delle entrate condivise al 50/50.
 - I movimenti personali sono visibili soltanto al proprietario; quelli condivisi sono visibili alla famiglia.
 - Un movimento su conto condiviso è visibile a entrambi ma non genera debito o credito.
+- Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
+- Una spesa familiare rateizzata regola subito l’intero debito/credito 50/50; le rate successive non lo modificano di nuovo.
+- Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 
 ## Struttura tecnica
@@ -31,6 +38,7 @@ Funzioni disponibili:
 - `src/App.tsx`: composizione, modali, salvataggi e rimborso.
 - `src/features/`: dashboard, movimenti, anagrafiche e giro fondi.
 - `src/lib/calculations.ts`: saldo condiviso, saldi dei conti e aggregazioni.
+- `src/lib/scheduled.ts`: trasformazione delle rate scadute in movimenti effettivi.
 - `src/lib/storage.ts`: persistenza e migrazione dei dati demo.
 - `src/lib/seed.ts`: utenti e dati iniziali.
 - `src/types.ts`: modello dati condiviso.
@@ -45,7 +53,9 @@ pnpm run build
 pnpm dev
 ```
 
-Accesso rapido: `?demo=simone` oppure `?demo=anna`. Per aprire direttamente una sezione si può aggiungere `&page=movements`, `accounts`, `categories`, `beneficiaries` o `tags`.
+Accesso rapido: `?demo=simone` oppure `?demo=anna`. Per aprire direttamente una sezione si può aggiungere `&page=movements`, `scheduled`, `accounts`, `categories`, `beneficiaries` o `tags`.
+
+Ultima verifica completata il 19 luglio 2026: 9 test automatici superati e build di produzione riuscita.
 
 ## Limiti dell’MVP e prossimi passi
 

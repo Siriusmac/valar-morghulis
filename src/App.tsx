@@ -8,12 +8,13 @@ import { Dashboard } from './features/Dashboard'
 import { MovementForm } from './features/MovementForm'
 import { MovementsPage } from './features/MovementsPage'
 import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './features/ManagementPages'
+import { ScheduledPaymentsPage } from './features/ScheduledPaymentsPage'
 import { TransferForm } from './features/TransferForm'
 import { sharedBalance, visibleMovements } from './lib/calculations'
 import { formatMoney, makeId, todayISO } from './lib/format'
 import { users } from './lib/seed'
 import { loadData, saveData } from './lib/storage'
-import type { AppData, Beneficiary, Category, Movement, PageId, Tag, Transfer, UserId } from './types'
+import type { AppData, Beneficiary, Category, Movement, PageId, ScheduledPayment, Tag, Transfer, UserId } from './types'
 
 type ModalState =
   | { type: 'movement'; movement?: Movement }
@@ -31,7 +32,7 @@ export default function App() {
   })
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'accounts', 'categories', 'beneficiaries', 'tags'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
@@ -43,11 +44,12 @@ export default function App() {
   const logout = () => { sessionStorage.removeItem('vm:user'); setUserId(null); setPage('dashboard') }
   if (!user) return <Login onLogin={login} />
 
-  const saveMovement = (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag }) => {
+  const saveMovement = (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => {
     setData((current) => ({ ...current,
       categories: additions.category ? [...current.categories, additions.category] : current.categories,
       beneficiaries: additions.beneficiary ? [...current.beneficiaries, additions.beneficiary] : current.beneficiaries,
       tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
+      scheduledPayments: additions.scheduledPayments?.length ? [...current.scheduledPayments, ...additions.scheduledPayments] : current.scheduledPayments,
       movements: current.movements.some((item) => item.id === movement.id) ? current.movements.map((item) => item.id === movement.id ? movement : item) : [movement, ...current.movements],
     }))
     setModal(null); setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
@@ -63,10 +65,11 @@ export default function App() {
   const common = { data, user, onShowMovements: showMovements }
   const content = page === 'dashboard' ? <Dashboard data={data} user={user} onNavigate={setPage} onReimburse={() => setModal({ type: 'reimburse' })} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={(id) => setData((current) => ({ ...current, movements: current.movements.filter((item) => item.id !== id) }))} />
+    : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} />
     : page === 'accounts' ? <AccountsPage {...common} onTransfer={() => setModal({ type: 'transfer' })} onAdd={(account) => setData((current) => ({ ...current, accounts: [...current.accounts, account] }))} />
-    : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} />
+    : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
     : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAdd={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} />
-    : <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} />
+    : <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
   return <>
