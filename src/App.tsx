@@ -52,7 +52,7 @@ export default function App() {
     }))
     setModal(null); setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
   }
-  const registerReimbursement = (amount: number, fromAccountId: string, toAccountId?: string) => {
+  const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string) => {
     const balance = sharedBalance(data, user.id); const otherId: UserId = user.id === 'simone' ? 'anna' : 'simone'; const fromId = balance < 0 ? user.id : otherId; const toId = balance < 0 ? otherId : user.id
     setData((current) => ({ ...current, reimbursements: [...current.reimbursements, { id: makeId('reimbursement'), fromId, toId, amount, date: todayISO(), authorId: user.id, fromAccountId, toAccountId }] }))
     setModal(null); setToast('Rimborso registrato')
@@ -79,10 +79,30 @@ export default function App() {
   </>
 }
 
-function ReimbursementForm({ data, userId, onSubmit, onCancel }: { data: AppData; userId: UserId; onSubmit: (amount: number, fromAccountId: string, toAccountId?: string) => void; onCancel: () => void }) {
-  const balance = sharedBalance(data, userId); const other = users.find((item) => item.id !== userId)!; const debtorId = balance < 0 ? userId : other.id; const creditorId = balance < 0 ? other.id : userId
-  const debtorAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === debtorId); const creditorAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === creditorId)
-  const [amount, setAmount] = useState(Math.abs(balance).toFixed(2).replace('.', ',')); const [fromAccountId, setFromAccountId] = useState(debtorAccounts[0]?.id ?? ''); const [toAccountId, setToAccountId] = useState(creditorAccounts[0]?.id ?? '')
+function ReimbursementForm({ data, userId, onSubmit, onCancel }: { data: AppData; userId: UserId; onSubmit: (amount: number, fromAccountId: string, toAccountId: string) => void; onCancel: () => void }) {
+  const balance = sharedBalance(data, userId)
+  const other = users.find((item) => item.id !== userId)!
+  const debtorId = balance < 0 ? userId : other.id
+  const creditorId = balance < 0 ? other.id : userId
+  const debtorAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === debtorId)
+  const creditorAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === creditorId)
+  const [amount, setAmount] = useState(Math.abs(balance).toFixed(2).replace('.', ','))
+  const [fromAccountId, setFromAccountId] = useState(debtorAccounts[0]?.id ?? '')
+  const [toAccountId, setToAccountId] = useState(creditorAccounts[0]?.id ?? '')
   const label = balance < 0 ? `Tu rimborsi ${other.name}` : `${other.name} rimborsa te`
-  return <form className="reimbursement-form" onSubmit={(event) => { event.preventDefault(); const value = Number(amount.replace(',', '.')); if (value > 0 && fromAccountId) onSubmit(value, fromAccountId, toAccountId || undefined) }}><span className="reimbursement-form__icon"><Scale /></span><p>{label}</p><strong>Saldo attuale: {formatMoney(Math.abs(balance))}</strong><label>Importo del rimborso<div className="money-input"><span>€</span><input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} autoFocus /></div></label><label>Conto del debitore<select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)}>{debtorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.institution}</option>)}</select></label><label>Conto di destinazione<select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>{creditorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>{balance > 0 ? <small>Stai registrando il rimborso come creditore: indica da quale conto di {other.name} sono stati prelevati i fondi.</small> : <small>Il pagamento non viene eseguito dall’app: viene registrata soltanto la compensazione.</small>}<div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">Registra rimborso <ArrowRight /></button></div></form>
+  const canSubmit = Boolean(fromAccountId && toAccountId)
+  return <form className="reimbursement-form" onSubmit={(event) => {
+    event.preventDefault()
+    const value = Number(amount.replace(',', '.'))
+    if (value > 0 && canSubmit) onSubmit(value, fromAccountId, toAccountId)
+  }}>
+    <span className="reimbursement-form__icon"><Scale /></span>
+    <p>{label}</p>
+    <strong>Saldo attuale: {formatMoney(Math.abs(balance))}</strong>
+    <label>Importo del rimborso<div className="money-input"><span>€</span><input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} autoFocus required /></div></label>
+    <label>Conto di origine del debitore<select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} required>{debtorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.institution}</option>)}</select></label>
+    <label>Conto di destinazione del creditore<select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} required>{creditorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.institution}</option>)}</select></label>
+    {balance > 0 ? <small>Stai registrando il rimborso come creditore: specifica sia il conto di origine di {other.name}, sia il tuo conto di destinazione.</small> : <small>Specifica il tuo conto di origine e il conto di destinazione di {other.name}. Il pagamento non viene eseguito dall’app: viene registrata soltanto la compensazione.</small>}
+    <div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit" disabled={!canSubmit}>Registra rimborso <ArrowRight /></button></div>
+  </form>
 }

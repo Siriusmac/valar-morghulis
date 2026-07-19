@@ -1,5 +1,5 @@
 import { defaultData } from './seed'
-import type { AppData, UserId } from '../types'
+import type { AppData, Reimbursement, UserId } from '../types'
 
 const STORAGE_KEY = 'valar-morghulis:v2'
 const LEGACY_KEY = 'valar-morghulis:v1'
@@ -23,7 +23,7 @@ interface LegacyData {
   categories?: Array<Omit<AppData['categories'][number], 'movementType'> & { movementType?: 'expense' | 'income' }>
   beneficiaries?: AppData['beneficiaries']
   expenses?: LegacyExpense[]
-  reimbursements?: Array<Omit<AppData['reimbursements'][number], 'fromAccountId'> & { fromAccountId?: string }>
+  reimbursements?: Array<Omit<Reimbursement, 'fromAccountId' | 'toAccountId'> & { fromAccountId?: string; toAccountId?: string }>
 }
 
 export function loadData(): AppData {
@@ -49,16 +49,22 @@ function mergeMissingById<T extends { id: string }>(current: T[] | undefined, de
 
 function normalizeData(data: AppData): AppData {
   const base = structuredClone(defaultData)
+  const accounts = mergeMissingById(data.accounts, base.accounts)
+  const fallbackAccount = (userId: UserId) => accounts.find((item) => item.scope === 'personal' && item.ownerId === userId)?.id ?? ''
   return {
     ...data,
     version: 2,
-    accounts: mergeMissingById(data.accounts, base.accounts),
+    accounts,
     categories: mergeMissingById(data.categories, base.categories),
     beneficiaries: mergeMissingById(data.beneficiaries, base.beneficiaries),
     tags: mergeMissingById(data.tags, base.tags),
     movements: data.movements ?? [],
     transfers: data.transfers ?? [],
-    reimbursements: data.reimbursements ?? [],
+    reimbursements: (data.reimbursements ?? []).map((item) => ({
+      ...item,
+      fromAccountId: item.fromAccountId || fallbackAccount(item.fromId),
+      toAccountId: item.toAccountId || fallbackAccount(item.toId),
+    })),
   }
 }
 
@@ -74,7 +80,11 @@ function migrateLegacy(legacy: LegacyData): AppData {
     tags: base.tags,
     movements: legacy.expenses?.map((item) => ({ ...item, type: 'expense' as const, memberId: item.payerId, payerId: undefined })).map(({ payerId: _payerId, ...item }) => item) ?? base.movements,
     transfers: [],
-    reimbursements: legacy.reimbursements?.map((item) => ({ ...item, fromAccountId: item.fromAccountId ?? fallbackAccount(item.fromId) })) ?? [],
+    reimbursements: legacy.reimbursements?.map((item) => ({
+      ...item,
+      fromAccountId: item.fromAccountId ?? fallbackAccount(item.fromId),
+      toAccountId: item.toAccountId ?? fallbackAccount(item.toId),
+    })) ?? [],
   }
 }
 

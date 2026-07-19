@@ -50,4 +50,11 @@ describe('accountBalance', () => {
     data.reimbursements = [{ id: 'r', fromId: 'simone', toId: 'anna', amount: 10, date: '2026-07-18', authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-bank' }]
     expect(accountBalance(data, 'simone-bank')).toBe(base - 100 + 250 - 50 - 10)
   })
+
+  it('credits a reimbursement to the selected destination account', () => {
+    const data = cleanData()
+    const base = data.accounts.find((item) => item.id === 'anna-cash')!.openingBalance
+    data.reimbursements = [{ id: 'r', fromId: 'simone', toId: 'anna', amount: 25, date: '2026-07-18', authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-cash' }]
+    expect(accountBalance(data, 'anna-cash')).toBe(base + 25)
+  })
 })

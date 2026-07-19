@@ -44,12 +44,9 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .text-button:hover svg { transform: translateX(3px); }
 
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand__mark { position: relative; width: 50px; height: 56px; color: var(--accent); font: 500 42px/1 'Newsreader', Georgia, serif; display: block; }
-.brand__mark i { position: absolute; font-style: normal; }
-.brand__mark i:first-child { left: 0; top: 0; }
-.brand__mark i:last-child { left: 17px; top: 11px; }
+.brand__mark { width: 54px; height: 54px; display: block; object-fit: cover; border-radius: 50%; }
 .brand__name { font: 600 17px/1.05 'Newsreader', Georgia, serif; letter-spacing: -.2px; }
-.brand--compact .brand__mark { transform: scale(.67); transform-origin: left center; width: 36px; }
+.brand--compact .brand__mark { width: 40px; height: 40px; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 230px minmax(0, 1fr); background: #fbfaf8; }
 .sidebar { position: fixed; inset: 0 auto 0 0; width: 230px; border-right: 1px solid var(--line); background: rgba(255,255,255,.85); display: flex; flex-direction: column; z-index: 30; }
@@ -291,7 +288,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .login-story { padding: clamp(38px, 6vw, 90px); background: var(--ink); color: white; display: flex; flex-direction: column; justify-content: space-between; min-height: 100vh; position: relative; overflow: hidden; }
 .login-story::after { content: ''; position: absolute; width: 42vw; height: 42vw; border: 1px solid rgba(255,255,255,.08); border-radius: 50%; right: -18vw; bottom: -12vw; box-shadow: 0 0 0 5vw rgba(255,255,255,.018), 0 0 0 12vw rgba(255,255,255,.012); }
 .login-story .brand { position: relative; z-index: 1; }
-.login-story .brand__mark { color: #df7455; }
+.login-story .brand__mark { box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
 .login-story .brand__name { font-size: 20px; }
 .login-story h1 { font-size: clamp(48px, 5vw, 77px); line-height: .98; max-width: 700px; letter-spacing: -2px; position: relative; z-index: 1; }
 .login-story p { max-width: 520px; font-size: 16px; line-height: 1.65; color: #c7cdd5; margin-top: 26px; position: relative; z-index: 1; }

@@ -78,7 +78,7 @@ export interface Reimbursement {
   date: string
   authorId: UserId
   fromAccountId: string
-  toAccountId?: string
+  toAccountId: string
 }
 
 export interface AppData {

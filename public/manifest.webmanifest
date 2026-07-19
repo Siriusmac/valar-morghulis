@@ -1,0 +1,24 @@
+{
+  "name": "Valar Morghulis",
+  "short_name": "Valar",
+  "description": "Gestione delle entrate e delle spese personali e familiari.",
+  "lang": "it",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#4f7554",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
