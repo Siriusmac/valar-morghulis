@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cloudflare:check": "pnpm run build && wrangler deploy --dry-run",
+    "cloudflare:deploy": "pnpm run build && wrangler deploy"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -29,7 +31,8 @@
     "jsdom": "latest",
     "typescript": "latest",
     "typescript-eslint": "latest",
-    "vitest": "latest"
+    "vitest": "latest",
+    "wrangler": "^4.113.0"
   },
   "packageManager": "pnpm@10.14.0"
 }

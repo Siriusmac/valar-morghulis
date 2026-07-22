@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 19 luglio 2026.
+Aggiornato il 22 luglio 2026.
 
 ## Stato del prodotto
 
@@ -70,3 +70,14 @@ Prima di commercializzare il prodotto servono:
 7. API stabile riutilizzabile dalle future app native iOS e macOS.
 
 La pubblicazione GitHub Pages è configurata in `.github/workflows/deploy.yml`. Verificare sempre l’esito dell’azione dopo un push su `main`.
+
+## Hosting Cloudflare
+
+Il progetto è configurato anche per Cloudflare Workers Static Assets tramite
+`wrangler.jsonc`. `pnpm cloudflare:check` esegue build e simulazione del deploy;
+`pnpm cloudflare:deploy` pubblica la SPA. Questa distribuzione resta una demo
+client-side: ogni browser ha dati separati in `localStorage`, senza backend o
+autenticazione reale.
+
+Produzione demo: `https://valar-morghulis.siriusmac.workers.dev/`.
+Versione Cloudflare verificata il 22 luglio 2026: `a73f9f49-e295-414d-a549-d5b6e7f9e2b1`.

@@ -44,6 +44,23 @@ pnpm install
 pnpm dev
 ```
 
+## Deploy su Cloudflare
+
+La demo è configurata come SPA statica su Cloudflare Workers. Dopo aver effettuato
+l'accesso a Cloudflare con Wrangler:
+
+```bash
+pnpm cloudflare:check
+pnpm cloudflare:deploy
+```
+
+Demo pubblica: [valar-morghulis.siriusmac.workers.dev](https://valar-morghulis.siriusmac.workers.dev/)
+
+Il deploy pubblico conserva i dati esclusivamente nel `localStorage` del singolo
+browser: non sincronizza ancora Simone e Anna tra dispositivi diversi e non è
+adatto a dati finanziari reali finché non saranno disponibili backend,
+autenticazione e autorizzazioni lato server.
+
 Controlli prima di pubblicare:
 
 ```bash
