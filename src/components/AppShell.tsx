@@ -1,6 +1,6 @@
 import {
-  Building2, CalendarClock, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
-  ReceiptText, Tag, Tags, UsersRound, X,
+  Building2, CalendarClock, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
+  ReceiptText, Tag, Tags, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Brand } from './Brand'
@@ -73,9 +73,4 @@ export function AppShell({ children, page, user, onPageChange, onAddMovement, on
       </main>
     </div>
   )
-}
-
-export const pageIcon = {
-  balance: HandCoins,
-  accounts: UsersRound,
 }

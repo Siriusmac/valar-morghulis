@@ -11,8 +11,17 @@ export function sharedBalance(data: AppData, userId: UserId) {
     net += movement.memberId === userId ? half * direction : -half * direction
   }
   for (const item of data.reimbursements) {
-    if (item.toId === userId) net -= item.amount
-    if (item.fromId === userId) net += item.amount
+    const destination = data.accounts.find((account) => account.id === item.toAccountId)
+    const settlementAmount = destination?.scope === 'family' ? item.amount / 2 : item.amount
+    if (item.toId === userId) net -= settlementAmount
+    if (item.fromId === userId) net += settlementAmount
+  }
+  for (const transfer of data.transfers) {
+    const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
+    const destination = data.accounts.find((account) => account.id === transfer.toAccountId)
+    if (source?.scope !== 'family' || destination?.scope !== 'personal' || !destination.ownerId) continue
+    const half = transfer.amount / 2
+    net += destination.ownerId === userId ? -half : half
   }
   return Math.round(net * 100) / 100
 }
@@ -22,7 +31,7 @@ export function accountBalance(data: AppData, accountId: string) {
   if (!account) return 0
   let balance = account.openingBalance
   for (const movement of data.movements) {
-    if (movement.accountId !== accountId) continue
+    if (movement.accountId !== accountId || movement.affectsAccountBalance === false) continue
     balance += movement.type === 'income' ? movement.amount : -movement.amount
   }
   for (const transfer of data.transfers) {

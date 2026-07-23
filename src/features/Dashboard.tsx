@@ -1,30 +1,41 @@
 import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, WalletCards } from 'lucide-react'
 import { accountBalance, sharedBalance } from '../lib/calculations'
-import { formatDate, formatMoney } from '../lib/format'
-import { users } from '../lib/seed'
+import { formatDate, formatMoney, todayISO } from '../lib/format'
 import type { AppData, User, PageId } from '../types'
 
 interface Props {
   data: AppData
   user: User
+  members: User[]
   onNavigate: (page: PageId) => void
   onReimburse: () => void
 }
 
-export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
+export function Dashboard({ data, user, members, onNavigate, onReimburse }: Props) {
   const balance = sharedBalance(data, user.id)
-  const other = users.find((item) => item.id !== user.id)!
+  const other = members.find((item) => item.id !== user.id) ?? user
   const sharedAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
   const shared = data.movements.filter((item) => item.shared || sharedAccountIds.has(item.accountId)).toSorted((a, b) => b.date.localeCompare(a.date))
   const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
-  const monthlyTotal = shared.filter((item) => item.type === 'expense').reduce((total, item) => total + item.amount, 0)
-  const bars = [18, 32, 24, 45, 68, 38, 82, 54, 92, 42, 31, 62, 35, 73, 47, 28, 56, 39]
+  const today = todayISO()
+  const currentMonth = today.slice(0, 7)
+  const monthDate = new Date(`${currentMonth}-01T12:00:00`)
+  const monthLabel = new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(monthDate)
+  const monthAndYear = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(monthDate)
+  const daysInMonth = new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)), 0).getDate()
+  const dailyTotals = Array.from({ length: daysInMonth }, () => 0)
+  for (const movement of shared) {
+    if (movement.type !== 'expense' || !movement.date.startsWith(currentMonth)) continue
+    dailyTotals[Number(movement.date.slice(8, 10)) - 1] += movement.amount
+  }
+  const monthlyTotal = dailyTotals.reduce((total, amount) => total + amount, 0)
+  const dailyMaximum = Math.max(...dailyTotals)
 
   return (
     <div className="page dashboard-page">
       <div className="page-heading">
         <div><h1>Ciao, {user.name}</h1><p>Qui trovi il punto della situazione familiare.</p></div>
-        <p className="date-caption">Luglio 2026</p>
+        <p className="date-caption">{monthAndYear}</p>
       </div>
 
       <section className="balance-zone">
@@ -38,11 +49,21 @@ export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
           {balance !== 0 ? <button className="text-button" onClick={onReimburse}>Registra rimborso <ArrowRight /></button> : null}
         </div>
         <div className="monthly-chart">
-          <div className="section-title-row"><div><h2>Riepilogo condiviso</h2><p>{formatMoney(monthlyTotal)} questo mese</p></div><span>luglio</span></div>
+          <div className="section-title-row"><div><h2>Spese condivise giornaliere</h2><p>{formatMoney(monthlyTotal)} nel mese in corso</p></div><span>{monthLabel}</span></div>
           <div className="bar-chart" aria-label={`Spese condivise del mese: ${formatMoney(monthlyTotal)}`}>
-            {bars.map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}
+            {dailyTotals.map((amount, index) => (
+              <i
+                key={index}
+                role="img"
+                aria-label={`${String(index + 1).padStart(2, '0')} ${monthLabel}: ${formatMoney(amount)}`}
+                title={`${String(index + 1).padStart(2, '0')} ${monthLabel} · ${formatMoney(amount)}`}
+                className={amount > 0 ? 'bar-chart__day bar-chart__day--active' : 'bar-chart__day'}
+                style={{ height: amount > 0 ? `${Math.max(5, (amount / dailyMaximum) * 100)}%` : '2px' }}
+              />
+            ))}
+            {monthlyTotal === 0 ? <p className="bar-chart__empty">Nessuna spesa condivisa registrata questo mese.</p> : null}
           </div>
-          <div className="chart-axis"><span>01</span><span>08</span><span>15</span><span>22</span><span>29</span></div>
+          <div className="chart-axis"><span>01</span><span>08</span><span>15</span><span>22</span><span>{daysInMonth}</span></div>
         </div>
       </section>
 
@@ -52,7 +73,7 @@ export function Dashboard({ data, user, onNavigate, onReimburse }: Props) {
           {shared.slice(0, 4).map((movement) => {
             const category = data.categories.find((item) => item.id === movement.categoryId)
             const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
-            const member = users.find((item) => item.id === movement.memberId)
+            const member = members.find((item) => item.id === movement.memberId)
             return (
               <article className="expense-row" key={movement.id}>
                 <span className="expense-row__icon" style={{ color: category?.color }}>{movement.type === 'income' ? <ArrowDownLeft /> : <ReceiptText />}</span>

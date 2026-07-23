@@ -1,4 +1,4 @@
-import type { AppData, User } from '../types'
+import type { Account, AppData, User, UserId } from '../types'
 
 export const users: User[] = [
   { id: 'simone', name: 'Simone', email: 'simone@valarmorghulis.demo', initials: 'SM' },
@@ -63,4 +63,22 @@ export const defaultData: AppData = {
   ],
   transfers: [],
   reimbursements: [],
+}
+
+export function createStarterData(userId: UserId, sharedAccounts: Account[]): AppData {
+  return {
+    version: 3,
+    accounts: [
+      ...sharedAccounts,
+      { id: `${userId}-cash`, ownerId: userId, name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 0 },
+    ],
+    categories: defaultData.categories.filter((item) => item.scope === 'family').map((item) => ({ ...item })),
+    beneficiaries: [],
+    tags: [],
+    tagReportIds: [],
+    movements: [],
+    scheduledPayments: [],
+    transfers: [],
+    reimbursements: [],
+  }
 }

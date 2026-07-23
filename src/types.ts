@@ -1,4 +1,4 @@
-export type UserId = 'simone' | 'anna'
+export type UserId = string
 export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
@@ -18,6 +18,7 @@ export interface Account {
   type: 'bank' | 'credit' | 'cash' | 'paypal'
   scope: Scope
   openingBalance: number
+  openingBalanceDate?: string
 }
 
 export interface Category {
@@ -63,6 +64,7 @@ export interface Movement {
   installmentNumber?: number
   installmentCount?: number
   sharedSettlementAmount?: number
+  affectsAccountBalance?: boolean
   createdAt: string
 }
 

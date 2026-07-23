@@ -29,20 +29,21 @@ interface LegacyData {
   reimbursements?: Array<Omit<Reimbursement, 'fromAccountId' | 'toAccountId'> & { fromAccountId?: string; toAccountId?: string }>
 }
 
-export function loadData(): AppData {
+export function loadData(storageKey = STORAGE_KEY, fallbackData: AppData = defaultData): AppData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppData>
-      if (parsed.version === 3) return materializeDuePayments(normalizeData(parsed), todayISO())
+      if (parsed.version === 3) return materializeDuePayments(normalizeData(parsed, fallbackData), todayISO())
     }
+    if (storageKey !== STORAGE_KEY) return structuredClone(fallbackData)
     const version2Raw = localStorage.getItem(VERSION_2_KEY)
-    if (version2Raw) return materializeDuePayments(normalizeData(JSON.parse(version2Raw) as Partial<AppData>), todayISO())
+    if (version2Raw) return materializeDuePayments(normalizeData(JSON.parse(version2Raw) as Partial<AppData>, fallbackData), todayISO())
     const legacyRaw = localStorage.getItem(LEGACY_KEY)
-    if (!legacyRaw) return structuredClone(defaultData)
-    return materializeDuePayments(normalizeData(migrateLegacy(JSON.parse(legacyRaw) as LegacyData)), todayISO())
+    if (!legacyRaw) return structuredClone(fallbackData)
+    return materializeDuePayments(normalizeData(migrateLegacy(JSON.parse(legacyRaw) as LegacyData), fallbackData), todayISO())
   } catch {
-    return structuredClone(defaultData)
+    return structuredClone(fallbackData)
   }
 }
 
@@ -52,8 +53,8 @@ function mergeMissingById<T extends { id: string }>(current: T[] | undefined, de
   return [...items, ...defaults.filter((item) => !ids.has(item.id))]
 }
 
-function normalizeData(data: Partial<AppData>): AppData {
-  const base = structuredClone(defaultData)
+function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
+  const base = structuredClone(fallbackData)
   const accounts = mergeMissingById(data.accounts, base.accounts)
   const fallbackAccount = (userId: UserId) => accounts.find((item) => item.scope === 'personal' && item.ownerId === userId)?.id ?? ''
   return {
@@ -86,7 +87,7 @@ function migrateLegacy(legacy: LegacyData): AppData {
     beneficiaries: legacy.beneficiaries ?? base.beneficiaries,
     tags: base.tags,
     tagReportIds: base.tagReportIds,
-    movements: legacy.expenses?.map((item) => ({ ...item, type: 'expense' as const, memberId: item.payerId, payerId: undefined })).map(({ payerId: _payerId, ...item }) => item) ?? base.movements,
+    movements: legacy.expenses?.map(({ payerId, ...item }) => ({ ...item, type: 'expense' as const, memberId: payerId })) ?? base.movements,
     transfers: [],
     scheduledPayments: [],
     reimbursements: legacy.reimbursements?.map((item) => ({
@@ -97,8 +98,8 @@ function migrateLegacy(legacy: LegacyData): AppData {
   }
 }
 
-export function saveData(data: AppData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+export function saveData(data: AppData, storageKey = STORAGE_KEY) {
+  localStorage.setItem(storageKey, JSON.stringify(data))
 }
 
 export function resetData() {

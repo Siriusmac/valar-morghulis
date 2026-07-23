@@ -6,6 +6,7 @@ import type { AppData, Beneficiary, Category, Movement, MovementType, ScheduledP
 interface Props {
   data: AppData
   user: User
+  otherName?: string
   onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
   onCancel: () => void
   initial?: Movement
@@ -13,7 +14,7 @@ interface Props {
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 
-export function MovementForm({ data, user, onSave, onCancel, initial }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', onSave, onCancel, initial }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -25,6 +26,10 @@ export function MovementForm({ data, user, onSave, onCancel, initial }: Props) {
   const availableAccounts = useMemo(() => [...personalAccounts, ...familyAccounts], [personalAccounts, familyAccounts])
   const defaultAccount = type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
   const [accountId, setAccountId] = useState(initial?.accountId ?? defaultAccount ?? '')
+  const initialAccount = data.accounts.find((item) => item.id === (initial?.accountId ?? defaultAccount))
+  const [affectsAccountBalance, setAffectsAccountBalance] = useState(
+    initial?.affectsAccountBalance ?? !(initialAccount?.openingBalanceDate && (initial?.date ?? todayISO()) < initialAccount.openingBalanceDate),
+  )
   const categories = data.categories.filter((item) => item.movementType === type && (item.scope === 'family' || item.ownerId === user.id))
   const beneficiaries = data.beneficiaries.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id)
@@ -39,33 +44,50 @@ export function MovementForm({ data, user, onSave, onCancel, initial }: Props) {
   const [provider, setProvider] = useState('PayPal')
   const [customProvider, setCustomProvider] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const otherName = user.id === 'simone' ? 'Anna' : 'Simone'
   const selectedAccount = data.accounts.find((item) => item.id === accountId)
   const effectivelyShared = selectedAccount?.scope === 'family' || shared
+  const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
 
   const changeType = (nextType: MovementType) => {
     setType(nextType)
     setCategoryId(data.categories.find((item) => item.movementType === nextType)?.id ?? '')
     setNewCategory('')
     setInstallmentsEnabled(false)
+    const nextAccountId = nextType === 'income'
+      ? personalAccounts[0]?.id ?? ''
+      : personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? ''
     if (nextType === 'income') {
       setShared(false)
-      setAccountId(personalAccounts[0]?.id ?? '')
+      setAccountId(nextAccountId)
     } else {
       setShared(true)
-      setAccountId(personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? '')
+      setAccountId(nextAccountId)
     }
+    const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
+    setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
   }
 
   const toggleShared = () => {
     const nextShared = !shared
     setShared(nextShared)
-    if (type === 'income') setAccountId(nextShared ? familyAccounts[0]?.id ?? '' : personalAccounts[0]?.id ?? '')
+    if (type === 'income') {
+      const nextAccountId = nextShared ? familyAccounts[0]?.id ?? '' : personalAccounts[0]?.id ?? ''
+      setAccountId(nextAccountId)
+      const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
+      setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
+    }
   }
 
   const selectAccount = (nextAccountId: string) => {
     setAccountId(nextAccountId)
+    const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
+    setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
     if (type === 'income') setShared(data.accounts.find((item) => item.id === nextAccountId)?.scope === 'family')
+  }
+
+  const changeDate = (nextDate: string) => {
+    setDate(nextDate)
+    setAffectsAccountBalance(!(selectedAccount?.openingBalanceDate && nextDate < selectedAccount.openingBalanceDate))
   }
 
   const submit = (event: React.FormEvent) => {
@@ -123,6 +145,7 @@ export function MovementForm({ data, user, onSave, onCancel, initial }: Props) {
       installmentNumber: shouldInstall ? 1 : undefined,
       installmentCount: shouldInstall ? installmentCount : undefined,
       sharedSettlementAmount: shouldInstall && effectivelyShared ? numericAmount : initial?.sharedSettlementAmount,
+      affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     }, { category, beneficiary, tag, scheduledPayments })
   }
@@ -146,8 +169,14 @@ export function MovementForm({ data, user, onSave, onCancel, initial }: Props) {
       <label>Conto<select value={accountId} onChange={(e) => selectAccount(e.target.value)}>{availableAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>
       <label>Tag<select value={newTag ? '__new' : tagId} onChange={(e) => e.target.value === '__new' ? setNewTag('Nuovo tag') : (setNewTag(''), setTagId(e.target.value))}><option value="">Nessun tag</option>{tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuovo tag</option></select></label>
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}
-      <label>Data<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+      <label>Data<input type="date" value={date} onChange={(e) => changeDate(e.target.value)} required /></label>
     </div>
+    {isBeforeOpeningBalance ? <fieldset className="balance-impact-choice">
+      <legend>Questo movimento è precedente al saldo iniziale del conto</legend>
+      <p>Resterà sempre nelle statistiche. Scegli se deve modificare anche il saldo calcolato.</p>
+      <label><input type="radio" name="balance-impact" checked={!affectsAccountBalance} onChange={() => setAffectsAccountBalance(false)} /><span><strong>Solo statistiche</strong><small>Non modifica il saldo del conto (consigliato).</small></span></label>
+      <label><input type="radio" name="balance-impact" checked={affectsAccountBalance} onChange={() => setAffectsAccountBalance(true)} /><span><strong>Includi nel saldo</strong><small>Somma o sottrae l’importo anche dal saldo calcolato.</small></span></label>
+    </fieldset> : null}
     {type === 'expense' && !initial ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}

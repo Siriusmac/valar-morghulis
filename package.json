@@ -9,10 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "cloudflare:check": "pnpm run build && wrangler deploy --dry-run",
-    "cloudflare:deploy": "pnpm run build && wrangler deploy"
+    "cloudflare:check": "pnpm run build",
+    "cloudflare:deploy": "pnpm run build && wrangler pages deploy --branch main"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",
@@ -29,7 +30,7 @@
     "eslint-plugin-react-refresh": "latest",
     "globals": "latest",
     "jsdom": "latest",
-    "typescript": "latest",
+    "typescript": "^6.0.3",
     "typescript-eslint": "latest",
     "vitest": "latest",
     "wrangler": "^4.113.0"

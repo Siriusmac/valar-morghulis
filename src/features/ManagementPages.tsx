@@ -2,27 +2,46 @@ import { ArrowLeftRight, Building2, Check, CreditCard, Edit3, Eye, Landmark, Loc
 import { useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
 import { accountBalance, totalsByCategory, visibleMovements } from '../lib/calculations'
-import { formatMoney, makeId } from '../lib/format'
+import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
 import type { Account, AppData, Beneficiary, Category, MovementType, Tag, User } from '../types'
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean) => void }
 
-export function AccountsPage({ data, user, onAdd, onTransfer, onShowMovements }: BaseProps & { onAdd: (account: Account) => void; onTransfer: () => void }) {
+export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMovements }: BaseProps & { onAdd: (account: Account) => void; onUpdate: (account: Account) => void; onTransfer: () => void }) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
   const [balance, setBalance] = useState('')
+  const [balanceDate, setBalanceDate] = useState(todayISO())
   const [type, setType] = useState<Account['type']>('bank')
   const [scope, setScope] = useState<Account['scope']>('personal')
+  const [editingAccountId, setEditingAccountId] = useState('')
+  const [editingBalance, setEditingBalance] = useState('')
+  const [editingBalanceDate, setEditingBalanceDate] = useState(todayISO())
   const accounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const submit = (event: React.FormEvent) => {
     event.preventDefault(); if (!name.trim()) return
-    onAdd({ id: makeId('account'), ownerId: scope === 'personal' ? user.id : undefined, name: name.trim(), institution: institution.trim() || (scope === 'family' ? 'Conto condiviso' : 'Conto personale'), type, scope, openingBalance: Number(balance.replace(',', '.')) || 0 })
-    setName(''); setInstitution(''); setBalance(''); setShowForm(false)
+    onAdd({ id: makeId('account'), ownerId: scope === 'personal' ? user.id : undefined, name: name.trim(), institution: institution.trim() || (scope === 'family' ? 'Conto condiviso' : 'Conto personale'), type, scope, openingBalance: Number(balance.replace(',', '.')) || 0, openingBalanceDate: balanceDate })
+    setName(''); setInstitution(''); setBalance(''); setBalanceDate(todayISO()); setShowForm(false)
   }
-  return <div className="page"><div className="page-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--ghost" onClick={onTransfer}><ArrowLeftRight />Giro fondi</button><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
-    {showForm ? <InlineForm title="Nuovo conto" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>Istituto o dettaglio<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => setType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option></select></label><label>Visibilità<select value={scope} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option><option value="family">Condiviso con la famiglia</option></select></label><label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label></InlineForm> : null}
-    <div className="management-list">{accounts.map((account) => <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div><strong>{account.name}</strong><small>{account.institution} · {account.scope === 'family' ? 'Condiviso' : 'Personale'}</small></div><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id)}><Eye />Movimenti</button><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>)}</div>
+  const startEditing = (account: Account) => {
+    setEditingAccountId(account.id)
+    setEditingBalance(account.openingBalance.toFixed(2).replace('.', ','))
+    setEditingBalanceDate(account.openingBalanceDate ?? todayISO())
+  }
+  const updateOpeningBalance = (event: React.FormEvent) => {
+    event.preventDefault()
+    const account = data.accounts.find((item) => item.id === editingAccountId)
+    if (!account || !editingBalanceDate) return
+    const numericBalance = Number(editingBalance.replace(',', '.'))
+    if (!Number.isFinite(numericBalance)) return
+    onUpdate({ ...account, openingBalance: numericBalance, openingBalanceDate: editingBalanceDate })
+    setEditingAccountId('')
+  }
+  return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--ghost" onClick={onTransfer}><ArrowLeftRight />Giro fondi</button><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
+    {showForm ? <InlineForm title="Nuovo conto" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>Istituto o dettaglio<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => setType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option></select></label><label>Visibilità<select value={scope} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option><option value="family">Condiviso con la famiglia</option></select></label><label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label></InlineForm> : null}
+    {editingAccountId ? <InlineForm title="Correggi saldo iniziale" submitLabel="Salva saldo" onSubmit={updateOpeningBalance} onCancel={() => setEditingAccountId('')}><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} autoFocus required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
+    <div className="management-list">{accounts.map((account) => <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div className="management-row__info"><strong>{account.name}</strong><small>{account.institution} · {account.scope === 'family' ? 'Condiviso' : 'Personale'}</small><small>Saldo iniziale {formatMoney(account.openingBalance)}{account.openingBalanceDate ? ` · ${formatDate(account.openingBalanceDate)}` : ''}</small></div><div className="management-row__actions"><button className="detail-button" onClick={() => startEditing(account)}><Edit3 />Saldo iniziale</button><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id)}><Eye />Movimenti</button></div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>)}</div>
   </div>
 }
 
@@ -54,5 +73,5 @@ export function TagsPage({ data, user, onAdd, onAddReport, onRemoveReport, onSho
 }
 
 function DirectoryPage({ title, subtitle, addLabel, showForm, setShowForm, children }: { title: string; subtitle: string; addLabel: string; showForm: boolean; setShowForm: (value: boolean) => void; children: React.ReactNode }) { return <div className="page"><div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div><button className="button button--primary desktop-action" onClick={() => setShowForm(!showForm)}><Plus />{addLabel}</button></div>{children}</div> }
-function InlineForm({ title, onSubmit, onCancel, children }: { title: string; onSubmit: (event: React.FormEvent) => void; onCancel: () => void; children: React.ReactNode }) { return <form className="inline-form" onSubmit={onSubmit}><div><h2>{title}</h2><p>I campi restano modificabili in seguito.</p></div><div className="inline-form__fields">{children}</div><div className="inline-form__actions"><button type="button" className="button button--ghost" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit"><Plus />Aggiungi</button></div></form> }
+function InlineForm({ title, submitLabel = 'Aggiungi', onSubmit, onCancel, children }: { title: string; submitLabel?: string; onSubmit: (event: React.FormEvent) => void; onCancel: () => void; children: React.ReactNode }) { return <form className="inline-form" onSubmit={onSubmit}><div><h2>{title}</h2><p>I campi restano modificabili in seguito.</p></div><div className="inline-form__fields">{children}</div><div className="inline-form__actions"><button type="button" className="button button--ghost" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{submitLabel === 'Aggiungi' ? <Plus /> : <Check />}{submitLabel}</button></div></form> }
 function ScopeSelect({ value, onChange }: { value: 'family' | 'personal'; onChange: (value: 'family' | 'personal') => void }) { return <label>Visibilità<select value={value} onChange={(e) => onChange(e.target.value as 'family' | 'personal')}><option value="family">Famiglia</option><option value="personal">Solo personale</option></select></label> }
