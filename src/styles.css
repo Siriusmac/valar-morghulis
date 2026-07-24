@@ -32,6 +32,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .button svg { width: 18px; }
 .button--primary { background: var(--accent); color: #fff; box-shadow: 0 5px 16px rgba(198, 78, 47, .2); }
 .button--primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+.button--secondary { background: var(--ink); color: white; }
+.button--secondary:hover { background: #263a54; transform: translateY(-1px); }
 .button--ghost { background: transparent; border: 1px solid var(--line); }
 .button--ghost:hover { background: var(--sand); }
 .button--full { width: 100%; }
@@ -60,11 +62,13 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .nav-item--active::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); }
 .nav-item--active svg { color: var(--accent); }
 .sidebar__footer { margin-top: auto; padding: 20px 0 18px; border-top: 1px solid #ece9e4; }
-.profile-mini { display: flex; gap: 10px; align-items: center; padding: 0 20px 16px; }
+.profile-mini { width: 100%; display: flex; gap: 10px; align-items: center; padding: 10px 20px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.profile-mini:hover, .profile-mini--active { background: var(--sand); }
 .avatar { width: 35px; height: 35px; border-radius: 50%; background: var(--ink); color: white; display: grid; place-items: center; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
 .profile-mini > span:last-child { display: grid; min-width: 0; }
 .profile-mini strong { font-size: 13px; }
 .profile-mini small { font-size: 9px; color: var(--muted); text-overflow: ellipsis; overflow: hidden; }
+.avatar--large { width: 62px; height: 62px; font-size: 16px; }
 .main { grid-column: 2; min-width: 0; }
 .topbar { height: 86px; padding: 0 5vw; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid rgba(222,219,214,.65); background: rgba(251,250,248,.9); position: sticky; top: 0; z-index: 15; backdrop-filter: blur(12px); }
 .menu-button, .mobile-brand { display: none; }
@@ -74,6 +78,49 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .page-heading { min-height: 70px; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; }
 .page-heading h1 { font-size: clamp(35px, 3vw, 46px); letter-spacing: -.8px; line-height: 1.05; }
 .page-heading p { color: var(--muted); font-size: 13px; margin-top: 7px; }
+.settings-profile { display: flex; align-items: center; gap: 18px; padding: 0 0 28px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+.settings-profile h2 { font-size: 28px; }
+.settings-profile p { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.settings-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.settings-column { display: grid; gap: 24px; }
+.settings-card { padding: 25px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.62); }
+.settings-card__heading { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; margin-bottom: 22px; }
+.settings-card__heading > span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--positive); background: var(--positive-soft); }
+.settings-card__heading svg { width: 20px; }
+.settings-card__heading h2 { font-size: 23px; }
+.settings-card__heading p, .settings-card__note { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.family-switcher { display: grid; border-top: 1px solid var(--line); }
+.family-choice { min-height: 61px; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
+.family-choice > span { display: grid; }
+.family-choice strong { font-size: 13px; }
+.family-choice small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.family-choice > svg { width: 18px; color: var(--muted); }
+.family-choice--active strong, .family-choice--active > svg { color: var(--accent); }
+.family-member-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 20px; }
+.family-member-list > span { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 9px; border-radius: 6px; background: var(--sand); }
+.family-member-list .avatar { width: 29px; height: 29px; flex: 0 0 auto; font-size: 8px; font-style: normal; }
+.family-member-list > span > span { min-width: 0; display: grid; }
+.family-member-list strong, .family-member-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.family-member-list strong { font-size: 10px; }
+.family-member-list small { color: var(--muted); font-size: 8px; }
+.settings-form, .settings-create-form { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.settings-form + .settings-form { margin-top: 20px; }
+.settings-form label, .settings-create-form > label, .settings-create-account label { display: grid; gap: 6px; font-size: 10px; font-weight: 600; }
+.settings-form input, .settings-create-form input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid #d5d1cb; border-radius: 5px; background: white; }
+.settings-form .button, .settings-create-form > .button { justify-self: start; }
+.settings-form--password { grid-template-columns: 1fr 1fr; }
+.settings-form--password .button { grid-column: 1 / -1; }
+.settings-card__toggle { width: 100%; grid-template-columns: 44px 1fr 20px; margin: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.settings-card__toggle > svg { width: 18px; transition: transform .18s ease; }
+.rotate-90 { transform: rotate(90deg); }
+.settings-create-form { margin-top: 22px; }
+.inline-choice { grid-template-columns: 18px 1fr !important; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--sand); cursor: pointer; }
+.inline-choice input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); }
+.inline-choice span { display: grid; gap: 2px; }
+.inline-choice small { color: var(--muted); font-size: 9px; font-weight: 400; }
+.settings-create-account { display: grid; grid-template-columns: 30px 1fr 1fr; gap: 12px; align-items: end; padding: 14px; border-radius: 7px; background: var(--positive-soft); }
+.settings-create-account > svg { width: 20px; color: var(--positive); align-self: center; }
+.settings-create-account label:last-child { grid-column: 2 / -1; }
 .date-caption { margin: 12px 0 0 !important; color: var(--ink) !important; text-transform: uppercase; letter-spacing: 1.3px; font-size: 10px !important; }
 
 .balance-zone { display: grid; grid-template-columns: .95fr 1.05fr; min-height: 285px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -456,6 +503,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .shared-donuts > section + section { border-left: 0; border-top: 1px solid var(--line); }
   .tag-reports > section { grid-template-columns: 1fr; }
   .tag-reports .donut-section { border-left: 0; border-top: 1px solid var(--line); }
+  .settings-layout { grid-template-columns: 1fr; }
   .scheduled-installments article { grid-template-columns: 34px 1fr 90px; }
   .scheduled-installments article > span:nth-child(3) { display: none; }
 }
@@ -592,6 +640,15 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .accounts-page .management-row__value b { font-size: 17px; white-space: nowrap; }
   .balance-impact-choice { grid-template-columns: 1fr; }
   .balance-impact-choice > p { grid-column: auto; }
+  .account-settings-page .page-heading { margin-bottom: 18px; }
+  .settings-profile { padding-bottom: 22px; margin-bottom: 18px; }
+  .settings-card { padding: 20px 17px; }
+  .settings-form--password { grid-template-columns: 1fr; }
+  .settings-form--password .button { grid-column: auto; }
+  .settings-form .button, .settings-create-form > .button { width: 100%; }
+  .settings-create-account { grid-template-columns: 26px 1fr; }
+  .settings-create-account label, .settings-create-account label:last-child { grid-column: 2; }
+  .family-member-list { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

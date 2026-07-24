@@ -11,6 +11,7 @@ import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './fea
 import { ScheduledPaymentsPage } from './features/ScheduledPaymentsPage'
 import { TransferForm } from './features/TransferForm'
 import { CloudAccess, type FamilySession } from './features/CloudAccess'
+import { AccountSettings } from './features/AccountSettings'
 import { sharedBalance, visibleMovements } from './lib/calculations'
 import { formatMoney, makeId, todayISO } from './lib/format'
 import { createStarterData, users } from './lib/seed'
@@ -42,7 +43,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   })
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
@@ -67,8 +68,8 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }))
     setModal(null); setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
   }
-  const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string) => {
-    const balance = sharedBalance(data, user.id); const otherId = appUsers.find((item) => item.id !== user.id)?.id
+  const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => {
+    const balance = sharedBalance(data, user.id, appUsers.length); const otherId = counterpartId
     if (!otherId) return
     const fromId = balance < 0 ? user.id : otherId; const toId = balance < 0 ? otherId : user.id
     setData((current) => ({ ...current, reimbursements: [...current.reimbursements, { id: makeId('reimbursement'), fromId, toId, amount, date: todayISO(), authorId: user.id, fromAccountId, toAccountId }] }))
@@ -94,22 +95,25 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : page === 'accounts' ? <AccountsPage {...common} onTransfer={() => setModal({ type: 'transfer' })} onAdd={(account) => setData((current) => ({ ...current, accounts: [...current.accounts, account] }))} onUpdate={updateAccount} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
     : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAdd={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} />
-    : <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
+    : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
+    : <AccountSettings user={user} cloud={cloud} />
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
   return <>
     <AppShell page={page} user={user} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>{content}</AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} initial={modal.movement} onSave={saveMovement} onCancel={() => setModal(null)} /></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} onSave={saveMovement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'transfer' ? <Modal title="Giro fondi" onClose={() => setModal(null)}><TransferForm data={data} user={user} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Modal> : null}
+    {modal?.type === 'transfer' ? <Modal title="Giro fondi" onClose={() => setModal(null)}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><MovementList data={data} movements={detailMovements} compact /></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
 }
 
-function ReimbursementForm({ data, userId, members, onSubmit, onCancel }: { data: AppData; userId: UserId; members: User[]; onSubmit: (amount: number, fromAccountId: string, toAccountId: string) => void; onCancel: () => void }) {
-  const balance = sharedBalance(data, userId)
-  const other = members.find((item) => item.id !== userId) ?? members[0]
+function ReimbursementForm({ data, userId, members, onSubmit, onCancel }: { data: AppData; userId: UserId; members: User[]; onSubmit: (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => void; onCancel: () => void }) {
+  const balance = sharedBalance(data, userId, members.length)
+  const counterparts = members.filter((item) => item.id !== userId)
+  const [counterpartId, setCounterpartId] = useState(counterparts[0]?.id ?? '')
+  const other = counterparts.find((item) => item.id === counterpartId) ?? counterparts[0] ?? members[0]
   const debtorId = balance < 0 ? userId : other.id
   const creditorId = balance < 0 ? other.id : userId
   const debtorAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === debtorId)
@@ -119,19 +123,27 @@ function ReimbursementForm({ data, userId, members, onSubmit, onCancel }: { data
   const [toAccountId, setToAccountId] = useState(creditorAccounts[0]?.id ?? '')
   const destinationAccount = creditorAccounts.find((item) => item.id === toAccountId)
   const label = balance < 0 ? `Tu rimborsi ${other.name}` : `${other.name} rimborsa te`
-  const canSubmit = Boolean(fromAccountId && toAccountId)
+  const canSubmit = Boolean(counterpartId && fromAccountId && toAccountId)
+  const selectCounterpart = (nextCounterpartId: string) => {
+    setCounterpartId(nextCounterpartId)
+    const nextDebtorId = balance < 0 ? userId : nextCounterpartId
+    const nextCreditorId = balance < 0 ? nextCounterpartId : userId
+    setFromAccountId(data.accounts.find((item) => item.scope === 'personal' && item.ownerId === nextDebtorId)?.id ?? '')
+    setToAccountId(data.accounts.find((item) => item.scope === 'family' || (item.scope === 'personal' && item.ownerId === nextCreditorId))?.id ?? '')
+  }
   return <form className="reimbursement-form" onSubmit={(event) => {
     event.preventDefault()
     const value = Number(amount.replace(',', '.'))
-    if (value > 0 && canSubmit) onSubmit(value, fromAccountId, toAccountId)
+    if (value > 0 && canSubmit) onSubmit(value, fromAccountId, toAccountId, counterpartId)
   }}>
     <span className="reimbursement-form__icon"><Scale /></span>
     <p>{label}</p>
     <strong>Saldo attuale: {formatMoney(Math.abs(balance))}</strong>
+    {counterparts.length > 1 ? <label>Altro membro coinvolto<select value={counterpartId} onChange={(event) => selectCounterpart(event.target.value)} required>{counterparts.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label> : null}
     <label>Importo del rimborso<div className="money-input"><span>€</span><input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} autoFocus required /></div></label>
     <label>Conto di origine del debitore<select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} required>{debtorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.institution}</option>)}</select></label>
     <label>Conto di destinazione<select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} required>{creditorAccounts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.institution}{item.scope === 'family' ? ' · Condiviso' : ''}</option>)}</select></label>
-    {destinationAccount?.scope === 'family' ? <small>Il conto di destinazione è condiviso: soltanto il 50% del rimborso ridurrà il debito, perché l’altra metà appartiene già al debitore.</small> : balance > 0 ? <small>Stai registrando il rimborso come creditore: specifica sia il conto di origine di {other.name}, sia il tuo conto di destinazione.</small> : <small>Specifica il tuo conto di origine e il conto di destinazione di {other.name}. Il pagamento non viene eseguito dall’app: viene registrata soltanto la compensazione.</small>}
+    {destinationAccount?.scope === 'family' ? <small>Il conto di destinazione è condiviso: il rimborso compensa soltanto la quota che appartiene agli altri {members.length - 1} membri.</small> : balance > 0 ? <small>Stai registrando il rimborso come creditore: specifica sia il conto di origine di {other.name}, sia il tuo conto di destinazione.</small> : <small>Specifica il tuo conto di origine e il conto di destinazione di {other.name}. Il pagamento non viene eseguito dall’app: viene registrata soltanto la compensazione.</small>}
     <div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit" disabled={!canSubmit}>Registra rimborso <ArrowRight /></button></div>
   </form>
 }

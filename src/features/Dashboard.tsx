@@ -12,8 +12,9 @@ interface Props {
 }
 
 export function Dashboard({ data, user, members, onNavigate, onReimburse }: Props) {
-  const balance = sharedBalance(data, user.id)
+  const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
+  const multipleOthers = members.length > 2
   const sharedAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
   const shared = data.movements.filter((item) => item.shared || sharedAccountIds.has(item.accountId)).toSorted((a, b) => b.date.localeCompare(a.date))
   const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
@@ -42,7 +43,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
         <div className="balance-summary">
           <span className={`balance-summary__icon ${balance >= 0 ? 'balance-summary__icon--positive' : ''}`}><Scale /></span>
           <div>
-            <p>{balance < 0 ? `Devi a ${other.name}` : balance > 0 ? `${other.name} deve a te` : 'Siete in pari'}</p>
+            <p>{balance < 0 ? (multipleOthers ? 'Devi alla famiglia' : `Devi a ${other.name}`) : balance > 0 ? (multipleOthers ? 'La famiglia deve a te' : `${other.name} deve a te`) : 'Siete in pari'}</p>
             <strong className={balance > 0 ? 'positive-text' : ''}>{formatMoney(Math.abs(balance))}</strong>
             <small>Il saldo si aggiorna automaticamente</small>
           </div>
@@ -68,7 +69,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
       </section>
 
       <section className="dashboard-section">
-        <div className="section-title-row"><div><h2>Ultimi movimenti condivisi</h2><p>Entrate e spese visibili a entrambi</p></div><button className="text-button" onClick={() => onNavigate('movements')}>Vedi tutti <ArrowRight /></button></div>
+        <div className="section-title-row"><div><h2>Ultimi movimenti condivisi</h2><p>Entrate e spese visibili a tutta la famiglia</p></div><button className="text-button" onClick={() => onNavigate('movements')}>Vedi tutti <ArrowRight /></button></div>
         <div className="expense-list expense-list--dashboard">
           {shared.slice(0, 4).map((movement) => {
             const category = data.categories.find((item) => item.id === movement.categoryId)

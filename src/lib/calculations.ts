@@ -1,27 +1,38 @@
 import type { AppData, Movement, MovementType, UserId } from '../types'
 
-export function sharedBalance(data: AppData, userId: UserId) {
+export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
+  if (memberCount < 2) return 0
   let net = 0
+  const personalShare = 1 / memberCount
+  const otherMembersShare = (memberCount - 1) / memberCount
   for (const movement of data.movements) {
     if (!movement.shared) continue
     const account = data.accounts.find((item) => item.id === movement.accountId)
     if (account?.scope === 'family') continue
-    const half = (movement.sharedSettlementAmount ?? movement.amount) / 2
+    const settlementAmount = movement.sharedSettlementAmount ?? movement.amount
     const direction = movement.type === 'expense' ? 1 : -1
-    net += movement.memberId === userId ? half * direction : -half * direction
+    net += movement.memberId === userId
+      ? settlementAmount * otherMembersShare * direction
+      : -settlementAmount * personalShare * direction
   }
   for (const item of data.reimbursements) {
     const destination = data.accounts.find((account) => account.id === item.toAccountId)
-    const settlementAmount = destination?.scope === 'family' ? item.amount / 2 : item.amount
-    if (item.toId === userId) net -= settlementAmount
-    if (item.fromId === userId) net += settlementAmount
+    if (destination?.scope === 'family') {
+      net += item.fromId === userId
+        ? item.amount * otherMembersShare
+        : -item.amount * personalShare
+    } else {
+      if (item.toId === userId) net -= item.amount
+      if (item.fromId === userId) net += item.amount
+    }
   }
   for (const transfer of data.transfers) {
     const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
     const destination = data.accounts.find((account) => account.id === transfer.toAccountId)
     if (source?.scope !== 'family' || destination?.scope !== 'personal' || !destination.ownerId) continue
-    const half = transfer.amount / 2
-    net += destination.ownerId === userId ? -half : half
+    net += destination.ownerId === userId
+      ? -transfer.amount * otherMembersShare
+      : transfer.amount * personalShare
   }
   return Math.round(net * 100) / 100
 }

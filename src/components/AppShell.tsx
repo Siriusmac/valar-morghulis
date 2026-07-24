@@ -47,10 +47,10 @@ export function AppShell({ children, page, user, onPageChange, onAddMovement, on
           ))}
         </nav>
         <div className="sidebar__footer">
-          <div className="profile-mini">
+          <button type="button" className={page === 'account' ? 'profile-mini profile-mini--active' : 'profile-mini'} onClick={() => selectPage('account')} aria-label="Gestisci account e famiglie">
             <span className="avatar">{user.initials}</span>
             <span><strong>{user.name}</strong><small>{user.email}</small></span>
-          </div>
+          </button>
           <button className="nav-item" onClick={onLogout}><LogOut aria-hidden="true" /><span>Esci</span></button>
         </div>
       </aside>

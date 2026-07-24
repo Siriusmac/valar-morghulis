@@ -10,11 +10,33 @@ import type { Account, User } from '../types'
 export interface FamilySession {
   familyId: string
   familyName: string
+  role: 'admin' | 'member'
+  families: FamilyOption[]
   user: User
   members: User[]
   sharedAccounts: Account[]
+  switchFamily: (familyId: string) => Promise<void>
+  createFamily: (input: CreateFamilyInput) => Promise<void>
+  renameFamily: (name: string) => Promise<void>
+  inviteMember: (email: string) => Promise<void>
+  updateEmail: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
   signOut: () => Promise<void>
+}
+
+export interface FamilyOption {
+  id: string
+  name: string
+  role: 'admin' | 'member'
+}
+
+export interface CreateFamilyInput {
+  name: string
+  withAccount: boolean
+  accountName: string
+  institution: string
+  openingBalance: number
 }
 
 export function CloudAccess({ children }: { children: (context: FamilySession) => ReactNode }) {
@@ -109,35 +131,58 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   const [loading, setLoading] = useState(!needsPasswordSetup)
   const [error, setError] = useState('')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
     const { data: profile, error: profileError } = await supabase.from('profiles').select('id, full_name, email').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
 
-    let { data: membership, error: membershipError } = await supabase.from('family_members').select('family_id, role').eq('user_id', session.user.id).maybeSingle()
-    if (!membership && !membershipError && inviteToken) {
-      const { error: acceptError } = await supabase.rpc('accept_family_invitation', { invitation_token: inviteToken })
+    let acceptedFamilyId: string | undefined
+    if (inviteToken) {
+      const { data: acceptedId, error: acceptError } = await supabase.rpc('accept_family_invitation', { invitation_token: inviteToken })
       if (acceptError) setError(onboardingMessage(acceptError.message))
       else {
-        window.history.replaceState({}, '', window.location.pathname)
-        const result = await supabase.from('family_members').select('family_id, role').eq('user_id', session.user.id).single()
-        membership = result.data
-        membershipError = result.error
+        acceptedFamilyId = acceptedId
+        const nextUrl = new URL(window.location.href)
+        nextUrl.searchParams.delete('invite')
+        window.history.replaceState({}, '', nextUrl)
       }
     }
+
+    const { data: memberships, error: membershipError } = await supabase
+      .from('family_members')
+      .select('family_id, role')
+      .eq('user_id', session.user.id)
     if (membershipError) { setError(membershipError.message); setLoading(false); return }
-    if (!membership) {
-      setSnapshot({ profile: toUser(profile), membership: null, family: null, members: [], accounts: [] })
+    if (!memberships.length) {
+      setSnapshot({ profile: toUser(profile), membership: null, family: null, families: [], members: [], accounts: [] })
       setLoading(false); return
     }
 
-    const [familyResult, membershipsResult, accountsResult] = await Promise.all([
-      supabase.from('families').select('id, name, onboarding_completed').eq('id', membership.family_id).single(),
-      supabase.from('family_members').select('user_id, role').eq('family_id', membership.family_id),
-      supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', membership.family_id).eq('scope', 'family'),
+    const familyIds = memberships.map((item) => item.family_id)
+    const { data: familyRows, error: familiesError } = await supabase
+      .from('families')
+      .select('id, name, onboarding_completed')
+      .in('id', familyIds)
+    if (familiesError) { setError(familiesError.message); setLoading(false); return }
+    const familyById = new Map(familyRows.map((family) => [family.id, family]))
+    const families: FamilyOption[] = memberships.flatMap((membership) => {
+      const family = familyById.get(membership.family_id)
+      return family ? [{ id: family.id, name: family.name, role: membership.role as FamilyOption['role'] }] : []
+    }).toSorted((a, b) => a.name.localeCompare(b.name, 'it'))
+    if (!families.length) { setError('Nessuna famiglia disponibile.'); setLoading(false); return }
+    const storedFamilyId = localStorage.getItem(activeFamilyKey(session.user.id)) ?? undefined
+    const activeFamilyId = [preferredFamilyId, acceptedFamilyId, storedFamilyId]
+      .find((candidate) => candidate && familyIds.includes(candidate)) ?? families[0].id
+    const membership = memberships.find((item) => item.family_id === activeFamilyId)!
+    const activeFamily = familyById.get(activeFamilyId)!
+    localStorage.setItem(activeFamilyKey(session.user.id), activeFamilyId)
+
+    const [membershipsResult, accountsResult] = await Promise.all([
+      supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
+      supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
     ])
-    if (familyResult.error || membershipsResult.error || accountsResult.error) {
-      setError(familyResult.error?.message ?? membershipsResult.error?.message ?? accountsResult.error?.message ?? 'Errore di caricamento')
+    if (membershipsResult.error || accountsResult.error) {
+      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? 'Errore di caricamento')
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
@@ -146,7 +191,8 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     setSnapshot({
       profile: toUser(profile),
       membership,
-      family: familyResult.data,
+      family: activeFamily,
+      families,
       members: profiles.map(toUser),
       accounts: accountsResult.data.map((account) => ({
         id: account.id,
@@ -172,7 +218,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   }} />
   if (loading) return <AccessLoading label="Carichiamo la tua famiglia" />
   if (!snapshot) return <AccessError message={error || 'Impossibile caricare il profilo.'} onRetry={load} />
-  if (!snapshot.membership) return <CreateFamily user={snapshot.profile} error={error} onCreated={load} />
+  if (!snapshot.membership) return <CreateFamily user={snapshot.profile} error={error} onCreated={(familyId) => load(familyId)} />
   if (snapshot.family && snapshot.membership.role === 'admin' && !snapshot.family.onboarding_completed) {
     return <InviteFamily family={snapshot.family} onCompleted={load} />
   }
@@ -180,9 +226,45 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   return children({
     familyId: snapshot.family.id,
     familyName: snapshot.family.name,
+    role: snapshot.membership.role as FamilySession['role'],
+    families: snapshot.families,
     user: snapshot.profile,
     members: snapshot.members,
     sharedAccounts: snapshot.accounts,
+    switchFamily: async (familyId) => { await load(familyId) },
+    createFamily: async (input) => {
+      const { data: familyId, error: createError } = await supabase.rpc('create_family_with_optional_account', {
+        family_name: input.name.trim(),
+        shared_account_name: input.withAccount ? input.accountName.trim() : null,
+        shared_account_institution: input.withAccount ? input.institution.trim() : null,
+        shared_account_type: 'bank',
+        shared_account_opening_balance: input.withAccount ? input.openingBalance : 0,
+      })
+      if (createError) throw createError
+      await load(familyId)
+    },
+    renameFamily: async (name) => {
+      const { error: renameError } = await supabase
+        .from('families')
+        .update({ name: name.trim() })
+        .eq('id', snapshot.family!.id)
+      if (renameError) throw renameError
+      await load(snapshot.family!.id)
+    },
+    inviteMember: async (email) => {
+      const { data, error: functionError } = await supabase.functions.invoke('invite-family-member', {
+        body: { familyId: snapshot.family!.id, email: email.trim().toLowerCase() },
+      })
+      if (functionError || data?.error) throw new Error(onboardingMessage(data?.error ?? functionError?.message ?? 'Invito non inviato'))
+    },
+    updateEmail: async (email) => {
+      const { error: updateError } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() })
+      if (updateError) throw new Error(authMessage(updateError.message))
+    },
+    updatePassword: async (password) => {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+      if (updateError) throw new Error(authMessage(updateError.message))
+    },
     updateSharedAccount: async (account) => {
       const { error: updateError } = await supabase
         .from('accounts')
@@ -232,7 +314,7 @@ function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
   </AccessLayout>
 }
 
-function CreateFamily({ user, error: initialError, onCreated }: { user: User; error: string; onCreated: () => Promise<void> }) {
+function CreateFamily({ user, error: initialError, onCreated }: { user: User; error: string; onCreated: (familyId: string) => Promise<void> }) {
   const supabase = getSupabase()
   const familySuggestion = user.name.split(' ').at(-1) || user.name
   const [familyName, setFamilyName] = useState(`Famiglia ${familySuggestion}`)
@@ -245,7 +327,7 @@ function CreateFamily({ user, error: initialError, onCreated }: { user: User; er
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError('')
-    const { error: rpcError } = await supabase.rpc('create_family_with_optional_account', {
+    const { data: familyId, error: rpcError } = await supabase.rpc('create_family_with_optional_account', {
       family_name: familyName.trim(),
       shared_account_name: withAccount ? accountName.trim() : null,
       shared_account_institution: withAccount ? institution.trim() : null,
@@ -254,7 +336,7 @@ function CreateFamily({ user, error: initialError, onCreated }: { user: User; er
     })
     setBusy(false)
     if (rpcError) setError(onboardingMessage(rpcError.message))
-    else await onCreated()
+    else await onCreated(familyId)
   }
 
   return <AccessLayout compact>
@@ -355,7 +437,7 @@ function authMessage(message: string) {
 }
 
 function onboardingMessage(message: string) {
-  if (message.includes('user_already_has_family')) return 'Questo account appartiene già a una famiglia.'
+  if (message.includes('user_already_in_family')) return 'Questo account appartiene già a questa famiglia.'
   if (message.includes('invalid_or_expired_invitation')) return 'Questo invito non è valido o è scaduto.'
   if (message.includes('invitation_email_mismatch')) return 'Accedi con la stessa email a cui è stato inviato l’invito.'
   if (message.includes('invitation_already_pending')) return 'Esiste già un invito in attesa per questa email.'
@@ -368,6 +450,11 @@ interface FamilySnapshot {
   profile: User
   membership: { family_id: string; role: string } | null
   family: FamilyRow | null
+  families: FamilyOption[]
   members: User[]
   accounts: Account[]
+}
+
+function activeFamilyKey(userId: string) {
+  return `valar-morghulis:active-family:${userId}`
 }

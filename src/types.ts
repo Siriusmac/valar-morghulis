@@ -1,5 +1,5 @@
 export type UserId = string
-export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags'
+export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags' | 'account'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
 

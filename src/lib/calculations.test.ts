@@ -20,6 +20,14 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'anna')).toBe(10)
   })
 
+  it('splits shared expenses equally among three members', () => {
+    const data = cleanData()
+    data.movements = [expense('three-members', 'simone', 90, 'simone-bank')]
+    expect(sharedBalance(data, 'simone', 3)).toBe(60)
+    expect(sharedBalance(data, 'anna', 3)).toBe(-30)
+    expect(sharedBalance(data, 'terzo-membro', 3)).toBe(-30)
+  })
+
   it('ignores movements paid from a family account', () => {
     const data = cleanData()
     data.movements = [expense('family', 'simone', 200, 'family-bank')]
@@ -49,11 +57,27 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'anna')).toBe(-50)
   })
 
+  it('distributes a reimbursement into a shared account among three members', () => {
+    const data = cleanData()
+    data.reimbursements = [{ id: 'r-family-three', fromId: 'simone', toId: 'anna', amount: 90, date: '2026-07-18', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank' }]
+    expect(sharedBalance(data, 'simone', 3)).toBe(60)
+    expect(sharedBalance(data, 'anna', 3)).toBe(-30)
+    expect(sharedBalance(data, 'terzo-membro', 3)).toBe(-30)
+  })
+
   it('creates a half-amount debt when funds move from a shared account to a personal account', () => {
     const data = cleanData()
     data.transfers = [{ id: 'family-to-personal', authorId: 'simone', fromAccountId: 'family-bank', toAccountId: 'simone-bank', amount: 100, date: '2026-07-18', description: 'Prelievo dal conto famiglia' }]
     expect(sharedBalance(data, 'simone')).toBe(-50)
     expect(sharedBalance(data, 'anna')).toBe(50)
+  })
+
+  it('distributes a transfer from a shared account among three members', () => {
+    const data = cleanData()
+    data.transfers = [{ id: 'family-to-personal-three', authorId: 'simone', fromAccountId: 'family-bank', toAccountId: 'simone-bank', amount: 90, date: '2026-07-18', description: 'Prelievo dal conto famiglia' }]
+    expect(sharedBalance(data, 'simone', 3)).toBe(-60)
+    expect(sharedBalance(data, 'anna', 3)).toBe(30)
+    expect(sharedBalance(data, 'terzo-membro', 3)).toBe(30)
   })
 
   it('settles a shared installment purchase immediately, without counting later installments twice', () => {

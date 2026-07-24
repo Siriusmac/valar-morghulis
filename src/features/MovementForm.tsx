@@ -7,6 +7,7 @@ interface Props {
   data: AppData
   user: User
   otherName?: string
+  memberCount?: number
   onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
   onCancel: () => void
   initial?: Movement
@@ -14,7 +15,7 @@ interface Props {
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 
-export function MovementForm({ data, user, otherName = 'la famiglia', onSave, onCancel, initial }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, initial }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -47,6 +48,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', onSave, on
   const selectedAccount = data.accounts.find((item) => item.id === accountId)
   const effectivelyShared = selectedAccount?.scope === 'family' || shared
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
+  const sharedWithLabel = memberCount > 2 ? 'la famiglia' : otherName
+  const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
 
   const changeType = (nextType: MovementType) => {
     setType(nextType)
@@ -181,7 +184,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', onSave, on
       <button type="button" className="installment-toggle" onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}
-    {selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra voi.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + otherName}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà divisa al 50% con ${otherName}.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}
+    {selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}
     <div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{initial ? <Check /> : <Plus />}{initial ? 'Salva modifiche' : 'Salva movimento'}</button></div>
   </form>
 }
