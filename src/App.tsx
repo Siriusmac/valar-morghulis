@@ -102,6 +102,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }
   const deleteMovement = (id: string) => {
     setData((current) => deleteMovementData(current, id))
+    setModal(null)
     setToast('Movimento eliminato e saldi aggiornati')
   }
   const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => {
@@ -140,7 +141,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
   return <>
     <AppShell page={page} user={user} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>{content}</AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} onSave={saveMovement} onCancel={() => setModal(null)} /></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'transfer' ? <Modal title="Giro fondi" onClose={() => setModal(null)}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><MovementList data={data} movements={detailMovements} compact /></Modal> : null}

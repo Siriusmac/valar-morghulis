@@ -10,13 +10,14 @@ interface Props {
   memberCount?: number
   onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
   onCancel: () => void
+  onDelete?: (id: string) => void
   initial?: Movement
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 type SplitDraft = Omit<MovementSplit, 'amount'> & { amount: string }
 
-export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, initial }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -90,9 +91,9 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
   }
 
-  const toggleShared = () => {
-    const nextShared = !shared
+  const setMovementSharing = (nextShared: boolean) => {
     setShared(nextShared)
+    if (initial && splits.length) setSplits((items) => items.map((item) => ({ ...item, shared: nextShared })))
     if (type === 'income') {
       const nextAccountId = nextShared ? familyAccounts[0]?.id ?? '' : personalAccounts[0]?.id ?? ''
       setAccountId(nextAccountId)
@@ -100,6 +101,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
     }
   }
+
+  const toggleShared = () => setMovementSharing(!shared)
 
   const selectAccount = (nextAccountId: string) => {
     setAccountId(nextAccountId)
@@ -138,6 +141,10 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     const planId = shouldInstall ? makeId('installment-plan') : undefined
     const amounts = shouldInstall ? splitAmount(numericAmount, installmentCount) : [numericAmount]
     const resolvedProvider = shouldInstall ? (provider === 'Altro' ? customProvider.trim() || 'Altro' : provider) : undefined
+    const editedInstallmentSettlementAmount = initial?.installmentPlanId && initial.installmentNumber === 1 && effectivelyShared
+      ? [...data.movements.filter((item) => item.installmentPlanId === initial.installmentPlanId), ...data.scheduledPayments.filter((item) => item.planId === initial.installmentPlanId)]
+        .reduce((total, item) => total + item.amount, 0)
+      : initial?.sharedSettlementAmount
     const resolvedSplits = type === 'expense' && splitsEnabled
       ? splits.map((item) => ({
         id: item.id,
@@ -184,7 +191,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       installmentProvider: resolvedProvider ?? initial?.installmentProvider,
       installmentNumber: shouldInstall ? 1 : initial?.installmentNumber,
       installmentCount: shouldInstall ? installmentCount : initial?.installmentCount,
-      sharedSettlementAmount: shouldInstall && effectivelyShared ? numericAmount : initial?.sharedSettlementAmount,
+      sharedSettlementAmount: shouldInstall && effectivelyShared ? numericAmount : editedInstallmentSettlementAmount,
       affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     }, { category, beneficiary, tag, scheduledPayments })
@@ -258,7 +265,10 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       }}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}
-    {selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}
-    <div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{initial ? <Check /> : <Plus />}{initial ? 'Salva modifiche' : 'Salva movimento'}</button></div>
+    {initial ? <section className="sharing-edit-box">
+      <label>Condivisione del movimento<select value={effectivelyShared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(event) => setMovementSharing(event.target.value === 'family')}><option value="personal">Movimento personale</option><option value="family">Movimento condiviso</option></select></label>
+      <small>{selectedAccount?.scope === 'family' ? 'Il movimento resta condiviso perché utilizza un conto della famiglia.' : splits.length ? 'La scelta viene applicata anche a tutti i parziali del movimento.' : effectivelyShared ? `La quota viene ripartita al ${splitPercentage} tra i ${memberCount} membri.` : `Il movimento resta visibile soltanto a ${user.name}.`}</small>
+    </section> : selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}
+    <div className={`form-actions ${initial ? 'form-actions--edit' : ''}`}>{initial && onDelete ? <button className="button button--danger form-actions__delete" type="button" onClick={() => confirm(initial.installmentPlanId && initial.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare definitivamente questo movimento?') && onDelete(initial.id)}><Trash2 />Elimina movimento</button> : null}<button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{initial ? <Check /> : <Plus />}{initial ? 'Salva modifiche' : 'Salva movimento'}</button></div>
   </form>
 }

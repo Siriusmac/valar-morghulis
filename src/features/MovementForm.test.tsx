@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MovementForm } from './MovementForm'
 import { defaultData, users } from '../lib/seed'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('MovementForm', () => {
   it('asks how a movement before the opening balance date affects the account', () => {
@@ -100,6 +103,41 @@ describe('MovementForm', () => {
       amount: 42.5,
       description: 'Spesa corretta',
     })
+  })
+
+  it('can make an existing personal movement shared', () => {
+    const onSave = vi.fn()
+    const initial = defaultData.movements.find((movement) => movement.id === 'seed-5')!
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Condivisione del movimento'), { target: { value: 'family' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave.mock.calls[0][0].shared).toBe(true)
+  })
+
+  it('can make an existing shared movement personal', () => {
+    const onSave = vi.fn()
+    const initial = defaultData.movements.find((movement) => movement.id === 'seed-1')!
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Condivisione del movimento'), { target: { value: 'personal' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave.mock.calls[0][0].shared).toBe(false)
+  })
+
+  it('deletes an existing movement from the edit form after confirmation', () => {
+    const onDelete = vi.fn()
+    const onSave = vi.fn()
+    const initial = defaultData.movements.find((movement) => movement.id === 'seed-1')!
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onDelete={onDelete} onCancel={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina movimento' }))
+
+    expect(onDelete).toHaveBeenCalledWith(initial.id)
+    expect(onSave).not.toHaveBeenCalled()
   })
 
   it('adds category partials with an independent shared setting', () => {

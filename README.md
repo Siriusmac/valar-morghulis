@@ -23,7 +23,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
 - nomi di categorie e beneficiari modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - suddivisione facoltativa di uno scontrino in più categorie, con parziali personali o condivisi indipendenti e residuo automatico sulla categoria principale;
-- movimenti modificabili ed eliminabili dal loro autore, con ricalcolo immediato di conti, statistiche e saldo condiviso;
+- movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;

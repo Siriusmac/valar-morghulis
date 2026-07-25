@@ -27,7 +27,7 @@ Funzioni disponibili:
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi con conto di origine del debitore e conto di destinazione del creditore obbligatori;
 - modifica dei movimenti riservata all’autore;
-- modifica ed eliminazione dei movimenti visibili anche su smartphone, con ricalcolo derivato di saldi, conti e statistiche;
+- modifica ed eliminazione dei movimenti visibili anche su smartphone e direttamente nel pannello di modifica; un movimento esistente può passare da personale a condiviso o viceversa, con ricalcolo derivato di saldi, conti e statistiche;
 - modifica dei movimenti importati basata anche sull'identità stabile
   autore/data di creazione, per sostituire l'originale e rimuovere eventuali
   copie con ID divergenti;

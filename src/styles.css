@@ -36,6 +36,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .button--secondary:hover { background: #263a54; transform: translateY(-1px); }
 .button--ghost { background: transparent; border: 1px solid var(--line); }
 .button--ghost:hover { background: var(--sand); }
+.button--danger { color: #a93d34; background: #fff; border: 1px solid #d9aaa6; }
+.button--danger:hover { background: #fff2f0; }
 .button--full { width: 100%; }
 .icon-button { width: 40px; height: 40px; border: 0; border-radius: 50%; display: inline-grid; place-items: center; background: transparent; cursor: pointer; }
 .icon-button:hover { background: var(--sand); }
@@ -394,7 +396,11 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .share-toggle > i span { display: block; width: 17px; height: 17px; background: white; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .share-toggle--active > i { background: var(--accent); }
 .share-toggle--active > i span { transform: translateX(17px); }
+.sharing-edit-box { border: 1px solid var(--line); background: #faf9f7; border-radius: 7px; padding: 14px; display: grid; gap: 7px; }
+.sharing-edit-box label { display: grid; grid-template-columns: 1fr minmax(210px, .75fr); gap: 14px; align-items: center; }
+.sharing-edit-box > small { color: var(--muted); font-size: 10px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.form-actions__delete { margin-right: auto; }
 .reimbursement-form { text-align: center; display: grid; justify-items: stretch; gap: 10px; }
 .reimbursement-form__icon { width: 70px; height: 70px; border: 1px solid var(--accent); color: var(--accent); border-radius: 50%; display: grid; place-items: center; margin: 0 auto 4px; }
 .reimbursement-form__icon svg { width: 32px; }
@@ -634,6 +640,9 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   input:focus, select:focus, textarea:focus { scroll-margin-top: 86px; scroll-margin-bottom: 38vh; }
   .amount-field input { font-size: 48px !important; }
   .form-actions .button { flex: 1; }
+  .sharing-edit-box label { grid-template-columns: 1fr; }
+  .form-actions--edit { flex-wrap: wrap; }
+  .form-actions--edit .form-actions__delete { flex-basis: 100%; margin-right: 0; }
   .toast { bottom: 82px; width: calc(100% - 36px); justify-content: center; }
   .login-page { grid-template-columns: 1fr; }
   .login-story { min-height: 320px; padding: 28px 24px 35px; }
