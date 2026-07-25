@@ -1,5 +1,5 @@
-import { ArrowRight, CheckCircle2, Scale } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, CheckCircle2, LoaderCircle, Scale } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { Login } from './components/Login'
 import { Modal } from './components/Modal'
@@ -15,9 +15,10 @@ import { AccountSettings } from './features/AccountSettings'
 import { sharedBalance, visibleMovements } from './lib/calculations'
 import { formatMoney, makeId, todayISO } from './lib/format'
 import { createStarterData, users } from './lib/seed'
-import { loadData, saveData } from './lib/storage'
+import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
+import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, Category, Movement, PageId, ScheduledPayment, Tag, Transfer, User, UserId } from './types'
+import type { AppData, Beneficiary, Movement, PageId, Transfer, User, UserId } from './types'
 
 type ModalState =
   | { type: 'movement'; movement?: Movement }
@@ -47,8 +48,44 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
+  const [cloudDataReady, setCloudDataReady] = useState(!cloud)
+  const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => { if (storageKey) saveData(data, storageKey); else saveData(data) }, [data, storageKey])
+  useEffect(() => {
+    if (!cloud || !storageKey) return
+    let cancelled = false
+    const sync = async () => {
+      const fallback = createStarterData(cloud.user.id, cloud.sharedAccounts)
+      const localData = loadData(storageKey, fallback)
+      const remoteData = await cloud.loadAppData()
+      const importKey = cloudImportKey(cloud.familyId, cloud.user.id)
+      const shouldImportLocal = !localStorage.getItem(importKey) && hasMeaningfulUserData(localData, cloud.user.id)
+      const resolved = remoteData
+        ? (shouldImportLocal ? mergeAppData(remoteData, localData, fallback) : hydrateData(remoteData, fallback))
+        : localData
+
+      if (!remoteData || shouldImportLocal) await cloud.saveAppData(resolved)
+      if (cancelled) return
+      saveData(resolved, storageKey)
+      localStorage.setItem(importKey, '1')
+      setData(resolved)
+      setCloudDataReady(true)
+    }
+    void sync().catch(() => {
+      if (cancelled) return
+      setCloudDataReady(true)
+      setToast('Cloud non raggiungibile: i dati restano salvati su questo dispositivo')
+    })
+    return () => { cancelled = true }
+  }, [cloud, storageKey])
+  useEffect(() => {
+    if (!cloud || !cloudDataReady) return
+    cloudSaveQueue.current = cloudSaveQueue.current
+      .catch(() => undefined)
+      .then(() => cloud.saveAppData(data))
+      .catch(() => { setToast('Salvataggio cloud non riuscito: riproveremo alla prossima modifica') })
+  }, [cloud, cloudDataReady, data])
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 2600); return () => window.clearTimeout(timer) }, [toast])
   const user = useMemo(() => appUsers.find((item) => item.id === userId), [appUsers, userId])
   const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setUserId(id) }
@@ -57,16 +94,15 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     sessionStorage.removeItem('vm:user'); setUserId(null); setPage('dashboard')
   }
   if (!user) return <Login onLogin={login} />
+  if (cloud && !cloudDataReady) return <main className="access-status"><LoaderCircle className="spin" /><p>Sincronizziamo i tuoi dati…</p></main>
 
-  const saveMovement = (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => {
-    setData((current) => ({ ...current,
-      categories: additions.category ? [...current.categories, additions.category] : current.categories,
-      beneficiaries: additions.beneficiary ? [...current.beneficiaries, additions.beneficiary] : current.beneficiaries,
-      tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
-      scheduledPayments: additions.scheduledPayments?.length ? [...current.scheduledPayments, ...additions.scheduledPayments] : current.scheduledPayments,
-      movements: current.movements.some((item) => item.id === movement.id) ? current.movements.map((item) => item.id === movement.id ? movement : item) : [movement, ...current.movements],
-    }))
+  const saveMovement = (movement: Movement, additions: MovementAdditions) => {
+    setData((current) => saveMovementData(current, movement, additions))
     setModal(null); setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
+  }
+  const deleteMovement = (id: string) => {
+    setData((current) => deleteMovementData(current, id))
+    setToast('Movimento eliminato e saldi aggiornati')
   }
   const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => {
     const balance = sharedBalance(data, user.id, appUsers.length); const otherId = counterpartId
@@ -90,7 +126,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
 
   const common = { data, user, onShowMovements: showMovements }
   const content = page === 'dashboard' ? <Dashboard data={data} user={user} members={appUsers} onNavigate={setPage} onReimburse={() => setModal({ type: 'reimburse' })} />
-    : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={(id) => setData((current) => ({ ...current, movements: current.movements.filter((item) => item.id !== id) }))} />
+    : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} />
     : page === 'accounts' ? <AccountsPage {...common} onTransfer={() => setModal({ type: 'transfer' })} onAdd={(account) => setData((current) => ({ ...current, accounts: [...current.accounts, account] }))} onUpdate={updateAccount} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
@@ -107,6 +143,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><MovementList data={data} movements={detailMovements} compact /></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
+}
+
+function cloudImportKey(familyId: string, userId: string) {
+  return `valar-morghulis:cloud-imported:${familyId}:${userId}:v1`
 }
 
 function ReimbursementForm({ data, userId, members, onSubmit, onCancel }: { data: AppData; userId: UserId; members: User[]; onSubmit: (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => void; onCancel: () => void }) {

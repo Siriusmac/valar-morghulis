@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 24 luglio 2026.
+Aggiornato il 25 luglio 2026.
 
 ## Stato del prodotto
 
@@ -26,6 +26,10 @@ Funzioni disponibili:
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi con conto di origine del debitore e conto di destinazione del creditore obbligatori;
 - modifica dei movimenti riservata all’autore;
+- modifica ed eliminazione dei movimenti visibili anche su smartphone, con ricalcolo derivato di saldi, conti e statistiche;
+- eliminazione della prima rata estesa al piano collegato e modifiche anagrafiche propagate alle rate non ancora scadute;
+- creazione e selezione affidabile di un nuovo beneficiario nel modulo del movimento;
+- campi mobile a 16 px e viewport adattiva per evitare lo zoom automatico invasivo con la tastiera virtuale;
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
 - pagina Account raggiungibile dal profilo nella barra laterale, con modifica email e password;
@@ -57,6 +61,7 @@ Funzioni disponibili:
 - `src/App.tsx`: composizione, modali, salvataggi e rimborso.
 - `src/features/`: dashboard, movimenti, anagrafiche e giro fondi.
 - `src/lib/calculations.ts`: saldo condiviso, saldi dei conti e aggregazioni.
+- `src/lib/movements.ts`: inserimento, modifica, eliminazione e coerenza delle rate dipendenti.
 - `src/lib/scheduled.ts`: trasformazione delle rate scadute in movimenti effettivi.
 - `src/lib/storage.ts`: persistenza locale e migrazione delle versioni dei dati.
 - `src/lib/seed.ts`: utenti e dati iniziali.
@@ -77,22 +82,28 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 24 luglio 2026: lint pulito, test automatici e
-build di produzione riusciti. QA browser su desktop e smartphone 390×844:
-grafico giornaliero derivato dai movimenti reali, modifica del saldo iniziale,
-scelta per i movimenti retrodatati e layout della pagina Conti senza errori
-console. Produzione verificata con risposta HTTP 200.
+Ultima verifica completata il 25 luglio 2026: lint, test automatici e build di
+produzione. I test coprono anche nuovo beneficiario, modifica e cancellazione
+con ricalcolo dei saldi, dipendenze dei pagamenti rateali e importazione dei
+dati locali nello snapshot cloud.
 
 ## Limiti dell’MVP e prossimi passi
 
 Prossimi passi:
 
-1. migrare movimenti, categorie, beneficiari, tag, rate, rimborsi e trasferimenti
-   da `localStorage` a tabelle protette da RLS;
+1. normalizzare movimenti e relative dipendenze in tabelle Supabase condivise,
+   per sincronizzarli in tempo reale fra tutti i membri della famiglia; oggi
+   ogni utente-famiglia usa uno snapshot privato durevole con cache locale;
 2. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
 3. rifinire i template email e introdurre limiti anti-abuso;
 4. aggiungere backup, esportazione, cancellazione dati e test end-to-end;
 5. definire l’API stabile per le future app native iOS e macOS.
+
+La migrazione `20260725123000_private_family_app_data.sql` introduce
+`family_user_app_data`, con una riga JSON per utente e famiglia. Al primo avvio
+dopo l'aggiornamento, l'app unisce una sola volta gli eventuali dati già presenti
+nel browser e salva il risultato nel cloud. Le policy RLS consentono a ogni
+utente di leggere e modificare esclusivamente la propria riga.
 
 Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 `main`.

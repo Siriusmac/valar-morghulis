@@ -34,14 +34,14 @@ export function loadData(storageKey = STORAGE_KEY, fallbackData: AppData = defau
     const raw = localStorage.getItem(storageKey)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppData>
-      if (parsed.version === 3) return materializeDuePayments(normalizeData(parsed, fallbackData), todayISO())
+      if (parsed.version === 3) return hydrateData(parsed, fallbackData)
     }
     if (storageKey !== STORAGE_KEY) return structuredClone(fallbackData)
     const version2Raw = localStorage.getItem(VERSION_2_KEY)
-    if (version2Raw) return materializeDuePayments(normalizeData(JSON.parse(version2Raw) as Partial<AppData>, fallbackData), todayISO())
+    if (version2Raw) return hydrateData(JSON.parse(version2Raw) as Partial<AppData>, fallbackData)
     const legacyRaw = localStorage.getItem(LEGACY_KEY)
     if (!legacyRaw) return structuredClone(fallbackData)
-    return materializeDuePayments(normalizeData(migrateLegacy(JSON.parse(legacyRaw) as LegacyData), fallbackData), todayISO())
+    return hydrateData(migrateLegacy(JSON.parse(legacyRaw) as LegacyData), fallbackData)
   } catch {
     return structuredClone(fallbackData)
   }
@@ -51,6 +51,10 @@ function mergeMissingById<T extends { id: string }>(current: T[] | undefined, de
   const items = current ?? []
   const ids = new Set(items.map((item) => item.id))
   return [...items, ...defaults.filter((item) => !ids.has(item.id))]
+}
+
+export function hydrateData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
+  return materializeDuePayments(normalizeData(data, fallbackData), todayISO())
 }
 
 function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
@@ -74,6 +78,38 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
       toAccountId: item.toAccountId || fallbackAccount(item.toId),
     })),
   }
+}
+
+export function hasMeaningfulUserData(data: AppData, userId: UserId) {
+  const personalAccounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === userId)
+  return data.movements.length > 0
+    || data.scheduledPayments.length > 0
+    || data.transfers.length > 0
+    || data.reimbursements.length > 0
+    || data.beneficiaries.length > 0
+    || data.tags.length > 0
+    || personalAccounts.some((account) => account.type !== 'cash' || account.openingBalance !== 0)
+}
+
+export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackData: AppData): AppData {
+  const remoteData = hydrateData(remote, fallbackData)
+  return hydrateData({
+    ...remoteData,
+    accounts: mergePreferredById(local.accounts, remoteData.accounts),
+    categories: mergePreferredById(local.categories, remoteData.categories),
+    beneficiaries: mergePreferredById(local.beneficiaries, remoteData.beneficiaries),
+    tags: mergePreferredById(local.tags, remoteData.tags),
+    tagReportIds: [...new Set([...local.tagReportIds, ...remoteData.tagReportIds])],
+    movements: mergePreferredById(local.movements, remoteData.movements),
+    scheduledPayments: mergePreferredById(local.scheduledPayments, remoteData.scheduledPayments),
+    transfers: mergePreferredById(local.transfers, remoteData.transfers),
+    reimbursements: mergePreferredById(local.reimbursements, remoteData.reimbursements),
+  }, fallbackData)
+}
+
+function mergePreferredById<T extends { id: string }>(preferred: T[], existing: T[]) {
+  const preferredIds = new Set(preferred.map((item) => item.id))
+  return [...preferred, ...existing.filter((item) => !preferredIds.has(item.id))]
 }
 
 function migrateLegacy(legacy: LegacyData): AppData {

@@ -22,6 +22,9 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - PayPal come conto personale;
 - categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
 - nomi delle categorie modificabili e commenti facoltativi sui movimenti;
+- movimenti modificabili ed eliminabili dal loro autore, con ricalcolo immediato di conti, statistiche e saldo condiviso;
+- eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
+- creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
 - spese in 3 o 5 rate con prima rata immediata e pagamenti successivi programmati;
@@ -32,6 +35,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - creazione di ulteriori famiglie; l’autore ne diventa amministratore e può rinominarle e invitare membri;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
+- campi mobile ottimizzati per la tastiera virtuale senza zoom automatico invasivo.
 - favicon, icona iOS e manifest per salvare la web app nella schermata Home.
 
 ## Configurare iscrizione e famiglie
@@ -87,9 +91,11 @@ email presso Tophost.
 
 Il backend gestisce account, appartenenze multiple, ruoli per famiglia, inviti e
 conti condivisi. La famiglia attiva viene ricordata localmente per ogni utente.
-Movimenti, categorie, beneficiari, tag, rate, rimborsi e trasferimenti sono
-ancora conservati nel `localStorage` del singolo browser: la loro migrazione
-verso tabelle Supabase protette da RLS resta il principale passo successivo.
+Conti personali, movimenti, categorie, beneficiari, tag, rate, rimborsi e
+trasferimenti vengono salvati in uno snapshot privato Supabase per ciascuna
+coppia utente-famiglia, protetto da RLS. Il browser conserva una copia locale
+come cache e importa automaticamente i dati creati prima dell'introduzione
+della persistenza cloud.
 
 Controlli prima di pubblicare:
 
@@ -103,6 +109,7 @@ Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HAND
 
 ## Nota tecnica
 
-Questa versione è un MVP con onboarding cloud attivo. Movimenti, categorie,
-beneficiari e tag restano ancora locali e dovranno essere migrati su Supabase
-prima di considerare completa la sincronizzazione tra dispositivi e membri.
+Questa versione è un MVP con onboarding e persistenza cloud attivi. Lo snapshot
+privato evita la perdita dei dati dopo aggiornamenti o cambi di dispositivo. La
+sincronizzazione collaborativa in tempo reale degli stessi movimenti fra membri
+richiederà in seguito tabelle normalizzate dedicate.

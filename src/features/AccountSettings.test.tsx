@@ -28,6 +28,8 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     inviteMember: vi.fn().mockResolvedValue(undefined),
     updateEmail: vi.fn().mockResolvedValue(undefined),
     updatePassword: vi.fn().mockResolvedValue(undefined),
+    loadAppData: vi.fn().mockResolvedValue(null),
+    saveAppData: vi.fn().mockResolvedValue(undefined),
     updateSharedAccount: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn().mockResolvedValue(undefined),
     ...overrides,

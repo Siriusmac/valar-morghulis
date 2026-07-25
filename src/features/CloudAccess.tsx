@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
 import { getSupabase } from '../lib/supabase'
-import type { Account, User } from '../types'
+import type { Account, AppData, User } from '../types'
 
 export interface FamilySession {
   familyId: string
@@ -21,6 +21,8 @@ export interface FamilySession {
   inviteMember: (email: string) => Promise<void>
   updateEmail: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
+  loadAppData: () => Promise<Partial<AppData> | null>
+  saveAppData: (data: AppData) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -264,6 +266,26 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     updatePassword: async (password) => {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw new Error(authMessage(updateError.message))
+    },
+    loadAppData: async () => {
+      const { data, error: dataError } = await supabase
+        .from('family_user_app_data')
+        .select('data')
+        .eq('family_id', snapshot.family!.id)
+        .eq('user_id', snapshot.profile.id)
+        .maybeSingle()
+      if (dataError) throw dataError
+      return data?.data as Partial<AppData> | null
+    },
+    saveAppData: async (appData) => {
+      const { error: dataError } = await supabase
+        .from('family_user_app_data')
+        .upsert({
+          family_id: snapshot.family!.id,
+          user_id: snapshot.profile.id,
+          data: appData,
+        }, { onConflict: 'family_id,user_id' })
+      if (dataError) throw dataError
     },
     updateSharedAccount: async (account) => {
       const { error: updateError } = await supabase
