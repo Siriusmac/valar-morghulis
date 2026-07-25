@@ -1,7 +1,7 @@
-import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale } from 'lucide-react'
+import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { addMonthsISO, makeId, splitAmount, todayISO } from '../lib/format'
-import type { AppData, Beneficiary, Category, Movement, MovementType, ScheduledPayment, Tag, User } from '../types'
+import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Tag, User } from '../types'
 
 interface Props {
   data: AppData
@@ -14,6 +14,7 @@ interface Props {
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
+type SplitDraft = Omit<MovementSplit, 'amount'> & { amount: string }
 
 export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, initial }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
@@ -41,6 +42,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [newBeneficiary, setNewBeneficiary] = useState('')
   const [creatingBeneficiary, setCreatingBeneficiary] = useState(false)
   const [newTag, setNewTag] = useState('')
+  const [splitsEnabled, setSplitsEnabled] = useState(Boolean(initial?.splits?.length))
+  const [splits, setSplits] = useState<SplitDraft[]>(() => (initial?.splits ?? []).map((item) => ({ ...item, amount: item.amount.toString() })))
   const [installmentsEnabled, setInstallmentsEnabled] = useState(false)
   const [installmentCount, setInstallmentCount] = useState(3)
   const [provider, setProvider] = useState('PayPal')
@@ -51,6 +54,18 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const sharedWithLabel = memberCount > 2 ? 'la famiglia' : otherName
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
+  const numericAmount = Number(amount.replace(',', '.')) || 0
+  const splitTotal = splits.reduce((sum, item) => sum + (Number(item.amount.replace(',', '.')) || 0), 0)
+  const mainRemainder = Math.max(0, Math.round((numericAmount - splitTotal) * 100) / 100)
+
+  const addSplit = () => {
+    const fallbackCategory = categories.find((item) => item.id !== categoryId) ?? categories[0]
+    setSplits((items) => [...items, { id: makeId('movement-split'), amount: '', categoryId: fallbackCategory?.id ?? '', shared: false }])
+  }
+
+  const updateSplit = (id: string, patch: Partial<SplitDraft>) => {
+    setSplits((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item))
+  }
 
   const changeType = (nextType: MovementType) => {
     setType(nextType)
@@ -59,6 +74,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setCreatingBeneficiary(false)
     setNewBeneficiary('')
     setInstallmentsEnabled(false)
+    setSplitsEnabled(false)
+    setSplits([])
     const nextAccountId = nextType === 'income'
       ? personalAccounts[0]?.id ?? ''
       : personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? ''
@@ -99,9 +116,13 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitted(true)
-    const numericAmount = Number(amount.replace(',', '.'))
     const beneficiaryMissing = type === 'expense' && (creatingBeneficiary ? !newBeneficiary.trim() : !beneficiaryId)
-    if (!numericAmount || numericAmount <= 0 || !accountId || (!categoryId && !newCategory.trim()) || beneficiaryMissing) return
+    const invalidSplits = splitsEnabled && (
+      splits.length === 0
+      || splits.some((item) => !item.categoryId || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0)
+      || splitTotal > numericAmount
+    )
+    if (!numericAmount || numericAmount <= 0 || !accountId || (!categoryId && !newCategory.trim()) || beneficiaryMissing || invalidSplits) return
     const category = newCategory.trim() ? { id: makeId('category'), name: newCategory.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, movementType: type, color: type === 'income' ? '#3f7650' : '#c64e2f' } : undefined
     const userBeneficiaryId = `beneficiary-user-${user.id}`
     const beneficiary = type === 'income'
@@ -117,6 +138,14 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     const planId = shouldInstall ? makeId('installment-plan') : undefined
     const amounts = shouldInstall ? splitAmount(numericAmount, installmentCount) : [numericAmount]
     const resolvedProvider = shouldInstall ? (provider === 'Altro' ? customProvider.trim() || 'Altro' : provider) : undefined
+    const resolvedSplits = type === 'expense' && splitsEnabled
+      ? splits.map((item) => ({
+        id: item.id,
+        amount: Math.round(Number(item.amount.replace(',', '.')) * 100) / 100,
+        categoryId: item.categoryId,
+        shared: selectedAccount?.scope === 'family' || item.shared,
+      }))
+      : undefined
     const scheduledPayments: ScheduledPayment[] = shouldInstall ? amounts.slice(1).map((installmentAmount, index) => ({
       id: makeId('scheduled-payment'),
       planId: planId!,
@@ -150,6 +179,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       tagId: resolvedTagId,
       comments: resolvedComments,
       shared: effectivelyShared,
+      splits: resolvedSplits,
       installmentPlanId: planId ?? initial?.installmentPlanId,
       installmentProvider: resolvedProvider ?? initial?.installmentProvider,
       installmentNumber: shouldInstall ? 1 : initial?.installmentNumber,
@@ -184,6 +214,31 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}
       <label>Data<input type="date" value={date} onChange={(e) => changeDate(e.target.value)} required /></label>
     </div>
+    {type === 'expense' && !initial?.installmentPlanId ? <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
+      <label className="split-selector">Suddivisione per categorie<select value={splitsEnabled ? 'split' : 'single'} onChange={(e) => {
+        const enabled = e.target.value === 'split'
+        setSplitsEnabled(enabled)
+        if (enabled) {
+          setInstallmentsEnabled(false)
+          if (!splits.length) addSplit()
+        } else {
+          setSplits([])
+        }
+      }}><option value="single">Categoria unica</option><option value="split">Aggiungi parziali</option></select></label>
+      {splitsEnabled ? <div className="split-editor">
+        <div className="split-editor__intro"><div><strong>Parziali dello scontrino</strong><small>Ogni parziale viene sottratto dalla categoria principale.</small></div><button className="button button--ghost" type="button" onClick={addSplit}><Plus />Aggiungi parziale</button></div>
+        {splits.map((item, index) => <div className="split-row" key={item.id}>
+          <label>Importo parziale<input aria-label={`Importo parziale ${index + 1}`} inputMode="decimal" placeholder="0,00" value={item.amount} onChange={(e) => updateSplit(item.id, { amount: e.target.value })} /></label>
+          <label>Categoria<select aria-label={`Categoria parziale ${index + 1}`} value={item.categoryId} onChange={(e) => updateSplit(item.id, { categoryId: e.target.value })}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+          <label>Contabilità<select aria-label={`Contabilità parziale ${index + 1}`} value={selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(e) => updateSplit(item.id, { shared: e.target.value === 'family' })}><option value="personal">Personale</option><option value="family">Condivisa</option></select></label>
+          <button className="icon-button icon-button--danger split-row__remove" type="button" title={`Elimina parziale ${index + 1}`} onClick={() => setSplits((items) => items.filter((entry) => entry.id !== item.id))}><Trash2 /></button>
+        </div>)}
+        <div className={`split-remainder ${splitTotal > numericAmount ? 'split-remainder--error' : ''}`}><span>Residuo nella categoria principale</span><strong>€ {mainRemainder.toFixed(2).replace('.', ',')}</strong></div>
+        {submitted && splits.length === 0 ? <small className="field-error">Aggiungi almeno un parziale.</small> : null}
+        {submitted && splits.some((item) => !item.categoryId || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0) ? <small className="field-error">Completa tutti i parziali con categoria e importo valido.</small> : null}
+        {splitTotal > numericAmount ? <small className="field-error">La somma dei parziali non può superare l’importo totale.</small> : null}
+      </div> : null}
+    </section> : null}
     {isBeforeOpeningBalance ? <fieldset className="balance-impact-choice">
       <legend>Questo movimento è precedente al saldo iniziale del conto</legend>
       <p>Resterà sempre nelle statistiche. Scegli se deve modificare anche il saldo calcolato.</p>
@@ -191,7 +246,16 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       <label><input type="radio" name="balance-impact" checked={affectsAccountBalance} onChange={() => setAffectsAccountBalance(true)} /><span><strong>Includi nel saldo</strong><small>Somma o sottrae l’importo anche dal saldo calcolato.</small></span></label>
     </fieldset> : null}
     {type === 'expense' && !initial ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
-      <button type="button" className="installment-toggle" onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
+      <button type="button" className="installment-toggle" onClick={() => {
+        setInstallmentsEnabled((value) => {
+          const enabled = !value
+          if (enabled) {
+            setSplitsEnabled(false)
+            setSplits([])
+          }
+          return enabled
+        })
+      }}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}
     {selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}

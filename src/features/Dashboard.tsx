@@ -1,5 +1,5 @@
 import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, WalletCards } from 'lucide-react'
-import { accountBalance, sharedBalance } from '../lib/calculations'
+import { accountBalance, movementHasSharedPortion, sharedBalance, sharedMovementAmount } from '../lib/calculations'
 import { formatDate, formatMoney, todayISO } from '../lib/format'
 import type { AppData, User, PageId } from '../types'
 
@@ -15,8 +15,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
   const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
-  const sharedAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
-  const shared = data.movements.filter((item) => item.shared || sharedAccountIds.has(item.accountId)).toSorted((a, b) => b.date.localeCompare(a.date))
+  const shared = data.movements.filter((item) => movementHasSharedPortion(data, item)).toSorted((a, b) => b.date.localeCompare(a.date))
   const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const today = todayISO()
   const currentMonth = today.slice(0, 7)
@@ -27,7 +26,9 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
   const dailyTotals = Array.from({ length: daysInMonth }, () => 0)
   for (const movement of shared) {
     if (movement.type !== 'expense' || !movement.date.startsWith(currentMonth)) continue
-    dailyTotals[Number(movement.date.slice(8, 10)) - 1] += movement.amount
+    const account = data.accounts.find((item) => item.id === movement.accountId)
+    const amount = account?.scope === 'family' ? movement.amount : sharedMovementAmount(movement)
+    dailyTotals[Number(movement.date.slice(8, 10)) - 1] += amount
   }
   const monthlyTotal = dailyTotals.reduce((total, amount) => total + amount, 0)
   const dailyMaximum = Math.max(...dailyTotals)
@@ -75,13 +76,15 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
             const category = data.categories.find((item) => item.id === movement.categoryId)
             const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
             const member = members.find((item) => item.id === movement.memberId)
+            const account = data.accounts.find((item) => item.id === movement.accountId)
+            const displayedAmount = account?.scope === 'family' ? movement.amount : sharedMovementAmount(movement)
             return (
               <article className="expense-row" key={movement.id}>
                 <span className="expense-row__icon" style={{ color: category?.color }}>{movement.type === 'income' ? <ArrowDownLeft /> : <ReceiptText />}</span>
-                <div className="expense-row__name"><strong>{movement.description}</strong><small>{category?.name} · {beneficiary?.name}</small></div>
+                <div className="expense-row__name"><strong>{movement.description}</strong><small>{movement.splits?.length ? `${movement.splits.length + 1} categorie` : category?.name} · {beneficiary?.name}</small></div>
                 <div className="expense-row__payer"><small>{movement.type === 'income' ? 'Ricevuto da' : 'Pagato da'}</small><span>{member?.name}</span></div>
                 <time>{formatDate(movement.date)}</time>
-                <strong className={`expense-row__amount ${movement.type === 'income' ? 'positive-text' : ''}`}>{movement.type === 'income' ? '+' : '−'}{formatMoney(movement.amount)}</strong>
+                <strong className={`expense-row__amount ${movement.type === 'income' ? 'positive-text' : ''}`} title="Quota condivisa">{movement.type === 'income' ? '+' : '−'}{formatMoney(displayedAmount)}</strong>
               </article>
             )
           })}

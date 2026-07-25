@@ -45,6 +45,13 @@ export interface Tag {
   color: string
 }
 
+export interface MovementSplit {
+  id: string
+  amount: number
+  categoryId: string
+  shared: boolean
+}
+
 export interface Movement {
   id: string
   type: MovementType
@@ -59,6 +66,7 @@ export interface Movement {
   tagId?: string
   comments?: string
   shared: boolean
+  splits?: MovementSplit[]
   installmentPlanId?: string
   installmentProvider?: string
   installmentNumber?: number

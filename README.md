@@ -22,6 +22,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - PayPal come conto personale;
 - categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
 - nomi delle categorie modificabili e commenti facoltativi sui movimenti;
+- suddivisione facoltativa di uno scontrino in più categorie, con parziali personali o condivisi indipendenti e residuo automatico sulla categoria principale;
 - movimenti modificabili ed eliminabili dal loro autore, con ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;

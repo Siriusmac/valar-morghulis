@@ -101,4 +101,44 @@ describe('MovementForm', () => {
       description: 'Spesa corretta',
     })
   })
+
+  it('adds category partials with an independent shared setting', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'alimentari' } })
+    fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'accessori-casa' } })
+    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave).toHaveBeenCalledOnce()
+    const [movement] = onSave.mock.calls[0]
+    expect(movement).toMatchObject({
+      amount: 100,
+      categoryId: 'alimentari',
+      splits: [{ amount: 30, categoryId: 'accessori-casa', shared: true }],
+    })
+  })
+
+  it('keeps split partials editable on an existing movement', () => {
+    const onSave = vi.fn()
+    const initial = {
+      ...defaultData.movements.find((movement) => movement.id === 'seed-1')!,
+      splits: [{ id: 'split-existing', amount: 10, categoryId: 'accessori-casa', shared: false }],
+    }
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '12,50' } })
+    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    const [movement] = onSave.mock.calls[0]
+    expect(movement.id).toBe(initial.id)
+    expect(movement.splits).toEqual([
+      { id: 'split-existing', amount: 12.5, categoryId: 'accessori-casa', shared: true },
+    ])
+  })
 })

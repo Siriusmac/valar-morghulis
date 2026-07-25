@@ -20,6 +20,7 @@ Funzioni disponibili:
 - conti personali, conti condivisi, carte, contanti e giro fondi;
 - categorie, beneficiari e tag creabili durante l’uso;
 - modifica del nome delle categorie e commenti sui movimenti;
+- suddivisione facoltativa di un movimento in parziali per categoria, ciascuno personale o condiviso, interamente modificabile a posteriori;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
@@ -46,6 +47,8 @@ Funzioni disponibili:
 - Spese ed entrate condivise sono ripartite in quote uguali: 50% con due membri, un terzo con tre, e così via.
 - I movimenti personali sono visibili soltanto al proprietario; quelli condivisi sono visibili alla famiglia.
 - Un movimento su conto condiviso è visibile a tutta la famiglia ma non genera debito o credito.
+- Nei movimenti suddivisi, i parziali vengono sottratti dalla categoria principale; soltanto i parziali marcati come condivisi partecipano al saldo familiare. Il conto registra comunque una sola operazione per l’importo totale.
+- Suddivisione per categorie e rateizzazione sono alternative nello stesso movimento, per evitare di attribuire in modo ambiguo i parziali alle singole scadenze.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
@@ -88,9 +91,10 @@ pnpm dev
 ```
 
 Ultima verifica completata il 25 luglio 2026: lint, test automatici e build di
-produzione. I test coprono anche nuovo beneficiario, modifica e cancellazione
-con ricalcolo dei saldi, dipendenze dei pagamenti rateali e importazione dei
-dati locali nello snapshot cloud.
+produzione. I test coprono anche i parziali per categoria e la loro quota
+condivisa, nuovo beneficiario, modifica e cancellazione con ricalcolo dei saldi,
+dipendenze dei pagamenti rateali e importazione dei dati locali nello snapshot
+cloud.
 
 ## Limiti dell’MVP e prossimi passi
 

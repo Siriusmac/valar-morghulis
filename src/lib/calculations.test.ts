@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, sharedBalance } from './calculations'
+import { accountBalance, movementAllocations, sharedBalance, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -88,6 +88,57 @@ describe('sharedBalance', () => {
     ]
     expect(sharedBalance(data, 'simone')).toBe(60)
     expect(sharedBalance(data, 'anna')).toBe(-60)
+  })
+
+  it('counts only the shared partial of a split movement', () => {
+    const data = cleanData()
+    data.movements = [{
+      ...expense('split-partial', 'simone', 100, 'simone-bank'),
+      shared: false,
+      splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: true }],
+    }]
+    expect(sharedBalance(data, 'simone')).toBe(15)
+    expect(sharedBalance(data, 'anna')).toBe(-15)
+  })
+
+  it('keeps the main remainder shared when a partial is personal', () => {
+    const data = cleanData()
+    data.movements = [{
+      ...expense('split-remainder', 'simone', 100, 'simone-bank'),
+      splits: [{ id: 'personal', amount: 30, categoryId: 'accessori-casa', shared: false }],
+    }]
+    expect(sharedBalance(data, 'simone')).toBe(35)
+    expect(sharedBalance(data, 'anna')).toBe(-35)
+  })
+})
+
+describe('movement category splits', () => {
+  it('subtracts partials from the main category and reports each category total', () => {
+    const data = cleanData()
+    const movement = {
+      ...expense('split-categories', 'simone', 100, 'simone-bank'),
+      splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: false }],
+    }
+    expect(movementAllocations(movement)).toEqual([
+      { categoryId: 'alimentari', amount: 70, shared: true },
+      { categoryId: 'accessori-casa', amount: 30, shared: false },
+    ])
+    expect(totalsByCategory(data, [movement]).map((item) => [item.category?.id, item.total])).toEqual([
+      ['alimentari', 70],
+      ['accessori-casa', 30],
+    ])
+  })
+
+  it('uses only shared allocations in shared charts', () => {
+    const data = cleanData()
+    const movement = {
+      ...expense('shared-chart', 'simone', 100, 'simone-bank'),
+      shared: false,
+      splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: true }],
+    }
+    expect(totalsByCategory(data, [movement], true).map((item) => [item.category?.id, item.total])).toEqual([
+      ['accessori-casa', 30],
+    ])
   })
 })
 
