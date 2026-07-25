@@ -72,6 +72,8 @@ Funzioni disponibili:
 - `supabase/functions/invite-family-member/`: invio degli inviti email.
 - `src/types.ts`: modello dati condiviso.
 - `public/`: logo, icone e manifest della web app.
+- `scripts/verify-cloud-build.mjs`: blocca il deploy se la build non include
+  la configurazione pubblica Supabase.
 
 ## Verifica locale
 
@@ -111,8 +113,11 @@ Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 ## Hosting Cloudflare
 
 Il progetto è configurato per Cloudflare Pages tramite `wrangler.jsonc`.
-`pnpm cloudflare:check` esegue la build e `pnpm cloudflare:deploy` pubblica la
-SPA nel progetto `valar-morghulis-web`.
+`pnpm cloudflare:check` esegue la build e verifica che l'autenticazione Supabase
+sia inclusa; `pnpm cloudflare:deploy` pubblica la SPA nel progetto
+`valar-morghulis-web`. Il file locale ignorato `.env.production.local` deve
+contenere `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`: senza questi valori il
+controllo fallisce prima del deploy, impedendo di pubblicare la modalità demo.
 
 Produzione: `https://www.valarmorghulis.it/`, collegata tramite CNAME Tophost a
 `valar-morghulis-web.pages.dev`. Il certificato del dominio Pages è attivo dal

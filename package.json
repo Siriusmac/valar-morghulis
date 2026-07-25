@@ -9,8 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "cloudflare:check": "pnpm run build",
-    "cloudflare:deploy": "pnpm run build && wrangler pages deploy --branch main"
+    "cloudflare:check": "pnpm run build && node scripts/verify-cloud-build.mjs",
+    "cloudflare:deploy": "pnpm run cloudflare:check && wrangler pages deploy --branch main"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

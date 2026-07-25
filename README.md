@@ -78,12 +78,18 @@ pnpm dev
 ## Deploy su Cloudflare
 
 L'app è configurata come SPA statica su Cloudflare Pages. Dopo aver effettuato
-l'accesso a Cloudflare con Wrangler:
+l'accesso a Cloudflare con Wrangler, assicurati che
+`.env.production.local` contenga `VITE_SUPABASE_URL` e
+`VITE_SUPABASE_ANON_KEY`, quindi:
 
 ```bash
 pnpm cloudflare:check
 pnpm cloudflare:deploy
 ```
+
+`cloudflare:check` interrompe il rilascio se la build non contiene la
+configurazione Supabase, evitando di pubblicare accidentalmente la modalità
+locale al posto dell'accesso email/password.
 
 Produzione: [www.valarmorghulis.it](https://www.valarmorghulis.it/). Il dominio
 usa un CNAME esterno verso `valar-morghulis-web.pages.dev`, mantenendo DNS ed
