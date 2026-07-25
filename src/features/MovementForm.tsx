@@ -32,7 +32,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     initial?.affectsAccountBalance ?? !(initialAccount?.openingBalanceDate && (initial?.date ?? todayISO()) < initialAccount.openingBalanceDate),
   )
   const categories = data.categories.filter((item) => item.movementType === type && (item.scope === 'family' || item.ownerId === user.id))
-  const beneficiaries = data.beneficiaries.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id))
   const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categories[0]?.id ?? '')
   const [beneficiaryId, setBeneficiaryId] = useState(initial?.beneficiaryId ?? beneficiaries[0]?.id ?? '')
@@ -56,6 +56,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setType(nextType)
     setCategoryId(data.categories.find((item) => item.movementType === nextType)?.id ?? '')
     setNewCategory('')
+    setCreatingBeneficiary(false)
+    setNewBeneficiary('')
     setInstallmentsEnabled(false)
     const nextAccountId = nextType === 'income'
       ? personalAccounts[0]?.id ?? ''
@@ -98,13 +100,16 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     event.preventDefault()
     setSubmitted(true)
     const numericAmount = Number(amount.replace(',', '.'))
-    const beneficiaryMissing = creatingBeneficiary ? !newBeneficiary.trim() : !beneficiaryId
+    const beneficiaryMissing = type === 'expense' && (creatingBeneficiary ? !newBeneficiary.trim() : !beneficiaryId)
     if (!numericAmount || numericAmount <= 0 || !accountId || (!categoryId && !newCategory.trim()) || beneficiaryMissing) return
     const category = newCategory.trim() ? { id: makeId('category'), name: newCategory.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, movementType: type, color: type === 'income' ? '#3f7650' : '#c64e2f' } : undefined
-    const beneficiary = creatingBeneficiary ? { id: makeId('beneficiary'), name: newBeneficiary.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id } : undefined
+    const userBeneficiaryId = `beneficiary-user-${user.id}`
+    const beneficiary = type === 'income'
+      ? (data.beneficiaries.some((item) => item.id === userBeneficiaryId) ? undefined : { id: userBeneficiaryId, name: user.name, scope: 'personal' as const, ownerId: user.id })
+      : (creatingBeneficiary ? { id: makeId('beneficiary'), name: newBeneficiary.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id } : undefined)
     const tag = newTag.trim() ? { id: makeId('tag'), name: newTag.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, color: '#c64e2f' } : undefined
     const resolvedCategoryId = category?.id ?? categoryId
-    const resolvedBeneficiaryId = beneficiary?.id ?? beneficiaryId
+    const resolvedBeneficiaryId = type === 'income' ? userBeneficiaryId : beneficiary?.id ?? beneficiaryId
     const resolvedTagId = tag?.id ?? (tagId || undefined)
     const resolvedDescription = description.trim() || (category?.name ?? data.categories.find((item) => item.id === categoryId)?.name ?? 'Movimento')
     const resolvedComments = comments.trim() || undefined
@@ -169,11 +174,11 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     <div className="form-grid">
       <label>Categoria<select value={newCategory ? '__new' : categoryId} onChange={(e) => e.target.value === '__new' ? setNewCategory('Nuova categoria') : (setNewCategory(''), setCategoryId(e.target.value))}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuova categoria</option></select></label>
       {newCategory ? <label>Nome nuova categoria<input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} /></label> : null}
-      <label>Beneficiario<select value={creatingBeneficiary ? '__new' : beneficiaryId} onChange={(e) => {
+      {type === 'expense' ? <label>Beneficiario<select value={creatingBeneficiary ? '__new' : beneficiaryId} onChange={(e) => {
         if (e.target.value === '__new') { setCreatingBeneficiary(true); setNewBeneficiary('') }
         else { setCreatingBeneficiary(false); setNewBeneficiary(''); setBeneficiaryId(e.target.value) }
-      }}><option value="" disabled>Scegli un beneficiario</option>{beneficiaries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Aggiungi beneficiario</option></select></label>
-      {creatingBeneficiary ? <label>Nome nuovo beneficiario<input value={newBeneficiary} onChange={(e) => setNewBeneficiary(e.target.value)} placeholder="Es. Lidl, Amazon, datore di lavoro" autoFocus required />{submitted && !newBeneficiary.trim() ? <small className="field-error">Inserisci il nome del beneficiario.</small> : null}</label> : null}
+      }}><option value="" disabled>Scegli un beneficiario</option>{beneficiaries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Aggiungi beneficiario</option></select></label> : null}
+      {type === 'expense' && creatingBeneficiary ? <label>Nome nuovo beneficiario<input value={newBeneficiary} onChange={(e) => setNewBeneficiary(e.target.value)} placeholder="Es. Lidl, Amazon" autoFocus required />{submitted && !newBeneficiary.trim() ? <small className="field-error">Inserisci il nome del beneficiario.</small> : null}</label> : null}
       <label>Conto<select value={accountId} onChange={(e) => selectAccount(e.target.value)}>{availableAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>
       <label>Tag<select value={newTag ? '__new' : tagId} onChange={(e) => e.target.value === '__new' ? setNewTag('Nuovo tag') : (setNewTag(''), setTagId(e.target.value))}><option value="">Nessun tag</option>{tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuovo tag</option></select></label>
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}

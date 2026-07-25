@@ -46,6 +46,29 @@ describe('MovementForm', () => {
     expect(movement.beneficiaryId).toBe(additions.beneficiary.id)
   })
 
+  it('hides the beneficiary for an income and assigns the current user automatically', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Entrata' }))
+
+    expect(screen.queryByLabelText('Beneficiario')).toBeNull()
+    expect(screen.queryByLabelText('Nome nuovo beneficiario')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '1200' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave).toHaveBeenCalledOnce()
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(movement.beneficiaryId).toBe('beneficiary-user-simone')
+    expect(additions.beneficiary).toMatchObject({
+      id: 'beneficiary-user-simone',
+      name: 'Simone',
+      scope: 'personal',
+      ownerId: 'simone',
+    })
+  })
+
   it('preserves installment metadata when an existing movement is edited', () => {
     const onSave = vi.fn()
     const initial = defaultData.movements.find((movement) => movement.id === 'seed-installment-1')!
