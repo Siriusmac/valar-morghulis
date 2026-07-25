@@ -19,7 +19,7 @@ Funzioni disponibili:
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
 - categorie, beneficiari e tag creabili durante l’uso;
-- modifica del nome delle categorie e commenti sui movimenti;
+- modifica del nome di categorie e beneficiari; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - suddivisione facoltativa di un movimento in parziali per categoria, ciascuno personale o condiviso, interamente modificabile a posteriori;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
