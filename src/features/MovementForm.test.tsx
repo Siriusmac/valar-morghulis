@@ -82,4 +82,23 @@ describe('MovementForm', () => {
     expect(movement.installmentNumber).toBe(1)
     expect(movement.installmentCount).toBe(3)
   })
+
+  it('keeps the original identity and submits the edited movement values', () => {
+    const onSave = vi.fn()
+    const initial = defaultData.movements.find((movement) => movement.id === 'seed-1')!
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '42,50' } })
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Spesa corretta' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave).toHaveBeenCalledOnce()
+    const [movement] = onSave.mock.calls[0]
+    expect(movement).toMatchObject({
+      id: initial.id,
+      createdAt: initial.createdAt,
+      amount: 42.5,
+      description: 'Spesa corretta',
+    })
+  })
 })

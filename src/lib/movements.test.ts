@@ -19,6 +19,30 @@ describe('movement mutations', () => {
     expect(sharedBalance(updated, 'simone')).toBe(25)
   })
 
+  it('updates an imported movement by stable identity and removes stale copies', () => {
+    const data = structuredClone(defaultData)
+    const original = data.movements.find((movement) => movement.id === 'seed-1')!
+    data.movements = [
+      original,
+      { ...original, id: 'legacy-copy' },
+    ]
+
+    const updated = saveMovementData(data, {
+      ...original,
+      id: 'snapshot-copy',
+      description: 'Spesa corretta',
+      amount: 42,
+    }, {})
+
+    expect(updated.movements.filter((movement) => movement.createdAt === original.createdAt)).toEqual([
+      expect.objectContaining({
+        id: 'snapshot-copy',
+        description: 'Spesa corretta',
+        amount: 42,
+      }),
+    ])
+  })
+
   it('restores dependent balances after deleting a movement', () => {
     const data = structuredClone(defaultData)
     const original = data.movements.find((movement) => movement.id === 'seed-1')!

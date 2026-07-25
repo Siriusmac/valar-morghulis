@@ -8,7 +8,11 @@ export interface MovementAdditions {
 }
 
 export function saveMovementData(current: AppData, movement: Movement, additions: MovementAdditions): AppData {
-  const previous = current.movements.find((item) => item.id === movement.id)
+  // Gli snapshot importati possono contenere lo stesso movimento con ID diversi:
+  // autore e istante di creazione ne mantengono stabile l'identità durante l'editing.
+  const matchesMovement = (item: Movement) => item.id === movement.id
+    || (item.authorId === movement.authorId && item.createdAt === movement.createdAt)
+  const previous = current.movements.find(matchesMovement)
   let scheduledPayments = additions.scheduledPayments?.length
     ? [...current.scheduledPayments, ...additions.scheduledPayments]
     : current.scheduledPayments
@@ -37,7 +41,7 @@ export function saveMovementData(current: AppData, movement: Movement, additions
     tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
     scheduledPayments,
     movements: previous
-      ? current.movements.map((item) => item.id === movement.id ? movement : item)
+      ? replaceMovementAndRemoveDuplicates(current.movements, movement, matchesMovement)
       : [movement, ...current.movements],
   }
 }
@@ -59,4 +63,18 @@ export function deleteMovementData(current: AppData, movementId: string): AppDat
 
 function stripInstallmentSuffix(description: string) {
   return description.replace(/\s*·\s*rata\s+\d+\/\d+\s*$/i, '').trim()
+}
+
+function replaceMovementAndRemoveDuplicates(
+  movements: Movement[],
+  replacement: Movement,
+  matches: (movement: Movement) => boolean,
+) {
+  let replaced = false
+  return movements.flatMap((movement) => {
+    if (!matches(movement)) return [movement]
+    if (replaced) return []
+    replaced = true
+    return [replacement]
+  })
 }

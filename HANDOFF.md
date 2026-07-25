@@ -27,6 +27,9 @@ Funzioni disponibili:
 - rimborsi con conto di origine del debitore e conto di destinazione del creditore obbligatori;
 - modifica dei movimenti riservata all’autore;
 - modifica ed eliminazione dei movimenti visibili anche su smartphone, con ricalcolo derivato di saldi, conti e statistiche;
+- modifica dei movimenti importati basata anche sull'identità stabile
+  autore/data di creazione, per sostituire l'originale e rimuovere eventuali
+  copie con ID divergenti;
 - eliminazione della prima rata estesa al piano collegato e modifiche anagrafiche propagate alle rate non ancora scadute;
 - creazione e selezione affidabile di un nuovo beneficiario nel modulo del movimento;
 - campi mobile a 16 px e viewport adattiva per evitare lo zoom automatico invasivo con la tastiera virtuale;
