@@ -37,6 +37,9 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - creazione di ulteriori famiglie; l’autore ne diventa amministratore e può rinominarle e invitare membri;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
+- guida integrata raggiungibile dal menù laterale, con introduzione, indice
+  navigabile e capitoli su movimenti, condivisione, conti, anagrafiche, rate,
+  rimborsi e gestione della famiglia;
 - campi mobile ottimizzati per la tastiera virtuale senza zoom automatico invasivo.
 - favicon, icona iOS e manifest per salvare la web app nella schermata Home.
 

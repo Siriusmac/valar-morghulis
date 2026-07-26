@@ -37,6 +37,9 @@ Funzioni disponibili:
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
 - pagina Account raggiungibile dal profilo nella barra laterale, con modifica email e password;
+- pagina Guida raggiungibile dal menù laterale, con introduzione all’app,
+  indice a collegamenti interni e sette capitoli responsive sulle funzioni
+  principali;
 - più famiglie per utente, famiglia attiva selezionabile e ruoli `admin`/`member` distinti per appartenenza;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
@@ -75,6 +78,8 @@ Funzioni disponibili:
 - `src/lib/seed.ts`: utenti e dati iniziali.
 - `src/features/CloudAccess.tsx`: autenticazione e onboarding famiglia.
 - `src/features/AccountSettings.tsx`: credenziali, selezione/creazione famiglie e funzioni amministrative.
+- `src/features/GuidePage.tsx`: introduzione, indice e guida operativa
+  responsive alle funzioni dell’app.
 - `src/lib/supabase.ts`: client Supabase attivato soltanto tramite variabili Vite.
 - `supabase/migrations/`: schema, funzioni transazionali, indici e policy RLS.
 - `supabase/functions/invite-family-member/`: invio degli inviti email.
@@ -92,11 +97,13 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 26 luglio 2026: lint, test automatici e build di
-produzione. I test coprono anche i parziali per categoria e la loro quota
-condivisa, nuovo beneficiario, modifica e cancellazione con ricalcolo dei saldi,
-dipendenze dei pagamenti rateali e importazione dei dati locali nello snapshot
-cloud.
+Ultima verifica completata il 26 luglio 2026: lint, 46 test automatici e build
+di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
+per categoria e la loro quota condivisa, nuovo beneficiario, modifica e
+cancellazione con ricalcolo dei saldi, dipendenze dei pagamenti rateali e
+importazione dei dati locali nello snapshot cloud. La pagina Guida è stata
+verificata nel browser a 1440 × 1000 e 390 × 844 pixel, senza overflow o errori
+in console.
 
 ## Limiti dell’MVP e prossimi passi
 

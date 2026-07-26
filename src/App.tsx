@@ -5,6 +5,7 @@ import { Login } from './components/Login'
 import { Modal } from './components/Modal'
 import { MovementList } from './components/MovementList'
 import { Dashboard } from './features/Dashboard'
+import { GuidePage } from './features/GuidePage'
 import { MovementForm } from './features/MovementForm'
 import { MovementsPage } from './features/MovementsPage'
 import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './features/ManagementPages'
@@ -44,7 +45,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   })
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
@@ -161,6 +162,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       setToast('Beneficiario aggiornato in tutti i movimenti')
     }} />
     : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
+    : page === 'guide' ? <GuidePage />
     : <AccountSettings user={user} cloud={cloud} />
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []

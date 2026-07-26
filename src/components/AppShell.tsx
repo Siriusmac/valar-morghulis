@@ -1,5 +1,5 @@
 import {
-  Building2, CalendarClock, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
+  BookOpen, Building2, CalendarClock, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
   ReceiptText, Tag, Tags, X,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -14,6 +14,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari', icon: Building2 },
   { id: 'tags', label: 'Tag', icon: Tag },
+  { id: 'guide', label: 'Guida', icon: BookOpen },
 ]
 
 interface Props {
