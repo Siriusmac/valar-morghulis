@@ -40,6 +40,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [beneficiaryId, setBeneficiaryId] = useState(initial?.beneficiaryId ?? beneficiaries[0]?.id ?? '')
   const [tagId, setTagId] = useState(initial?.tagId ?? '')
   const [newCategory, setNewCategory] = useState('')
+  const [creatingCategory, setCreatingCategory] = useState(false)
   const [newBeneficiary, setNewBeneficiary] = useState('')
   const [creatingBeneficiary, setCreatingBeneficiary] = useState(false)
   const [newTag, setNewTag] = useState('')
@@ -71,6 +72,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const changeType = (nextType: MovementType) => {
     setType(nextType)
     setCategoryId(data.categories.find((item) => item.movementType === nextType)?.id ?? '')
+    setCreatingCategory(false)
     setNewCategory('')
     setCreatingBeneficiary(false)
     setNewBeneficiary('')
@@ -209,8 +211,11 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     <label>Descrizione<input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={type === 'income' ? 'Es. Stipendio luglio' : 'Es. Spesa settimanale'} /></label>
     <label>Commenti<textarea value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Dettagli facoltativi sul movimento" rows={3} /></label>
     <div className="form-grid">
-      <label>Categoria<select value={newCategory ? '__new' : categoryId} onChange={(e) => e.target.value === '__new' ? setNewCategory('Nuova categoria') : (setNewCategory(''), setCategoryId(e.target.value))}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuova categoria</option></select></label>
-      {newCategory ? <label>Nome nuova categoria<input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} /></label> : null}
+      <label>Categoria<select value={creatingCategory ? '__new' : categoryId} onChange={(e) => {
+        if (e.target.value === '__new') { setCreatingCategory(true); setNewCategory('') }
+        else { setCreatingCategory(false); setNewCategory(''); setCategoryId(e.target.value) }
+      }}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuova categoria</option></select></label>
+      {creatingCategory ? <label>Nome nuova categoria<input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Es. Alimentari, ristorante" autoFocus required /></label> : null}
       {type === 'expense' ? <label>Beneficiario<select value={creatingBeneficiary ? '__new' : beneficiaryId} onChange={(e) => {
         if (e.target.value === '__new') { setCreatingBeneficiary(true); setNewBeneficiary('') }
         else { setCreatingBeneficiary(false); setNewBeneficiary(''); setBeneficiaryId(e.target.value) }

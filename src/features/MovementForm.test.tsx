@@ -49,6 +49,16 @@ describe('MovementForm', () => {
     expect(movement.beneficiaryId).toBe(additions.beneficiary.id)
   })
 
+  it('opens a new category field empty and uses example text as a placeholder', () => {
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: '__new' } })
+
+    const input = screen.getByLabelText('Nome nuova categoria') as HTMLInputElement
+    expect(input.value).toBe('')
+    expect(input.placeholder).toBe('Es. Alimentari, ristorante')
+  })
+
   it('hides the beneficiary for an income and assigns the current user automatically', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
