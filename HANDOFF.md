@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 25 luglio 2026.
+Aggiornato il 26 luglio 2026.
 
 ## Stato del prodotto
 
@@ -40,6 +40,7 @@ Funzioni disponibili:
 - più famiglie per utente, famiglia attiva selezionabile e ruoli `admin`/`member` distinti per appartenenza;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
+- movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
 
 ## Decisioni di prodotto
 
@@ -56,7 +57,7 @@ Funzioni disponibili:
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
-- La famiglia attiva è una preferenza locale per utente; i dati locali dell’MVP restano separati per coppia famiglia/utente.
+- La famiglia attiva è una preferenza locale per utente; gli snapshot personali restano separati per coppia famiglia/utente, mentre i record familiari sono comuni ai membri.
 - Cloudflare Pages ospita il frontend; Supabase gestisce autenticazione, famiglie,
   appartenenze, inviti e conti condivisi.
 - Le tabelle esposte usano RLS; la `service_role` è confinata alla Edge Function.
@@ -70,6 +71,7 @@ Funzioni disponibili:
 - `src/lib/movements.ts`: inserimento, modifica, eliminazione e coerenza delle rate dipendenti.
 - `src/lib/scheduled.ts`: trasformazione delle rate scadute in movimenti effettivi.
 - `src/lib/storage.ts`: persistenza locale e migrazione delle versioni dei dati.
+- `src/lib/cloudData.ts`: separazione fra snapshot privato e record familiari, inclusa la copia sicura dei soli parziali condivisi.
 - `src/lib/seed.ts`: utenti e dati iniziali.
 - `src/features/CloudAccess.tsx`: autenticazione e onboarding famiglia.
 - `src/features/AccountSettings.tsx`: credenziali, selezione/creazione famiglie e funzioni amministrative.
@@ -90,7 +92,7 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 25 luglio 2026: lint, test automatici e build di
+Ultima verifica completata il 26 luglio 2026: lint, test automatici e build di
 produzione. I test coprono anche i parziali per categoria e la loro quota
 condivisa, nuovo beneficiario, modifica e cancellazione con ricalcolo dei saldi,
 dipendenze dei pagamenti rateali e importazione dei dati locali nello snapshot
@@ -100,19 +102,22 @@ cloud.
 
 Prossimi passi:
 
-1. normalizzare movimenti e relative dipendenze in tabelle Supabase condivise,
-   per sincronizzarli in tempo reale fra tutti i membri della famiglia; oggi
-   ogni utente-famiglia usa uno snapshot privato durevole con cache locale;
-2. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
-3. rifinire i template email e introdurre limiti anti-abuso;
-4. aggiungere backup, esportazione, cancellazione dati e test end-to-end;
-5. definire l’API stabile per le future app native iOS e macOS.
+1. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
+2. rifinire i template email e introdurre limiti anti-abuso;
+3. aggiungere backup, esportazione, cancellazione dati e test end-to-end;
+4. definire l’API stabile per le future app native iOS e macOS.
 
 La migrazione `20260725123000_private_family_app_data.sql` introduce
 `family_user_app_data`, con una riga JSON per utente e famiglia. Al primo avvio
 dopo l'aggiornamento, l'app unisce una sola volta gli eventuali dati già presenti
 nel browser e salva il risultato nel cloud. Le policy RLS consentono a ogni
 utente di leggere e modificare esclusivamente la propria riga.
+
+La migrazione `20260726110000_family_shared_records.sql` introduce
+`family_shared_records`, recupera i dati condivisi già esistenti e abilita
+Realtime. Una funzione transazionale sincronizza soltanto i record creati
+dall’utente corrente; tutti i membri possono leggerli tramite RLS. Nei movimenti
+con parziali misti viene pubblicata soltanto la quota marcata come condivisa.
 
 Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 `main`.

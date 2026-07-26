@@ -4,6 +4,8 @@ import {
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
+import { buildCloudPersistence, mergeCloudPersistence, type SharedRecord } from '../lib/cloudData'
+import { createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
 import type { Account, AppData, User } from '../types'
 
@@ -23,6 +25,7 @@ export interface FamilySession {
   updatePassword: (password: string) => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData) => Promise<void>
+  subscribeToSharedData?: (onChange: () => void) => () => void
   updateSharedAccount: (account: Account) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -268,24 +271,56 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       if (updateError) throw new Error(authMessage(updateError.message))
     },
     loadAppData: async () => {
-      const { data, error: dataError } = await supabase
-        .from('family_user_app_data')
-        .select('data')
-        .eq('family_id', snapshot.family!.id)
-        .eq('user_id', snapshot.profile.id)
-        .maybeSingle()
-      if (dataError) throw dataError
-      return data?.data as Partial<AppData> | null
+      const [privateResult, sharedResult] = await Promise.all([
+        supabase
+          .from('family_user_app_data')
+          .select('data')
+          .eq('family_id', snapshot.family!.id)
+          .eq('user_id', snapshot.profile.id)
+          .maybeSingle(),
+        supabase
+          .from('family_shared_records')
+          .select('record_type, record_id, data')
+          .eq('family_id', snapshot.family!.id),
+      ])
+      if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
+      const privateData = privateResult.data?.data as Partial<AppData> | null
+      if (!privateData && !sharedResult.data.length) return null
+      return mergeCloudPersistence(
+        privateData,
+        sharedResult.data as SharedRecord[],
+        createStarterData(snapshot.profile.id, snapshot.accounts),
+      )
     },
     saveAppData: async (appData) => {
-      const { error: dataError } = await supabase
-        .from('family_user_app_data')
-        .upsert({
-          family_id: snapshot.family!.id,
-          user_id: snapshot.profile.id,
-          data: appData,
-        }, { onConflict: 'family_id,user_id' })
-      if (dataError) throw dataError
+      const payload = buildCloudPersistence(appData, snapshot.profile.id)
+      const [privateResult, sharedResult] = await Promise.all([
+        supabase
+          .from('family_user_app_data')
+          .upsert({
+            family_id: snapshot.family!.id,
+            user_id: snapshot.profile.id,
+            data: payload.privateData,
+          }, { onConflict: 'family_id,user_id' }),
+        supabase.rpc('sync_family_shared_records', {
+          target_family_id: snapshot.family!.id,
+          records: payload.sharedRecords,
+          owned_keys: payload.ownedKeys,
+        }),
+      ])
+      if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
+    },
+    subscribeToSharedData: (onChange) => {
+      const channel = supabase
+        .channel(`family-shared-data:${snapshot.family!.id}:${snapshot.profile.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'family_shared_records',
+          filter: `family_id=eq.${snapshot.family!.id}`,
+        }, onChange)
+        .subscribe()
+      return () => { void supabase.removeChannel(channel) }
     },
     updateSharedAccount: async (account) => {
       const { error: updateError } = await supabase

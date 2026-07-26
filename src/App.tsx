@@ -50,6 +50,8 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [toast, setToast] = useState('')
   const [cloudDataReady, setCloudDataReady] = useState(!cloud)
   const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve())
+  const skipNextCloudSave = useRef(false)
+  const sharedRefreshTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => { if (storageKey) saveData(data, storageKey); else saveData(data) }, [data, storageKey])
   useEffect(() => {
@@ -81,11 +83,34 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }, [cloud, storageKey])
   useEffect(() => {
     if (!cloud || !cloudDataReady) return
+    if (skipNextCloudSave.current) {
+      skipNextCloudSave.current = false
+      return
+    }
     cloudSaveQueue.current = cloudSaveQueue.current
       .catch(() => undefined)
       .then(() => cloud.saveAppData(data))
       .catch(() => { setToast('Salvataggio cloud non riuscito: riproveremo alla prossima modifica') })
   }, [cloud, cloudDataReady, data])
+  useEffect(() => {
+    if (!cloud || !cloudDataReady || !cloud.subscribeToSharedData) return
+    const refresh = () => {
+      window.clearTimeout(sharedRefreshTimer.current)
+      sharedRefreshTimer.current = window.setTimeout(() => {
+        void cloud.loadAppData().then((remoteData) => {
+          if (!remoteData) return
+          const fallback = createStarterData(cloud.user.id, cloud.sharedAccounts)
+          skipNextCloudSave.current = true
+          setData(hydrateData(remoteData, fallback))
+        }).catch(() => setToast('Aggiornamento familiare non riuscito: riproveremo automaticamente'))
+      }, 250)
+    }
+    const unsubscribe = cloud.subscribeToSharedData(refresh)
+    return () => {
+      window.clearTimeout(sharedRefreshTimer.current)
+      unsubscribe()
+    }
+  }, [cloud, cloudDataReady])
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 2600); return () => window.clearTimeout(timer) }, [toast])
   const user = useMemo(() => appUsers.find((item) => item.id === userId), [appUsers, userId])
   const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setUserId(id) }

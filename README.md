@@ -15,6 +15,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - grafici mensili per categoria su spese, entrate e movimenti condivisi;
 - grafico giornaliero della bacheca calcolato sulle spese condivise del mese corrente;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
+- movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
 - saldo iniziale dei conti modificabile con data di riferimento;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi registrati indicando il conto di origine del debitore e quello di destinazione, anche condiviso; in quest’ultimo caso compensa soltanto la quota appartenente agli altri membri;
@@ -48,7 +49,9 @@ e conti condivisi. Per configurare un nuovo ambiente:
 2. collega il repository e applica la migration in
    `supabase/migrations/20260722193000_family_onboarding.sql` e
    `supabase/migrations/20260723183000_account_opening_balance_date.sql` e
-   `supabase/migrations/20260724130000_multi_family_accounts.sql`;
+   `supabase/migrations/20260724130000_multi_family_accounts.sql`,
+   `supabase/migrations/20260725123000_private_family_app_data.sql` e
+   `supabase/migrations/20260726110000_family_shared_records.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;
@@ -98,11 +101,11 @@ email presso Tophost.
 
 Il backend gestisce account, appartenenze multiple, ruoli per famiglia, inviti e
 conti condivisi. La famiglia attiva viene ricordata localmente per ogni utente.
-Conti personali, movimenti, categorie, beneficiari, tag, rate, rimborsi e
-trasferimenti vengono salvati in uno snapshot privato Supabase per ciascuna
-coppia utente-famiglia, protetto da RLS. Il browser conserva una copia locale
-come cache e importa automaticamente i dati creati prima dell'introduzione
-della persistenza cloud.
+Conti e movimenti personali vengono salvati in uno snapshot privato Supabase per
+ciascuna coppia utente-famiglia. Movimenti condivisi, rimborsi, operazioni sui
+conti familiari e relative anagrafiche sono invece conservati come record
+familiari normalizzati e aggiornati in tempo reale. Entrambi i livelli sono
+protetti da RLS. Il browser conserva una copia locale come cache.
 
 Controlli prima di pubblicare:
 
@@ -117,6 +120,6 @@ Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HAND
 ## Nota tecnica
 
 Questa versione è un MVP con onboarding e persistenza cloud attivi. Lo snapshot
-privato evita la perdita dei dati dopo aggiornamenti o cambi di dispositivo. La
-sincronizzazione collaborativa in tempo reale degli stessi movimenti fra membri
-richiederà in seguito tabelle normalizzate dedicate.
+privato evita la perdita dei dati personali, mentre i record familiari
+normalizzati mantengono allineati in tempo reale saldi e movimenti condivisi tra
+tutti i membri.
