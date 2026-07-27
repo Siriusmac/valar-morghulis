@@ -1,5 +1,5 @@
 import {
-  AlertTriangle, Check, ChevronRight, Download, KeyRound, Landmark, Mail, Plus, ShieldCheck,
+  AlertTriangle, Check, ChevronRight, Download, KeyRound, Landmark, Mail, Plus, RefreshCw, ShieldCheck,
   Trash2, UserRound, UserRoundCog, UsersRound,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -123,7 +123,6 @@ function SecuritySettings({ cloud }: { cloud: FamilySession }) {
     </form>
     {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
     {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
-    {!cloud.personalMode && cloud.role === 'admin' ? <FamilyDeletion cloud={cloud} /> : null}
   </section>
 }
 
@@ -138,6 +137,7 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
   const [name, setName] = useState(cloud.familyName)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState<'name' | 'invite' | ''>('')
+  const [invitationBusy, setInvitationBusy] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -156,6 +156,22 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
     } catch (reason) { setError(errorText(reason)) }
     finally { setBusy('') }
   }
+  const resend = async (invitationId: string, invitationEmail: string) => {
+    setInvitationBusy(invitationId); setError(''); setMessage('')
+    try {
+      await cloud.inviteMember(invitationEmail)
+      setMessage(`Invito reinviato a ${invitationEmail}.`)
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setInvitationBusy('') }
+  }
+  const removeInvitation = async (invitationId: string, invitationEmail: string) => {
+    setInvitationBusy(invitationId); setError(''); setMessage('')
+    try {
+      await cloud.deleteInvitation(invitationId)
+      setMessage(`Invito rifiutato rimosso per ${invitationEmail}.`)
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setInvitationBusy('') }
+  }
 
   return <section className="settings-card">
     <div className="settings-card__heading"><span><UsersRound /></span><div><h2>Amministra {cloud.familyName}</h2><p>Il tuo ruolo in questa famiglia è amministratore.</p></div></div>
@@ -170,8 +186,18 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
       <label>Email del nuovo membro<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@email.it" required /></label>
       <button className="button button--primary" disabled={Boolean(busy)}><Mail /> Invia invito</button>
     </form>
+    <div className="family-invitation-list" aria-label={`${cloud.invitations.length} inviti non accettati`}>
+      <div className="family-invitation-list__heading"><strong>Inviti inviati</strong><small>Gli utenti che hanno accettato sono già elencati tra i membri.</small></div>
+      {cloud.invitations.length ? cloud.invitations.map((invitation) => <div className={`family-invitation family-invitation--${invitation.status}`} key={invitation.id}>
+        <span><strong>{invitation.email}</strong><small>{invitation.status === 'declined' ? 'Invito rifiutato' : invitation.status === 'expired' ? 'Invito scaduto' : `In attesa · scade il ${formatInvitationDate(invitation.expiresAt)}`}</small></span>
+        {invitation.status === 'declined'
+          ? <button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void removeInvitation(invitation.id, invitation.email)}><Trash2 /> Elimina dall’elenco</button>
+          : <button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void resend(invitation.id, invitation.email)}><RefreshCw className={invitationBusy === invitation.id ? 'spin' : ''} /> Reinvia invito</button>}
+      </div>) : <p className="settings-card__note">Non ci sono inviti in attesa o rifiutati.</p>}
+    </div>
     {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
     {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
+    <FamilyDeletion cloud={cloud} />
   </section>
 }
 
@@ -288,4 +314,8 @@ function AccountDeletion({ cloud }: { cloud: FamilySession }) {
 
 function errorText(reason: unknown) {
   return reason instanceof Error ? reason.message : 'Operazione non riuscita. Riprova.'
+}
+
+function formatInvitationDate(value: string) {
+  return new Intl.DateTimeFormat('it-IT').format(new Date(value))
 }

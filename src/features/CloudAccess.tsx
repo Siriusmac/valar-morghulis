@@ -1,11 +1,12 @@
 import {
-  ArrowRight, Check, Copy, Landmark, LoaderCircle, LockKeyhole, Mail, Plus, UsersRound,
+  ArrowRight, Check, Copy, Landmark, LoaderCircle, LockKeyhole, Mail, Plus, UserCheck, UserX, UsersRound,
 } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
 import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
 import type { AccountExportData } from '../lib/exportData'
+import { invitationInvokeError } from '../lib/functionErrors'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
 import type { Account, AppData, User } from '../types'
@@ -20,11 +21,13 @@ export interface FamilySession {
   families: FamilyOption[]
   user: User
   members: User[]
+  invitations: FamilyInvitation[]
   sharedAccounts: Account[]
   switchFamily: (familyId: string) => Promise<void>
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
   inviteMember: (email: string) => Promise<void>
+  deleteInvitation: (invitationId: string) => Promise<void>
   deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
   updateEmail: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
@@ -41,6 +44,14 @@ export interface FamilyOption {
   id: string
   name: string
   role: 'admin' | 'member'
+}
+
+export interface FamilyInvitation {
+  id: string
+  email: string
+  status: 'pending' | 'expired' | 'declined'
+  createdAt: string
+  expiresAt: string
 }
 
 export interface CreateFamilyInput {
@@ -139,26 +150,15 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   const inviteToken = searchParams.get('invite')
   const needsPasswordSetup = searchParams.get('setup') === 'password'
   const [passwordReady, setPasswordReady] = useState(!needsPasswordSetup)
+  const [invitationResolved, setInvitationResolved] = useState(!inviteToken)
   const [snapshot, setSnapshot] = useState<FamilySnapshot | null>(null)
-  const [loading, setLoading] = useState(!needsPasswordSetup)
+  const [loading, setLoading] = useState(!needsPasswordSetup && !inviteToken)
   const [error, setError] = useState('')
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
     const { data: profile, error: profileError } = await supabase.from('profiles').select('id, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
-
-    let acceptedFamilyId: string | undefined
-    if (inviteToken) {
-      const { data: acceptedId, error: acceptError } = await supabase.rpc('accept_family_invitation', { invitation_token: inviteToken })
-      if (acceptError) setError(onboardingMessage(acceptError.message))
-      else {
-        acceptedFamilyId = acceptedId
-        const nextUrl = new URL(window.location.href)
-        nextUrl.searchParams.delete('invite')
-        window.history.replaceState({}, '', nextUrl)
-      }
-    }
 
     const { data: memberships, error: membershipError } = await supabase
       .from('family_members')
@@ -178,7 +178,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       return family ? [{ id: family.id, name: family.name, role: membership.role as FamilyOption['role'] }] : []
     }).toSorted((a, b) => a.name.localeCompare(b.name, 'it'))
     const storedFamilyId = localStorage.getItem(activeFamilyKey(session.user.id)) ?? undefined
-    const requestedWorkspace = preferredFamilyId ?? acceptedFamilyId ?? storedFamilyId
+    const requestedWorkspace = preferredFamilyId ?? storedFamilyId
     const activeFamilyId = requestedWorkspace === PERSONAL_WORKSPACE_ID
       ? undefined
       : [requestedWorkspace].find((candidate) => candidate && familyIds.includes(candidate)) ?? families[0]?.id
@@ -191,6 +191,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         family: null,
         families,
         members: [toUser(profile)],
+        invitations: [],
         accounts: [],
       })
       setLoading(false); return
@@ -199,12 +200,15 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     const activeFamily = familyById.get(activeFamilyId)!
     localStorage.setItem(activeFamilyKey(session.user.id), activeFamilyId)
 
-    const [membershipsResult, accountsResult] = await Promise.all([
+    const [membershipsResult, accountsResult, invitationsResult] = await Promise.all([
       supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
       supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
+      membership.role === 'admin'
+        ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at').eq('family_id', activeFamilyId)
+        : Promise.resolve({ data: [], error: null }),
     ])
-    if (membershipsResult.error || accountsResult.error) {
-      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? 'Errore di caricamento')
+    if (membershipsResult.error || accountsResult.error || invitationsResult.error) {
+      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? invitationsResult.error?.message ?? 'Errore di caricamento')
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
@@ -217,6 +221,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       family: activeFamily,
       families,
       members: profiles.map(toUser),
+      invitations: invitationsResult.data
+        .filter((invitation) => !invitation.accepted_at)
+        .map((invitation) => ({
+          id: invitation.id,
+          email: invitation.email,
+          status: invitation.declined_at
+            ? 'declined' as const
+            : new Date(invitation.expires_at).getTime() <= Date.now() ? 'expired' as const : 'pending' as const,
+          createdAt: invitation.created_at,
+          expiresAt: invitation.expires_at,
+        })),
       accounts: accountsResult.data.map((account) => ({
         id: account.id,
         name: account.name,
@@ -228,17 +243,29 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       })),
     })
     setLoading(false)
-  }, [inviteToken, session.user.id, supabase])
+  }, [session.user.id, supabase])
 
-  // Ricarica profilo, famiglia e conti quando la sessione è pronta o termina la configurazione di un invito.
+  // Ricarica profilo, famiglia e conti soltanto dopo l'eventuale scelta sull'invito.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (passwordReady) void load() }, [load, passwordReady])
+  useEffect(() => { if (passwordReady && invitationResolved) void load() }, [invitationResolved, load, passwordReady])
   if (!passwordReady) return <InvitationPasswordSetup onCompleted={() => {
     const nextUrl = new URL(window.location.href)
     nextUrl.searchParams.delete('setup')
     window.history.replaceState({}, '', nextUrl)
     setPasswordReady(true)
   }} />
+  if (inviteToken && !invitationResolved) return <InvitationDecision
+    token={inviteToken}
+    onResolved={(familyId) => {
+      const nextUrl = new URL(window.location.href)
+      nextUrl.searchParams.delete('invite')
+      nextUrl.searchParams.delete('setup')
+      window.history.replaceState({}, '', nextUrl)
+      localStorage.setItem(activeFamilyKey(session.user.id), familyId ?? PERSONAL_WORKSPACE_ID)
+      setLoading(true)
+      setInvitationResolved(true)
+    }}
+  />
   if (loading) return <AccessLoading label="Carichiamo la tua famiglia" />
   if (!snapshot) return <AccessError message={error || 'Impossibile caricare il profilo.'} onRetry={load} />
   if (!snapshot.onboardingCompleted && !snapshot.membership) return <CreateFamily
@@ -264,6 +291,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     families: snapshot.families,
     user: snapshot.profile,
     members: snapshot.members,
+    invitations: snapshot.invitations,
     sharedAccounts: snapshot.accounts,
     switchFamily: async (familyId) => { await load(familyId) },
     createFamily: async (input) => {
@@ -291,7 +319,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       const { data, error: functionError } = await supabase.functions.invoke('invite-family-member', {
         body: { familyId: activeFamilyId, email: email.trim().toLowerCase() },
       })
-      if (functionError || data?.error) throw new Error(onboardingMessage(data?.error ?? functionError?.message ?? 'Invito non inviato'))
+      const inviteError = await invitationInvokeError(data, functionError)
+      if (inviteError) throw new Error(onboardingMessage(inviteError))
+      await load(activeFamilyId)
+    },
+    deleteInvitation: async (invitationId) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
+      const { error: deleteError } = await supabase.rpc('delete_declined_family_invitation', {
+        target_invitation_id: invitationId,
+      })
+      if (deleteError) throw deleteError
+      await load(activeFamilyId)
     },
     deleteFamily: async (preserveAuthoredData) => {
       if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
@@ -418,6 +456,51 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   })
 }
 
+export function InvitationDecision({ token, onResolved }: {
+  token: string
+  onResolved: (familyId: string | null) => void
+}) {
+  const supabase = getSupabase()
+  const [busy, setBusy] = useState<'accept' | 'decline' | ''>('')
+  const [error, setError] = useState('')
+
+  const accept = async () => {
+    setBusy('accept'); setError('')
+    const { data: familyId, error: acceptError } = await supabase.rpc('accept_family_invitation', {
+      invitation_token: token,
+    })
+    if (acceptError) { setError(onboardingMessage(acceptError.message)); setBusy(''); return }
+    onResolved(familyId)
+  }
+  const decline = async () => {
+    setBusy('decline'); setError('')
+    const { error: declineError } = await supabase.rpc('decline_family_invitation', {
+      invitation_token: token,
+    })
+    if (declineError) { setError(onboardingMessage(declineError.message)); setBusy(''); return }
+    onResolved(null)
+  }
+
+  return <AccessLayout compact>
+    <div className="onboarding-card invitation-decision">
+      <span className="onboarding-icon"><UsersRound /></span>
+      <span className="eyebrow">Invito familiare</span>
+      <h2>Vuoi entrare nella famiglia?</h2>
+      <p>Se accetti, vedrai i conti e i movimenti condivisi. I tuoi conti e movimenti personali resteranno privati.</p>
+      {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
+      <div className="invitation-decision__actions">
+        <button type="button" className="button button--primary button--full" disabled={Boolean(busy)} onClick={() => void accept()}>
+          {busy === 'accept' ? <LoaderCircle className="spin" /> : <UserCheck />} Accetta invito
+        </button>
+        <button type="button" className="button button--ghost button--full" disabled={Boolean(busy)} onClick={() => void decline()}>
+          {busy === 'decline' ? <LoaderCircle className="spin" /> : <UserX />} Rifiuta invito
+        </button>
+      </div>
+      <small>Se rifiuti, l’amministratore dovrà eliminare l’invito prima di poterne inviare uno nuovo.</small>
+    </div>
+  </AccessLayout>
+}
+
 function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
   const supabase = getSupabase()
   const [password, setPassword] = useState('')
@@ -445,7 +528,7 @@ function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
         <label>Nuova password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
         <label>Conferma password<input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
         {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
-        <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}Entra nella famiglia <ArrowRight /></button>
+        <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}Continua <ArrowRight /></button>
       </form>
     </div>
   </AccessLayout>
@@ -524,7 +607,8 @@ function InviteFamily({ family, onCompleted }: { family: FamilyRow; onCompleted:
     event.preventDefault(); setBusy(true); setError('')
     const { data, error: functionError } = await supabase.functions.invoke('invite-family-member', { body: { familyId: family.id, email } })
     setBusy(false)
-    if (functionError || data?.error) { setError(onboardingMessage(data?.error ?? functionError?.message ?? 'Invito non inviato')); return }
+    const inviteError = await invitationInvokeError(data, functionError)
+    if (inviteError) { setError(onboardingMessage(inviteError)); return }
     setSent((items) => [...items, { email: email.trim().toLowerCase(), url: data.redirectTo }])
     setEmail('')
   }
@@ -590,6 +674,8 @@ function authMessage(message: string) {
 function onboardingMessage(message: string) {
   if (message.includes('user_already_in_family')) return 'Questo account appartiene già a questa famiglia.'
   if (message.includes('invalid_or_expired_invitation')) return 'Questo invito non è valido o è scaduto.'
+  if (message.includes('invitation_declined_requires_removal')) return 'Questo invito è stato rifiutato. Eliminalo dall’elenco prima di invitare nuovamente la persona.'
+  if (message.includes('invitation_declined') || message.includes('invitation_already_declined')) return 'Questo invito è già stato rifiutato.'
   if (message.includes('invitation_email_mismatch')) return 'Accedi con la stessa email a cui è stato inviato l’invito.'
   if (message.includes('invitation_already_pending')) return 'Esiste già un invito in attesa per questa email.'
   if (message.includes('email_delivery_failed')) return 'Non è stato possibile inviare l’email. Riprova tra poco.'
@@ -604,6 +690,7 @@ interface FamilySnapshot {
   family: FamilyRow | null
   families: FamilyOption[]
   members: User[]
+  invitations: FamilyInvitation[]
   accounts: Account[]
 }
 

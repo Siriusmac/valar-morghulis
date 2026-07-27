@@ -34,27 +34,69 @@ Deno.serve(async (request) => {
     .maybeSingle()
   if (membership?.role !== 'admin') return json({ error: 'admin_required' }, 403)
 
-  const { data: invitation, error: invitationError } = await userClient
-    .from('family_invitations')
-    .insert({ family_id: body.familyId, email, invited_by: user.id })
-    .select('id, token, expires_at')
-    .single()
-  if (invitationError) {
-    const duplicate = invitationError.code === '23505'
-    return json({ error: duplicate ? 'invitation_already_pending' : invitationError.message }, duplicate ? 409 : 400)
+  const { data: invitedProfile } = await adminClient
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (invitedProfile) {
+    const { data: existingMember } = await adminClient
+      .from('family_members')
+      .select('user_id')
+      .eq('family_id', body.familyId)
+      .eq('user_id', invitedProfile.id)
+      .maybeSingle()
+    if (existingMember) return json({ error: 'user_already_in_family' }, 409)
   }
 
+  const { data: existingInvitation, error: existingError } = await userClient
+    .from('family_invitations')
+    .select('id, token, expires_at, declined_at')
+    .eq('family_id', body.familyId)
+    .eq('email', email)
+    .is('accepted_at', null)
+    .maybeSingle()
+  if (existingError) return json({ error: existingError.message }, 400)
+  if (existingInvitation?.declined_at) {
+    return json({ error: 'invitation_declined_requires_removal' }, 409)
+  }
+
+  const token = crypto.randomUUID()
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const previousInvitation = existingInvitation
+    ? { token: existingInvitation.token, expires_at: existingInvitation.expires_at }
+    : null
+  const invitationResult = existingInvitation
+    ? await adminClient.from('family_invitations')
+      .update({ token, expires_at: expiresAt })
+      .eq('id', existingInvitation.id)
+      .select('id, token, expires_at')
+      .single()
+    : await userClient.from('family_invitations')
+      .insert({ family_id: body.familyId, email, invited_by: user.id, token, expires_at: expiresAt })
+      .select('id, token, expires_at')
+      .single()
+  if (invitationResult.error) {
+    const duplicate = invitationResult.error.code === '23505'
+    return json({ error: duplicate ? 'invitation_already_pending' : invitationResult.error.message }, duplicate ? 409 : 400)
+  }
+  const invitation = invitationResult.data
   const redirectTo = `${appUrl.replace(/\/$/, '')}/?invite=${invitation.token}&setup=password`
   const { error: mailError } = await adminClient.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
   })
   if (mailError) {
-    await adminClient.from('family_invitations').delete().eq('id', invitation.id)
+    console.error('invite_email_delivery_failed', { code: mailError.code, status: mailError.status })
+    if (previousInvitation) {
+      await adminClient.from('family_invitations').update(previousInvitation).eq('id', invitation.id)
+    } else {
+      await adminClient.from('family_invitations').delete().eq('id', invitation.id)
+    }
     return json({ error: 'email_delivery_failed' }, 502)
   }
 
-  return json({ invitation, redirectTo })
+  return json({ invitation, redirectTo, resent: Boolean(existingInvitation) })
 })
 
 function json(payload: unknown, status = 200) {

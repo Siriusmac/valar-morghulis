@@ -22,11 +22,13 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     ],
     user: simone,
     members: [simone, anna],
+    invitations: [],
     sharedAccounts: [],
     switchFamily: vi.fn().mockResolvedValue(undefined),
     createFamily: vi.fn().mockResolvedValue(undefined),
     renameFamily: vi.fn().mockResolvedValue(undefined),
     inviteMember: vi.fn().mockResolvedValue(undefined),
+    deleteInvitation: vi.fn().mockResolvedValue(undefined),
     deleteFamily: vi.fn().mockResolvedValue(undefined),
     updateEmail: vi.fn().mockResolvedValue(undefined),
     updatePassword: vi.fn().mockResolvedValue(undefined),
@@ -47,6 +49,7 @@ describe('AccountSettings', () => {
 
     expect(screen.getByText('Amministra Famiglia Uno')).toBeTruthy()
     expect(screen.getByLabelText('2 membri')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Elimina questa famiglia/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Famiglia Due/ }))
 
     await waitFor(() => expect(cloud.switchFamily).toHaveBeenCalledWith('family-two'))
@@ -74,5 +77,21 @@ describe('AccountSettings', () => {
     expect(screen.getByRole('heading', { name: 'Contabilità personale' })).toBeTruthy()
     expect(screen.queryByText('Amministra Famiglia Uno')).toBeNull()
     expect(screen.queryByRole('button', { name: /Elimina questa famiglia/ })).toBeNull()
+  })
+
+  it('resends pending invitations and removes declined ones', async () => {
+    const cloud = familySession({
+      invitations: [
+        { id: 'pending', email: 'inattesa@example.com', status: 'pending', createdAt: '2026-07-27T10:00:00Z', expiresAt: '2026-08-03T10:00:00Z' },
+        { id: 'declined', email: 'rifiutata@example.com', status: 'declined', createdAt: '2026-07-27T10:00:00Z', expiresAt: '2026-08-03T10:00:00Z' },
+      ],
+    })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Reinvia invito/ }))
+    await waitFor(() => expect(cloud.inviteMember).toHaveBeenCalledWith('inattesa@example.com'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Elimina dall’elenco/ }))
+    await waitFor(() => expect(cloud.deleteInvitation).toHaveBeenCalledWith('declined'))
   })
 })

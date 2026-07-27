@@ -63,6 +63,7 @@ export function GuidePage() {
           <ul>
             <li>Usa <strong>Aggiungi movimento</strong> in alto, oppure il pulsante rotondo su smartphone.</li>
             <li>Apri il menù laterale per passare tra movimenti, pagamenti, conti e anagrafiche.</li>
+            <li>Se appartieni a più famiglie, usa il selettore della Bacheca per cambiare i dati condivisi oppure scegliere la vista solo personale.</li>
             <li>Su smartphone le sezioni più usate sono disponibili anche nella barra in basso.</li>
           </ul>
         </section>
@@ -71,8 +72,9 @@ export function GuidePage() {
           <ChapterHeading number="02" title="Spese ed entrate" icon={ReceiptText} />
           <p>
             Quando registri un movimento scegli il tipo, l’importo, la data, il conto, la
-            categoria e il beneficiario. Puoi aggiungere un tag e un commento per ritrovarlo
-            più facilmente.
+            categoria e, per le spese, il beneficiario. Nelle entrate il beneficiario coincide
+            con l’utente. Puoi aggiungere un tag e un commento per ritrovare il movimento più
+            facilmente.
           </p>
           <div className="guide-note">
             <strong>Modifica o eliminazione</strong>
@@ -151,8 +153,13 @@ export function GuidePage() {
             membri; chi appartiene a più famiglie può cambiare quella attiva.
           </p>
           <ul>
-            <li>Ogni famiglia mantiene conti e dati separati.</li>
+            <li>Puoi iniziare con la sola contabilità personale e creare una famiglia in seguito.</li>
+            <li>Ogni famiglia mantiene conti e dati condivisi separati, mentre conti e movimenti personali restano disponibili passando da una famiglia all’altra.</li>
+            <li>Gli inviti in attesa o scaduti possono essere reinviati. Un invito rifiutato deve essere eliminato dall’amministratore prima di invitare nuovamente la stessa persona.</li>
+            <li>Chi riceve un invito sceglie esplicitamente se accettarlo o rifiutarlo; dopo l’accettazione compare semplicemente tra i membri.</li>
             <li>I dati personali restano privati; vengono condivisi soltanto i movimenti marcati come familiari.</li>
+            <li>L’amministratore può eliminare una famiglia scegliendo se conservare come personali i movimenti creati dai singoli membri oppure cancellare i dati condivisi.</li>
+            <li>Prima di eliminare definitivamente l’account puoi esportare i dati in JSON, CSV o XML.</li>
             <li>Esci dall’app dal pulsante <strong>Esci</strong> nel menù laterale.</li>
           </ul>
         </section>

@@ -33,6 +33,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
+- scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, inviti in attesa o scaduti da reinviare e inviti rifiutati da rimuovere;
 - gestione account dal profilo nella barra laterale, con modifica di email e password;
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - archivio personale unico fra tutte le famiglie e selettore della vista condivisa direttamente in bacheca;
@@ -59,7 +60,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260724130000_multi_family_accounts.sql`,
    `supabase/migrations/20260725123000_private_family_app_data.sql` e
    `supabase/migrations/20260726110000_family_shared_records.sql` e
-   `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql`;
+   `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql` e
+   `supabase/migrations/20260727150000_invitation_lifecycle.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;

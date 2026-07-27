@@ -46,6 +46,8 @@ Funzioni disponibili:
 - esportazione completa in JSON, CSV o XML e cancellazione definitiva dell’account;
 - cancellazione della famiglia con eliminazione dei dati condivisi oppure conversione in personali dei movimenti creati da ciascun autore;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
+- elenco amministrativo dei membri e degli inviti: reinvio per quelli in attesa o scaduti, rimozione obbligatoria per quelli rifiutati prima di un nuovo invito;
+- accettazione o rifiuto esplicito da parte del destinatario prima di entrare nella famiglia;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
 
@@ -126,6 +128,12 @@ snapshot privato precedente. Aggiunge inoltre le procedure protette per
 onboarding personale, cancellazione della famiglia e cancellazione dell’account.
 Le policy RLS consentono a ogni utente di leggere e modificare esclusivamente la
 propria riga.
+
+La migrazione `20260727150000_invitation_lifecycle.sql` aggiunge lo stato
+`declined_at` e le procedure protette per rifiutare un invito e rimuovere un
+invito rifiutato. La Edge Function `invite-family-member` riutilizza gli inviti
+in attesa, rinnova token e scadenza durante il reinvio e restituisce errori
+strutturati all’interfaccia.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita

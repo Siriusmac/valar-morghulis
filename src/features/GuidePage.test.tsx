@@ -20,5 +20,7 @@ describe('GuidePage', () => {
 
     expect(screen.getByRole('heading', { name: 'Primi passi' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Account e famiglia' })).toBeTruthy()
+    expect(screen.getByText(/Gli inviti in attesa o scaduti possono essere reinviati/)).toBeTruthy()
+    expect(screen.getByText(/Prima di eliminare definitivamente l’account/)).toBeTruthy()
   })
 })

@@ -140,6 +140,18 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .family-member-list strong, .family-member-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .family-member-list strong { font-size: 10px; }
 .family-member-list small { color: var(--muted); font-size: 8px; }
+.family-invitation-list { display: grid; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.family-invitation-list__heading { display: grid; gap: 3px; margin-bottom: 2px; }
+.family-invitation-list__heading strong { font-size: 12px; }
+.family-invitation-list__heading small { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.family-invitation { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--sand); }
+.family-invitation > span { min-width: 0; display: grid; gap: 3px; }
+.family-invitation strong, .family-invitation small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.family-invitation strong { font-size: 10px; }
+.family-invitation small { color: var(--muted); font-size: 8px; }
+.family-invitation--declined { border-color: #e2c2bf; background: #fffafa; }
+.button--small { min-height: 34px; padding: 7px 10px; font-size: 9px; white-space: nowrap; }
+.button--small svg { width: 14px; }
 .settings-form, .settings-create-form { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .settings-form + .settings-form { margin-top: 20px; }
 .settings-form label, .settings-create-form > label, .settings-create-account label { display: grid; gap: 6px; font-size: 10px; font-weight: 600; }
@@ -501,6 +513,9 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 
 .cloud-login-card .eyebrow { display: block; color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 9px; }
 .invitation-password .eyebrow { display: block; margin-top: 16px; color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+.invitation-decision .eyebrow { display: block; margin-top: 16px; color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+.invitation-decision__actions { display: grid; gap: 9px; margin-top: 22px; }
+.invitation-decision > small { display: block; margin-top: 14px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: center; }
 .auth-switch { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; margin-bottom: 22px; border: 1px solid var(--line); border-radius: 7px; background: #f2f0ec; }
 .auth-switch button { height: 38px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
 .auth-switch button.active { background: white; color: var(--ink); box-shadow: 0 2px 8px rgba(30,40,52,.08); }
@@ -764,6 +779,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .settings-create-account { grid-template-columns: 26px 1fr; }
   .settings-create-account label, .settings-create-account label:last-child { grid-column: 2; }
   .family-member-list { grid-template-columns: 1fr; }
+  .family-invitation { align-items: stretch; flex-direction: column; }
+  .family-invitation .button { width: 100%; }
   .account-deletion .button, .danger-settings__body .button { width: 100%; }
 }
 
