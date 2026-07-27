@@ -30,6 +30,7 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     inviteMember: vi.fn().mockResolvedValue(undefined),
     deleteInvitation: vi.fn().mockResolvedValue(undefined),
     deleteFamily: vi.fn().mockResolvedValue(undefined),
+    updateProfileName: vi.fn().mockResolvedValue(undefined),
     updateEmail: vi.fn().mockResolvedValue(undefined),
     updatePassword: vi.fn().mockResolvedValue(undefined),
     exportAccountData: vi.fn().mockResolvedValue({ exportedAt: '2026-07-27T10:00:00.000Z', profile: simone, personalData: null, families: [] }),
@@ -43,6 +44,17 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
 }
 
 describe('AccountSettings', () => {
+  it('updates the user first name and last name', async () => {
+    const cloud = familySession()
+    render(<AccountSettings user={simone} cloud={cloud} />)
+
+    fireEvent.change(screen.getByLabelText('Cognome'), { target: { value: 'Miotto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva dati personali' }))
+
+    await waitFor(() => expect(cloud.updateProfileName).toHaveBeenCalledWith('Simone', 'Miotto'))
+    expect(screen.getByRole('status').textContent).toContain('Nome e cognome aggiornati.')
+  })
+
   it('shows family administration only to an admin and switches family', async () => {
     const cloud = familySession()
     render(<AccountSettings user={simone} cloud={cloud} />)

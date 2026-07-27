@@ -38,7 +38,7 @@ Funzioni disponibili:
 - campi mobile a 16 px e viewport adattiva per evitare lo zoom automatico invasivo con la tastiera virtuale;
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
-- pagina Account raggiungibile dal profilo nella barra laterale, con modifica email e password;
+- pagina Account raggiungibile dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
 - pagina Guida raggiungibile dal menù laterale, con introduzione all’app,
   indice a collegamenti interni e sette capitoli responsive sulle funzioni
   principali;
@@ -107,7 +107,7 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 27 luglio 2026: lint, 72 test automatici e build
+Ultima verifica completata il 27 luglio 2026: lint, 73 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
 per categoria e la loro quota condivisa, ricerca e creazione contestuale di
 beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,
@@ -144,6 +144,11 @@ cancellazioni delle anagrafiche familiari e l’eventuale destinazione scelta, c
 la riassegnazione viene applicata in modo coerente a tutti i membri. Le entrate
 nuove richiedono un mittente; quelle storiche senza mittente restano valide e
 possono essere completate dal pannello di modifica.
+
+La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
+nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
+nuovi utenti. Gli utenti esistenti vengono inizializzati a partire dal nome già
+salvato e possono poi correggere entrambi i campi dalle impostazioni.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita

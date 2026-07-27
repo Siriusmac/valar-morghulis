@@ -6,6 +6,8 @@ export type Scope = 'family' | 'personal'
 export interface User {
   id: UserId
   name: string
+  firstName?: string
+  lastName?: string
   email: string
   initials: string
 }

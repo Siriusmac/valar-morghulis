@@ -159,6 +159,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .settings-form .button, .settings-create-form > .button { justify-self: start; }
 .settings-form--password { grid-template-columns: 1fr 1fr; }
 .settings-form--password .button { grid-column: 1 / -1; }
+.settings-form--profile { grid-template-columns: 1fr 1fr; }
+.settings-form--profile .button { grid-column: 1 / -1; }
 .settings-card__toggle { width: 100%; grid-template-columns: 44px 1fr 20px; margin: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .settings-card__toggle > svg { width: 18px; transition: transform .18s ease; }
 .rotate-90 { transform: rotate(90deg); }
@@ -798,6 +800,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .settings-card { padding: 20px 17px; }
   .settings-form--password { grid-template-columns: 1fr; }
   .settings-form--password .button { grid-column: auto; }
+  .settings-form--profile { grid-template-columns: 1fr; }
+  .settings-form--profile .button { grid-column: auto; }
   .settings-form .button, .settings-create-form > .button { width: 100%; }
   .settings-create-account { grid-template-columns: 26px 1fr; }
   .settings-create-account label, .settings-create-account label:last-child { grid-column: 2; }

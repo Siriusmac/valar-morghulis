@@ -29,6 +29,7 @@ export interface FamilySession {
   inviteMember: (email: string) => Promise<void>
   deleteInvitation: (invitationId: string) => Promise<void>
   deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
+  updateProfileName: (firstName: string, lastName: string) => Promise<void>
   updateEmail: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
   exportAccountData: () => Promise<AccountExportData>
@@ -85,7 +86,8 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
 function CloudLogin() {
   const supabase = getSupabase()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -96,11 +98,12 @@ function CloudLogin() {
     event.preventDefault()
     setBusy(true); setError(''); setMessage('')
     if (mode === 'signup') {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`
       const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          data: { full_name: name.trim() },
+          data: { first_name: firstName.trim(), last_name: lastName.trim(), full_name: fullName },
           emailRedirectTo: window.location.href,
         },
       })
@@ -132,7 +135,10 @@ function CloudLogin() {
         <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Registrati</button>
       </div>
       <form onSubmit={submit}>
-        {mode === 'signup' ? <label>Nome e cognome<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" minLength={2} required /></label> : null}
+        {mode === 'signup' ? <>
+          <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
+          <label>Cognome<input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" maxLength={60} required /></label>
+        </> : null}
         <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
         <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={8} required /></label>
         {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
@@ -158,7 +164,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
-    const { data: profile, error: profileError } = await supabase.from('profiles').select('id, full_name, email, onboarding_completed').eq('id', session.user.id).single()
+    const { data: profile, error: profileError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
 
     const { data: memberships, error: membershipError } = await supabase
@@ -213,7 +219,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, full_name, email').in('id', memberIds)
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email').in('id', memberIds)
     if (profilesError) { setError(profilesError.message); setLoading(false); return }
     setSnapshot({
       profile: toUser(profile),
@@ -340,6 +346,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       })
       if (deleteError) throw deleteError
       await load(PERSONAL_WORKSPACE_ID)
+    },
+    updateProfileName: async (firstName, lastName) => {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim()
+      if (!firstName.trim() || !lastName.trim()) throw new Error('Inserisci nome e cognome.')
+      if (fullName.length > 80) throw new Error('Nome e cognome non possono superare 80 caratteri.')
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ first_name: firstName.trim(), last_name: lastName.trim(), full_name: fullName })
+        .eq('id', snapshot.profile.id)
+      if (updateError) throw updateError
+      await load(activeFamilyId ?? PERSONAL_WORKSPACE_ID)
     },
     updateEmail: async (email) => {
       const { error: updateError } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() })
@@ -670,9 +687,12 @@ function AccessError({ message, onRetry }: { message: string; onRetry: () => voi
   return <main className="access-status"><Brand /><LockKeyhole /><h1>Non riusciamo ad accedere</h1><p>{message}</p><button className="button button--primary" onClick={onRetry}>Riprova</button></main>
 }
 
-function toUser(profile: { id: string; full_name: string; email: string }): User {
-  const initials = profile.full_name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'VM'
-  return { id: profile.id, name: profile.full_name, email: profile.email, initials }
+function toUser(profile: { id: string; first_name?: string | null; last_name?: string | null; full_name: string; email: string }): User {
+  const firstName = profile.first_name?.trim() || profile.full_name.trim().split(/\s+/)[0] || ''
+  const lastName = profile.last_name?.trim() || profile.full_name.trim().split(/\s+/).slice(1).join(' ')
+  const name = `${firstName} ${lastName}`.trim() || profile.full_name
+  const initials = [firstName, lastName].filter(Boolean).map((part) => part[0]?.toUpperCase()).join('') || 'VM'
+  return { id: profile.id, name, firstName, lastName, email: profile.email, initials }
 }
 
 function authMessage(message: string) {

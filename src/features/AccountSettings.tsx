@@ -31,6 +31,7 @@ export function AccountSettings({ user, cloud }: Props) {
     </section>
     <div className="settings-layout">
       <div className="settings-column">
+        <ProfileSettings user={user} cloud={cloud} />
         <FamilySwitcher cloud={cloud} />
         <SecuritySettings cloud={cloud} />
         <AccountDeletion cloud={cloud} />
@@ -41,6 +42,37 @@ export function AccountSettings({ user, cloud }: Props) {
       </div>
     </div>
   </div>
+}
+
+function ProfileSettings({ user, cloud }: { user: User; cloud: FamilySession }) {
+  const initial = splitUserName(user.name)
+  const [firstName, setFirstName] = useState(user.firstName ?? initial.firstName)
+  const [lastName, setLastName] = useState(user.lastName ?? initial.lastName)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const currentFullName = user.name.trim().replace(/\s+/g, ' ')
+  const nextFullName = `${firstName.trim()} ${lastName.trim()}`.trim().replace(/\s+/g, ' ')
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setError(''); setMessage('')
+    try {
+      await cloud.updateProfileName(firstName, lastName)
+      setMessage('Nome e cognome aggiornati.')
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setBusy(false) }
+  }
+
+  return <section className="settings-card">
+    <div className="settings-card__heading"><span><UserRoundCog /></span><div><h2>Dati personali</h2><p>Il nome è visibile ai membri delle tue famiglie.</p></div></div>
+    <form className="settings-form settings-form--profile" onSubmit={save}>
+      <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
+      <label>Cognome<input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" maxLength={60} required /></label>
+      <button className="button button--secondary" disabled={busy || !firstName.trim() || !lastName.trim() || nextFullName === currentFullName}><UserRoundCog /> Salva dati personali</button>
+    </form>
+    {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
+    {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
+  </section>
 }
 
 function PageHeading() {
@@ -314,6 +346,11 @@ function AccountDeletion({ cloud }: { cloud: FamilySession }) {
 
 function errorText(reason: unknown) {
   return reason instanceof Error ? reason.message : 'Operazione non riuscita. Riprova.'
+}
+
+function splitUserName(fullName: string) {
+  const [firstName = '', ...lastNameParts] = fullName.trim().split(/\s+/)
+  return { firstName, lastName: lastNameParts.join(' ') }
 }
 
 function formatInvitationDate(value: string) {

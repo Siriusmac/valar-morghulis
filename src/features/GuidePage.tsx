@@ -156,6 +156,7 @@ export function GuidePage() {
             membri; chi appartiene a più famiglie può cambiare quella attiva.
           </p>
           <ul>
+            <li>Nei dati personali puoi modificare nome e cognome; il nuovo nome compare anche nella barra laterale e negli elenchi dei membri.</li>
             <li>Puoi iniziare con la sola contabilità personale e creare una famiglia in seguito.</li>
             <li>Ogni famiglia mantiene conti e dati condivisi separati, mentre conti e movimenti personali restano disponibili passando da una famiglia all’altra.</li>
             <li>Gli inviti in attesa o scaduti possono essere reinviati. Un invito rifiutato deve essere eliminato dall’amministratore prima di invitare nuovamente la stessa persona.</li>

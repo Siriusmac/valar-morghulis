@@ -36,7 +36,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, inviti in attesa o scaduti da reinviare e inviti rifiutati da rimuovere;
-- gestione account dal profilo nella barra laterale, con modifica di email e password;
+- gestione account dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - archivio personale unico fra tutte le famiglie e selettore della vista condivisa direttamente in bacheca;
 - possibilità di iniziare senza creare una famiglia e aggiungerla in seguito dalle impostazioni;
