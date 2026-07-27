@@ -3,11 +3,19 @@ import { useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
 import { accountBalance, movementAllocations, totalsByCategory, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
-import type { Account, AppData, Beneficiary, Category, MovementType, Sender, Tag, User } from '../types'
+import type { Account, AppData, Beneficiary, Category, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean) => void }
 
-export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMovements }: BaseProps & { onAdd: (account: Account) => void; onUpdate: (account: Account) => void; onTransfer: () => void }) {
+export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMovements, reimbursementSharing }: BaseProps & {
+  onAdd: (account: Account) => void
+  onUpdate: (account: Account) => void
+  onTransfer: () => void
+  reimbursementSharing?: {
+    references: ReimbursementAccountReference[]
+    onChange: (account: Account, visible: boolean) => Promise<void>
+  }
+}) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
@@ -18,6 +26,7 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMo
   const [editingAccountId, setEditingAccountId] = useState('')
   const [editingBalance, setEditingBalance] = useState('')
   const [editingBalanceDate, setEditingBalanceDate] = useState(todayISO())
+  const [sharingAccountId, setSharingAccountId] = useState('')
   const accounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const submit = (event: React.FormEvent) => {
     event.preventDefault(); if (!name.trim()) return
@@ -41,7 +50,15 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMo
   return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--ghost" onClick={onTransfer}><ArrowLeftRight />Giro fondi</button><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
     {showForm ? <InlineForm title="Nuovo conto" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>Istituto o dettaglio<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => setType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option></select></label><label>Visibilità<select value={scope} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option><option value="family">Condiviso con la famiglia</option></select></label><label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label></InlineForm> : null}
     {editingAccountId ? <InlineForm title="Correggi saldo iniziale" submitLabel="Salva saldo" onSubmit={updateOpeningBalance} onCancel={() => setEditingAccountId('')}><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} autoFocus required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
-    <div className="management-list">{accounts.map((account) => <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div className="management-row__info"><strong>{account.name}</strong><small>{account.institution} · {account.scope === 'family' ? 'Condiviso' : 'Personale'}</small><small>Saldo iniziale {formatMoney(account.openingBalance)}{account.openingBalanceDate ? ` · ${formatDate(account.openingBalanceDate)}` : ''}</small></div><div className="management-row__actions"><button className="detail-button" onClick={() => startEditing(account)}><Edit3 />Saldo iniziale</button><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id)}><Eye />Movimenti</button></div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>)}</div>
+    {reimbursementSharing ? <p className="field-explanation reimbursement-privacy-note"><LockKeyhole /> Per i rimborsi puoi rendere visibile alla famiglia soltanto il nome di un conto personale. Saldo, istituto e movimenti restano privati.</p> : null}
+    <div className="management-list">{accounts.map((account) => {
+      const visibleForReimbursements = reimbursementSharing?.references.some((item) => item.ownerId === user.id && item.accountId === account.id) ?? false
+      return <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div className="management-row__info"><strong>{account.name}</strong><small>{account.institution} · {account.scope === 'family' ? 'Condiviso' : 'Personale'}</small><small>Saldo iniziale {formatMoney(account.openingBalance)}{account.openingBalanceDate ? ` · ${formatDate(account.openingBalanceDate)}` : ''}</small>{account.scope === 'personal' && reimbursementSharing ? <label className="account-sharing-toggle"><input type="checkbox" checked={visibleForReimbursements} disabled={sharingAccountId === account.id} onChange={(event) => {
+        const visible = event.target.checked
+        setSharingAccountId(account.id)
+        void reimbursementSharing.onChange(account, visible).finally(() => setSharingAccountId(''))
+      }} /> Disponibile come conto per i rimborsi</label> : null}</div><div className="management-row__actions"><button className="detail-button" onClick={() => startEditing(account)}><Edit3 />Saldo iniziale</button><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id)}><Eye />Movimenti</button></div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>
+    })}</div>
   </div>
 }
 

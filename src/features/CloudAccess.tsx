@@ -9,7 +9,7 @@ import type { AccountExportData } from '../lib/exportData'
 import { invitationInvokeError } from '../lib/functionErrors'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
-import type { Account, AppData, User } from '../types'
+import type { Account, AppData, ReimbursementAccountReference, User } from '../types'
 
 export const PERSONAL_WORKSPACE_ID = 'personal'
 
@@ -23,6 +23,7 @@ export interface FamilySession {
   members: User[]
   invitations: FamilyInvitation[]
   sharedAccounts: Account[]
+  reimbursementAccountReferences: ReimbursementAccountReference[]
   switchFamily: (familyId: string) => Promise<void>
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
@@ -39,6 +40,8 @@ export interface FamilySession {
   deleteSharedDirectory?: (recordType: 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void) => () => void
   updateSharedAccount: (account: Account) => Promise<void>
+  setReimbursementAccountVisibility: (account: Account, visible: boolean) => Promise<void>
+  respondToReimbursement: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -200,6 +203,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         members: [toUser(profile)],
         invitations: [],
         accounts: [],
+        reimbursementAccountReferences: [],
       })
       setLoading(false); return
     }
@@ -207,15 +211,18 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     const activeFamily = familyById.get(activeFamilyId)!
     localStorage.setItem(activeFamilyKey(session.user.id), activeFamilyId)
 
-    const [membershipsResult, accountsResult, invitationsResult] = await Promise.all([
+    const [membershipsResult, accountsResult, invitationsResult, reimbursementAccountsResult] = await Promise.all([
       supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
       supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
       membership.role === 'admin'
         ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at').eq('family_id', activeFamilyId)
         : Promise.resolve({ data: [], error: null }),
+      supabase.from('family_reimbursement_accounts')
+        .select('family_id, owner_id, account_id, display_name')
+        .eq('family_id', activeFamilyId),
     ])
-    if (membershipsResult.error || accountsResult.error || invitationsResult.error) {
-      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? invitationsResult.error?.message ?? 'Errore di caricamento')
+    if (membershipsResult.error || accountsResult.error || invitationsResult.error || reimbursementAccountsResult.error) {
+      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? invitationsResult.error?.message ?? reimbursementAccountsResult.error?.message ?? 'Errore di caricamento')
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
@@ -247,6 +254,12 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         scope: 'family' as const,
         openingBalance: Number(account.opening_balance),
         openingBalanceDate: account.opening_balance_date,
+      })),
+      reimbursementAccountReferences: reimbursementAccountsResult.data.map((account) => ({
+        familyId: account.family_id,
+        ownerId: account.owner_id,
+        accountId: account.account_id,
+        name: account.display_name,
       })),
     })
     setLoading(false)
@@ -300,6 +313,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     members: snapshot.members,
     invitations: snapshot.invitations,
     sharedAccounts: snapshot.accounts,
+    reimbursementAccountReferences: snapshot.reimbursementAccountReferences,
     switchFamily: async (familyId) => { await load(familyId) },
     createFamily: async (input) => {
       const { data: familyId, error: createError } = await supabase.rpc('create_family_with_optional_account', {
@@ -479,6 +493,44 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         .eq('family_id', activeFamilyId)
         .eq('scope', 'family')
       if (updateError) throw updateError
+    },
+    setReimbursementAccountVisibility: async (account, visible) => {
+      if (!activeFamilyId || account.scope !== 'personal' || account.ownerId !== snapshot.profile.id) {
+        throw new Error('Il conto personale non appartiene all’utente corrente.')
+      }
+      const result = visible
+        ? await supabase.from('family_reimbursement_accounts').upsert({
+          family_id: activeFamilyId,
+          owner_id: snapshot.profile.id,
+          account_id: account.id,
+          display_name: account.name,
+        }, { onConflict: 'family_id,owner_id,account_id' })
+        : await supabase.from('family_reimbursement_accounts')
+          .delete()
+          .eq('family_id', activeFamilyId)
+          .eq('owner_id', snapshot.profile.id)
+          .eq('account_id', account.id)
+      if (result.error) throw result.error
+      setSnapshot((current) => current ? {
+        ...current,
+        reimbursementAccountReferences: visible
+          ? [
+            ...current.reimbursementAccountReferences.filter((item) => item.accountId !== account.id || item.ownerId !== snapshot.profile.id),
+            { familyId: activeFamilyId, ownerId: snapshot.profile.id, accountId: account.id, name: account.name },
+          ]
+          : current.reimbursementAccountReferences.filter((item) => item.accountId !== account.id || item.ownerId !== snapshot.profile.id),
+      } : current)
+    },
+    respondToReimbursement: async (reimbursementId, accepted, selectedAccountId) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: responseError } = await supabase.rpc('respond_to_family_reimbursement', {
+        target_family_id: activeFamilyId,
+        target_reimbursement_id: reimbursementId,
+        accept_reimbursement: accepted,
+        selected_account_id: selectedAccountId ?? null,
+      })
+      if (responseError) throw responseError
+      await load(activeFamilyId)
     },
     signOut: async () => { await supabase.auth.signOut() },
   })
@@ -723,6 +775,7 @@ interface FamilySnapshot {
   members: User[]
   invitations: FamilyInvitation[]
   accounts: Account[]
+  reimbursementAccountReferences: ReimbursementAccountReference[]
 }
 
 function activeFamilyKey(userId: string) {

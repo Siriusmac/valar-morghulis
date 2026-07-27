@@ -1,8 +1,9 @@
-import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, UserRound, WalletCards } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, Check, Clock3, Landmark, ReceiptText, Scale, UserRound, WalletCards, X } from 'lucide-react'
+import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedMovementAmount } from '../lib/calculations'
 import { formatDate, formatMoney, todayISO } from '../lib/format'
-import type { AppData, User, PageId } from '../types'
+import type { AppData, User, PageId, Reimbursement } from '../types'
 
 interface Props {
   data: AppData
@@ -10,6 +11,7 @@ interface Props {
   members: User[]
   onNavigate: (page: PageId) => void
   onReimburse: () => void
+  onRespondReimbursement?: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   workspace?: {
     familyId: string
     families: FamilyOption[]
@@ -18,7 +20,7 @@ interface Props {
   }
 }
 
-export function Dashboard({ data, user, members, onNavigate, onReimburse, workspace }: Props) {
+export function Dashboard({ data, user, members, onNavigate, onReimburse, onRespondReimbursement, workspace }: Props) {
   const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
@@ -39,6 +41,8 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, worksp
   }
   const monthlyTotal = dailyTotals.reduce((total, amount) => total + amount, 0)
   const dailyMaximum = Math.max(...dailyTotals)
+  const reimbursementUpdates = data.reimbursements.filter((item) =>
+    (item.status === 'pending' || item.status === 'rejected') && (item.fromId === user.id || item.toId === user.id))
 
   return (
     <div className="page dashboard-page">
@@ -110,6 +114,20 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, worksp
         </div>
       </section> : null}
 
+      {!workspace?.personalMode && reimbursementUpdates.length ? <section className="dashboard-section">
+        <div className="section-title-row"><div><h2>Rimborsi da verificare</h2><p>Un rimborso modifica i saldi soltanto dopo la conferma della controparte</p></div></div>
+        <div className="reimbursement-review-list">
+          {reimbursementUpdates.map((reimbursement) => <ReimbursementReview
+            key={reimbursement.id}
+            reimbursement={reimbursement}
+            data={data}
+            user={user}
+            members={members}
+            onRespond={onRespondReimbursement}
+          />)}
+        </div>
+      </section> : null}
+
       <section className="dashboard-section">
         <div className="section-title-row"><div><h2>I tuoi conti</h2><p>Il saldo include tutti i movimenti</p></div><button className="text-button" onClick={() => onNavigate('accounts')}>Gestisci <ArrowRight /></button></div>
         <div className="account-rail">
@@ -124,4 +142,49 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, worksp
       </section>
     </div>
   )
+}
+
+function ReimbursementReview({ reimbursement, data, user, members, onRespond }: {
+  reimbursement: Reimbursement
+  data: AppData
+  user: User
+  members: User[]
+  onRespond?: Props['onRespondReimbursement']
+}) {
+  const isCounterparty = reimbursement.authorId !== user.id
+  const ownsSource = reimbursement.fromId === user.id
+  const ownPersonalAccounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === user.id)
+  const selectableAccounts = ownsSource
+    ? ownPersonalAccounts
+    : [...ownPersonalAccounts, ...data.accounts.filter((account) => account.scope === 'family')]
+  const existingAccountId = ownsSource ? reimbursement.fromAccountId : reimbursement.toAccountId
+  const [selectedAccountId, setSelectedAccountId] = useState(existingAccountId ?? selectableAccounts[0]?.id ?? '')
+  const [busy, setBusy] = useState(false)
+  const author = members.find((member) => member.id === reimbursement.authorId)
+  const other = members.find((member) => member.id === (ownsSource ? reimbursement.toId : reimbursement.fromId))
+  const respond = async (accepted: boolean) => {
+    if (!onRespond || (accepted && !selectedAccountId)) return
+    setBusy(true)
+    await onRespond(reimbursement.id, accepted, accepted ? selectedAccountId || undefined : undefined)
+    setBusy(false)
+  }
+  if (reimbursement.status === 'rejected') return <article className="reimbursement-review reimbursement-review--rejected">
+    <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
+  </article>
+  if (!isCounterparty) return <article className="reimbursement-review">
+    <span><Clock3 /></span><div><strong>In attesa di {other?.name ?? 'conferma'}</strong><small>{formatMoney(reimbursement.amount)} · non ancora incluso nei saldi</small></div>
+  </article>
+  return <article className="reimbursement-review reimbursement-review--action">
+    <span><Scale /></span>
+    <div><strong>{author?.name ?? 'Un membro'} ha registrato un rimborso di {formatMoney(reimbursement.amount)}</strong><small>Verifica il conto che ti appartiene prima di confermare.</small>
+      <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
+        <option value="">Seleziona un conto</option>
+        {selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}
+      </select></label>
+    </div>
+    <div className="reimbursement-review__actions">
+      <button type="button" className="button button--ghost" disabled={busy} onClick={() => void respond(false)}><X /> Rifiuta</button>
+      <button type="button" className="button button--primary" disabled={busy || !selectedAccountId} onClick={() => void respond(true)}><Check /> Conferma</button>
+    </div>
+  </article>
 }

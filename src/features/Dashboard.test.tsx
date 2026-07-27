@@ -29,4 +29,25 @@ describe('Dashboard workspace selector', () => {
     expect(screen.queryByText('Spese condivise giornaliere')).toBeNull()
     expect(screen.queryByText('Ultimi movimenti condivisi')).toBeNull()
   })
+
+  it('lets the counterparty choose their account and confirm a pending reimbursement', async () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'pending-reimbursement',
+      fromId: users[0].id,
+      toId: users[1].id,
+      amount: 25,
+      date: '2026-07-27',
+      authorId: users[1].id,
+      status: 'pending',
+    }]
+    const onRespond = vi.fn().mockResolvedValue(undefined)
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onRespondReimbursement={onRespond} />)
+
+    expect(screen.getByText(/ha registrato un rimborso di/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Il tuo conto di origine'), { target: { value: 'simone-cash' } })
+    fireEvent.click(screen.getByRole('button', { name: /Conferma/ }))
+
+    await waitFor(() => expect(onRespond).toHaveBeenCalledWith('pending-reimbursement', true, 'simone-cash'))
+  })
 })

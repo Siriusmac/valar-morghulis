@@ -50,6 +50,18 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'anna')).toBe(0)
   })
 
+  it('does not change the shared balance until a reimbursement is confirmed', () => {
+    const data = cleanData()
+    data.movements = [expense('a', 'simone', 30, 'simone-bank'), expense('b', 'anna', 50, 'anna-bank')]
+    data.reimbursements = [{
+      id: 'pending', fromId: 'simone', toId: 'anna', amount: 10, date: '2026-07-18',
+      authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-bank', status: 'pending',
+    }]
+    expect(sharedBalance(data, 'simone')).toBe(-10)
+    data.reimbursements[0].status = 'confirmed'
+    expect(sharedBalance(data, 'simone')).toBe(0)
+  })
+
   it('counts only half of a reimbursement paid into a shared account', () => {
     const data = cleanData()
     data.reimbursements = [{ id: 'r-family', fromId: 'simone', toId: 'anna', amount: 100, date: '2026-07-18', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank' }]
@@ -177,6 +189,18 @@ describe('accountBalance', () => {
     const base = data.accounts.find((item) => item.id === 'anna-cash')!.openingBalance
     data.reimbursements = [{ id: 'r', fromId: 'simone', toId: 'anna', amount: 25, date: '2026-07-18', authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-cash' }]
     expect(accountBalance(data, 'anna-cash')).toBe(base + 25)
+  })
+
+  it('does not move money between accounts for a pending or rejected reimbursement', () => {
+    const data = cleanData()
+    const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    data.reimbursements = [{
+      id: 'pending', fromId: 'simone', toId: 'anna', amount: 25, date: '2026-07-18',
+      authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-cash', status: 'pending',
+    }]
+    expect(accountBalance(data, 'simone-bank')).toBe(base)
+    data.reimbursements[0].status = 'rejected'
+    expect(accountBalance(data, 'simone-bank')).toBe(base)
   })
 
   it('keeps a statistics-only movement out of the calculated account balance', () => {

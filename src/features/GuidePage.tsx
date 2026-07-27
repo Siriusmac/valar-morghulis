@@ -113,6 +113,7 @@ export function GuidePage() {
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
             <li>Usa <strong>Giro fondi</strong> per spostare denaro tra due conti senza registrare una spesa.</li>
             <li>I movimenti precedenti alla data del saldo iniziale possono restare nelle statistiche senza modificare il saldo.</li>
+            <li>Per ogni conto personale puoi scegliere se rendere visibile alla famiglia soltanto il suo nome, così potrà essere selezionato nei rimborsi. Saldo, istituto e movimenti restano privati.</li>
           </ul>
         </section>
 
@@ -143,7 +144,7 @@ export function GuidePage() {
             <Scale aria-hidden="true" />
             <div>
               <strong>Registrare un rimborso</strong>
-              <p>Dalla Bacheca seleziona “Registra rimborso”, indica importo e conti coinvolti. L’app registra la compensazione contabile, ma non esegue un trasferimento bancario.</p>
+              <p>Dalla Bacheca seleziona “Registra rimborso”, indica importo e conti coinvolti. Se un conto dell’altro membro non è disponibile, sarà lui a specificarlo durante la conferma. Fino alla sua accettazione il rimborso non modifica alcun saldo. L’app registra la compensazione contabile, ma non esegue un trasferimento bancario.</p>
             </div>
           </div>
         </section>

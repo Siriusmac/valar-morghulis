@@ -124,8 +124,20 @@ export interface Reimbursement {
   amount: number
   date: string
   authorId: UserId
-  fromAccountId: string
-  toAccountId: string
+  fromAccountId?: string
+  toAccountId?: string
+  status?: 'pending' | 'confirmed' | 'rejected'
+  confirmedBy?: UserId
+  confirmedAt?: string
+  rejectedBy?: UserId
+  rejectedAt?: string
+}
+
+export interface ReimbursementAccountReference {
+  familyId: string
+  ownerId: UserId
+  accountId: string
+  name: string
 }
 
 export interface AppData {

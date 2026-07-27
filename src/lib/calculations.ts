@@ -1,4 +1,4 @@
-import type { AppData, Movement, MovementType, UserId } from '../types'
+import type { AppData, Movement, MovementType, Reimbursement, UserId } from '../types'
 
 export interface MovementAllocation {
   categoryId: string
@@ -36,6 +36,10 @@ export function movementHasSharedPortion(data: AppData, movement: Movement) {
   return account?.scope === 'family' || sharedMovementAmount(movement) > 0
 }
 
+export function reimbursementIsConfirmed(reimbursement: Reimbursement) {
+  return reimbursement.status === undefined || reimbursement.status === 'confirmed'
+}
+
 export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
   if (memberCount < 2) return 0
   let net = 0
@@ -52,6 +56,7 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
       : -settlementAmount * personalShare * direction
   }
   for (const item of data.reimbursements) {
+    if (!reimbursementIsConfirmed(item)) continue
     const destination = data.accounts.find((account) => account.id === item.toAccountId)
     if (destination?.scope === 'family') {
       net += item.fromId === userId
@@ -86,6 +91,7 @@ export function accountBalance(data: AppData, accountId: string) {
     if (transfer.toAccountId === accountId) balance += transfer.amount
   }
   for (const reimbursement of data.reimbursements) {
+    if (!reimbursementIsConfirmed(reimbursement)) continue
     if (reimbursement.fromAccountId === accountId) balance -= reimbursement.amount
     if (reimbursement.toAccountId === accountId) balance += reimbursement.amount
   }

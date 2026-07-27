@@ -18,7 +18,9 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
 - saldo iniziale dei conti modificabile con data di riferimento;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
-- rimborsi registrati indicando il conto di origine del debitore e quello di destinazione, anche condiviso; in quest’ultimo caso compensa soltanto la quota appartenente agli altri membri;
+- rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; il conto personale mancante può essere completato da chi lo possiede;
+- condivisione facoltativa, per ogni famiglia, del solo nome dei conti personali utilizzabili nei rimborsi; saldo, istituto e movimenti restano privati;
+- destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
 - conti personali e condivisi, contanti e giro fondi tra conti; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
 - categorie, beneficiari e mittenti ricercabili mentre si scrive e creati automaticamente quando il nome non esiste; tag creabili durante l'uso;
@@ -64,7 +66,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260726110000_family_shared_records.sql` e
    `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql` e
    `supabase/migrations/20260727150000_invitation_lifecycle.sql` e
-   `supabase/migrations/20260727170000_movement_senders.sql`;
+   `supabase/migrations/20260727170000_movement_senders.sql` e
+   `supabase/migrations/20260727233000_private_reimbursement_accounts.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;

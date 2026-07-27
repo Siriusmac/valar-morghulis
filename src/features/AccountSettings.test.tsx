@@ -24,6 +24,7 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     members: [simone, anna],
     invitations: [],
     sharedAccounts: [],
+    reimbursementAccountReferences: [],
     switchFamily: vi.fn().mockResolvedValue(undefined),
     createFamily: vi.fn().mockResolvedValue(undefined),
     renameFamily: vi.fn().mockResolvedValue(undefined),
@@ -38,6 +39,8 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     loadAppData: vi.fn().mockResolvedValue(null),
     saveAppData: vi.fn().mockResolvedValue(undefined),
     updateSharedAccount: vi.fn().mockResolvedValue(undefined),
+    setReimbursementAccountVisibility: vi.fn().mockResolvedValue(undefined),
+    respondToReimbursement: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }

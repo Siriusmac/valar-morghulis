@@ -503,6 +503,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .money-input span { position: absolute; left: 12px; top: 12px; color: var(--muted); }
 .money-input input { padding-left: 30px; }
 .reimbursement-form > small { color: var(--muted); font-size: 10px; line-height: 1.5; text-align: left; }
+.reimbursement-form .privacy-note { margin-top: 2px; color: var(--muted); font: 400 10px/1.5 'DM Sans', system-ui, sans-serif; text-align: left; }
 .toast { position: fixed; z-index: 150; bottom: 25px; left: 50%; transform: translateX(-50%); background: var(--ink); color: white; border-radius: 6px; padding: 13px 18px; display: flex; gap: 9px; align-items: center; font-size: 12px; box-shadow: var(--shadow); animation: toast-in .25s ease; }
 .toast svg { width: 18px; color: #8dbb95; }
 
@@ -813,4 +814,61 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+.reimbursement-privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.reimbursement-privacy-note svg { width: 17px; flex: 0 0 auto; }
+
+.account-sharing-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  color: var(--positive);
+  font-size: .78rem;
+  font-weight: 650;
+}
+
+.account-sharing-toggle input { width: 17px; height: 17px; margin: 0; }
+
+.reimbursement-review-list { display: grid; gap: 10px; }
+
+.reimbursement-review {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--white);
+}
+
+.reimbursement-review > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--positive);
+  background: var(--positive-soft);
+}
+
+.reimbursement-review > div:nth-child(2) { display: grid; gap: 4px; }
+.reimbursement-review small { color: var(--muted); }
+.reimbursement-review label { display: grid; gap: 5px; margin-top: 8px; font-size: .78rem; font-weight: 700; }
+.reimbursement-review select { max-width: 330px; }
+.reimbursement-review__actions { display: flex; gap: 8px; }
+.reimbursement-review--rejected { opacity: .72; }
+.reimbursement-review--rejected > span { color: #a93d34; background: #fff2f0; }
+
+@media (max-width: 720px) {
+  .reimbursement-review { grid-template-columns: auto minmax(0, 1fr); }
+  .reimbursement-review__actions { grid-column: 1 / -1; }
+  .reimbursement-review__actions .button { flex: 1; }
 }

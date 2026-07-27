@@ -27,7 +27,9 @@ Funzioni disponibili:
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
-- rimborsi con conto di origine del debitore e conto di destinazione del creditore obbligatori;
+- rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
+- pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
+- completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
 - modifica dei movimenti riservata all’autore;
 - modifica ed eliminazione dei movimenti visibili anche su smartphone e direttamente nel pannello di modifica; un movimento esistente può passare da personale a condiviso o viceversa, con ricalcolo derivato di saldi, conti e statistiche;
 - modifica dei movimenti importati basata anche sull'identità stabile
@@ -66,6 +68,8 @@ Funzioni disponibili:
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
 - Un nuovo utente parte soltanto con `Contanti` e l’eventuale conto condiviso della famiglia.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
+- Un rimborso nuovo non modifica il saldo familiare né i conti finché la controparte non lo conferma. L’autore non può auto-confermarlo.
+- I conti personali restano privati. Il proprietario può pubblicare, per la singola famiglia attiva, soltanto nome e identificatore opaco di quelli selezionabili nei rimborsi.
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
 - La famiglia attiva è una preferenza locale per utente; lo snapshot personale è unico per account, mentre i record familiari sono comuni ai membri della sola famiglia selezionata.
@@ -107,14 +111,17 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 27 luglio 2026: lint, 73 test automatici e build
+Ultima verifica completata il 27 luglio 2026: lint, 76 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
 per categoria e la loro quota condivisa, ricerca e creazione contestuale di
 beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,
 propagazione familiare delle cancellazioni, dipendenze dei pagamenti rateali e
 importazione dei dati locali nello snapshot cloud. La verifica interattiva
-locale dell’ultimo aggiornamento resta da ripetere perché il browser integrato
-ha bloccato l’URL locale per una regola di rete dell’ambiente.
+locale ha confermato caricamento, apertura e invio del rimborso nella modalità
+locale, assenza di errori in console e nessun overflow orizzontale a 390 px.
+La cattura visuale del viewport mobile del browser integrato ha applicato una
+scala anomala, quindi la resa smartphone resta da ricontrollare su un dispositivo
+o browser esterno reale dopo l’applicazione della migrazione.
 
 ## Limiti dell’MVP e prossimi passi
 
@@ -144,6 +151,16 @@ cancellazioni delle anagrafiche familiari e l’eventuale destinazione scelta, c
 la riassegnazione viene applicata in modo coerente a tutti i membri. Le entrate
 nuove richiedono un mittente; quelle storiche senza mittente restano valide e
 possono essere completate dal pannello di modifica.
+
+La migrazione `20260727233000_private_reimbursement_accounts.sql` introduce
+la rubrica minima dei conti personali autorizzati per i rimborsi, protetta da
+RLS e separata per famiglia. La stessa migrazione forza i nuovi rimborsi nello
+stato `pending`, impedisce all’autore di alterarne lo stato e aggiunge la
+procedura protetta con cui soltanto la controparte può confermare o rifiutare,
+completando il proprio conto quando necessario.
+La migrazione è stata applicata al progetto Supabase remoto il 27 luglio 2026.
+Il successivo `db push --dry-run` conferma che database locale e remoto sono
+allineati.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
