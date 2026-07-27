@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 26 luglio 2026.
+Aggiornato il 27 luglio 2026.
 
 ## Stato del prodotto
 
@@ -41,6 +41,10 @@ Funzioni disponibili:
   indice a collegamenti interni e sette capitoli responsive sulle funzioni
   principali;
 - più famiglie per utente, famiglia attiva selezionabile e ruoli `admin`/`member` distinti per appartenenza;
+- vista condivisa selezionabile direttamente dalla bacheca, mantenendo un unico archivio personale fra tutte le famiglie;
+- onboarding utilizzabile anche senza creare subito una famiglia;
+- esportazione completa in JSON, CSV o XML e cancellazione definitiva dell’account;
+- cancellazione della famiglia con eliminazione dei dati condivisi oppure conversione in personali dei movimenti creati da ciascun autore;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
@@ -60,7 +64,9 @@ Funzioni disponibili:
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
-- La famiglia attiva è una preferenza locale per utente; gli snapshot personali restano separati per coppia famiglia/utente, mentre i record familiari sono comuni ai membri.
+- La famiglia attiva è una preferenza locale per utente; lo snapshot personale è unico per account, mentre i record familiari sono comuni ai membri della sola famiglia selezionata.
+- Eliminando una famiglia con conservazione, ogni membro mantiene i movimenti e le rate che aveva creato; rimborsi e girofondi familiari vengono rimossi perché non hanno significato fuori dal gruppo.
+- JSON è il formato di backup consigliato; CSV privilegia la consultazione tabellare e XML l’interoperabilità con altri software.
 - Cloudflare Pages ospita il frontend; Supabase gestisce autenticazione, famiglie,
   appartenenze, inviti e conti condivisi.
 - Le tabelle esposte usano RLS; la `service_role` è confinata alla Edge Function.
@@ -111,14 +117,15 @@ Prossimi passi:
 
 1. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
 2. rifinire i template email e introdurre limiti anti-abuso;
-3. aggiungere backup, esportazione, cancellazione dati e test end-to-end;
+3. aggiungere test end-to-end autenticati per esportazione e cancellazioni distruttive;
 4. definire l’API stabile per le future app native iOS e macOS.
 
-La migrazione `20260725123000_private_family_app_data.sql` introduce
-`family_user_app_data`, con una riga JSON per utente e famiglia. Al primo avvio
-dopo l'aggiornamento, l'app unisce una sola volta gli eventuali dati già presenti
-nel browser e salva il risultato nel cloud. Le policy RLS consentono a ogni
-utente di leggere e modificare esclusivamente la propria riga.
+La migrazione `20260727100000_personal_workspace_and_deletion.sql` introduce
+`user_app_data`, con un unico snapshot JSON per utente, e copia il più recente
+snapshot privato precedente. Aggiunge inoltre le procedure protette per
+onboarding personale, cancellazione della famiglia e cancellazione dell’account.
+Le policy RLS consentono a ogni utente di leggere e modificare esclusivamente la
+propria riga.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita

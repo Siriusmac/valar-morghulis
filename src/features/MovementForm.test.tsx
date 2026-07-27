@@ -82,6 +82,15 @@ describe('MovementForm', () => {
     })
   })
 
+  it('keeps new movements private in the personal-only workspace', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} personalOnly onSave={onSave} onCancel={vi.fn()} />)
+    expect(screen.getByText('In questa vista i movimenti restano privati e non partecipano a saldi familiari.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '20' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+    expect(onSave.mock.calls[0][0].shared).toBe(false)
+  })
+
   it('preserves installment metadata when an existing movement is edited', () => {
     const onSave = vi.fn()
     const initial = defaultData.movements.find((movement) => movement.id === 'seed-installment-1')!

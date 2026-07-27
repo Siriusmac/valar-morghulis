@@ -82,3 +82,18 @@ export function createStarterData(userId: UserId, sharedAccounts: Account[]): Ap
     reimbursements: [],
   }
 }
+
+export function createPersonalStarterData(userId: UserId): AppData {
+  return {
+    version: 3,
+    accounts: [{ id: `${userId}-cash`, ownerId: userId, name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 0 }],
+    categories: defaultData.categories.map((item) => ({ ...item, scope: 'personal', ownerId: userId })),
+    beneficiaries: [],
+    tags: [],
+    tagReportIds: [],
+    movements: [],
+    scheduledPayments: [],
+    transfers: [],
+    reimbursements: [],
+  }
+}

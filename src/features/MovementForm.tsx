@@ -12,18 +12,19 @@ interface Props {
   onCancel: () => void
   onDelete?: (id: string) => void
   initial?: Movement
+  personalOnly?: boolean
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 type SplitDraft = Omit<MovementSplit, 'amount'> & { amount: string }
 
-export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [comments, setComments] = useState(initial?.comments ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
-  const [shared, setShared] = useState(initial?.shared ?? (initial ? false : true))
+  const [shared, setShared] = useState(personalOnly ? false : initial?.shared ?? (initial ? false : true))
   const personalAccounts = useMemo(() => data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === user.id), [data.accounts, user.id])
   const familyAccounts = useMemo(() => data.accounts.filter((item) => item.scope === 'family'), [data.accounts])
   const availableAccounts = useMemo(() => [...personalAccounts, ...familyAccounts], [personalAccounts, familyAccounts])
@@ -52,7 +53,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [customProvider, setCustomProvider] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const selectedAccount = data.accounts.find((item) => item.id === accountId)
-  const effectivelyShared = selectedAccount?.scope === 'family' || shared
+  const effectivelyShared = !personalOnly && (selectedAccount?.scope === 'family' || shared)
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const sharedWithLabel = memberCount > 2 ? 'la famiglia' : otherName
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
@@ -94,6 +95,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   }
 
   const setMovementSharing = (nextShared: boolean) => {
+    if (personalOnly) { setShared(false); return }
     setShared(nextShared)
     if (initial && splits.length) setSplits((items) => items.map((item) => ({ ...item, shared: nextShared })))
     if (type === 'income') {
@@ -270,7 +272,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       }}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}
-    {initial ? <section className="sharing-edit-box">
+    {personalOnly ? <div className="family-account-note"><LockKeyhole /><span><strong>Movimento personale</strong><small>In questa vista i movimenti restano privati e non partecipano a saldi familiari.</small></span></div> : initial ? <section className="sharing-edit-box">
       <label>Condivisione del movimento<select value={effectivelyShared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(event) => setMovementSharing(event.target.value === 'family')}><option value="personal">Movimento personale</option><option value="family">Movimento condiviso</option></select></label>
       <small>{selectedAccount?.scope === 'family' ? 'Il movimento resta condiviso perché utilizza un conto della famiglia.' : splits.length ? 'La scelta viene applicata anche a tutti i parziali del movimento.' : effectivelyShared ? `La quota viene ripartita al ${splitPercentage} tra i ${memberCount} membri.` : `Il movimento resta visibile soltanto a ${user.name}.`}</small>
     </section> : selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}

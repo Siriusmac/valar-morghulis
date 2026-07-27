@@ -158,7 +158,30 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .settings-create-account { display: grid; grid-template-columns: 30px 1fr 1fr; gap: 12px; align-items: end; padding: 14px; border-radius: 7px; background: var(--positive-soft); }
 .settings-create-account > svg { width: 20px; color: var(--positive); align-self: center; }
 .settings-create-account label:last-child { grid-column: 2 / -1; }
+.settings-card--danger { border-color: #e2c2bf; background: #fffafa; }
+.settings-card--danger .settings-card__heading > span { color: #a93d34; background: #fbedeb; }
+.account-deletion, .danger-settings__body { display: grid; gap: 13px; padding-top: 17px; border-top: 1px solid #ead4d1; }
+.account-deletion > p, .danger-settings__body > p { color: #74514d; font-size: 10px; line-height: 1.6; }
+.account-deletion fieldset, .danger-settings__body fieldset { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px solid #e3d6d2; border-radius: 7px; }
+.account-deletion legend, .danger-settings__body legend { padding: 0 5px; font-size: 10px; font-weight: 700; }
+.account-deletion > label, .danger-settings__body > label { display: grid; gap: 6px; font-size: 10px; font-weight: 600; }
+.account-deletion > label input, .account-deletion > label select, .danger-settings__body > label input { height: 44px; padding: 0 12px; border: 1px solid #d5d1cb; border-radius: 5px; background: white; }
+.danger-settings { margin-top: 22px; padding-top: 18px; border-top: 1px solid #ead4d1; }
+.danger-settings__toggle { width: 100%; display: grid; grid-template-columns: 28px 1fr 18px; align-items: center; gap: 9px; padding: 0; border: 0; background: transparent; color: #983a32; text-align: left; cursor: pointer; }
+.danger-settings__toggle > svg { width: 18px; }
+.danger-settings__toggle > svg:last-child { color: var(--muted); transition: transform .18s ease; }
+.danger-settings__toggle > span { display: grid; }
+.danger-settings__toggle strong { font-size: 11px; }
+.danger-settings__toggle small { color: var(--muted); font-size: 9px; }
 .date-caption { margin: 12px 0 0 !important; color: var(--ink) !important; text-transform: uppercase; letter-spacing: 1.3px; font-size: 10px !important; }
+.dashboard-heading-actions { display: flex; align-items: flex-start; gap: 18px; }
+.dashboard-family-selector { display: grid; gap: 5px; min-width: 210px; color: var(--muted); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; }
+.dashboard-family-selector select { height: 40px; padding: 0 34px 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.personal-workspace-card { min-height: 150px; display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 18px; padding: 25px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: linear-gradient(90deg, var(--positive-soft), transparent); }
+.personal-workspace-card > span { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; color: var(--positive); background: white; }
+.personal-workspace-card svg { width: 24px; }
+.personal-workspace-card h2 { font-size: 24px; }
+.personal-workspace-card p { max-width: 650px; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 
 .balance-zone { display: grid; grid-template-columns: .95fr 1.05fr; min-height: 285px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .balance-summary { padding: 44px 6% 40px 0; display: grid; grid-template-columns: 88px 1fr; align-content: center; column-gap: 24px; position: relative; }
@@ -522,6 +545,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .sent-invitations strong { font-size: 11px; }
 .sent-invitations small { color: var(--muted); font-size: 9px; }
 .onboarding-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.onboarding-skip { display: grid; gap: 7px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); text-align: center; }
+.onboarding-skip small { color: var(--muted); font-size: 9px; line-height: 1.45; }
 .access-status { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 18px; padding: 30px; text-align: center; background: #fbfaf8; }
 .access-status > svg { width: 34px; color: var(--accent); }
 .access-status h1 { font-size: 33px; }
@@ -598,6 +623,11 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .guide-chapter h2 { font-size: 24px; }
   .guide-chapter > p, .guide-chapter li { font-size: 12px; }
   .date-caption { display: none; }
+  .dashboard-page .page-heading { flex-direction: column; gap: 17px; }
+  .dashboard-heading-actions, .dashboard-family-selector { width: 100%; }
+  .personal-workspace-card { grid-template-columns: 46px 1fr; min-height: 130px; padding: 20px 15px; }
+  .personal-workspace-card > span { width: 44px; height: 44px; }
+  .personal-workspace-card h2 { font-size: 21px; }
   .desktop-action { display: none; }
   .heading-actions { gap: 6px; }
   .heading-actions .button { padding-inline: 12px; font-size: 11px; }
@@ -734,6 +764,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .settings-create-account { grid-template-columns: 26px 1fr; }
   .settings-create-account label, .settings-create-account label:last-child { grid-column: 2; }
   .family-member-list { grid-template-columns: 1fr; }
+  .account-deletion .button, .danger-settings__body .button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

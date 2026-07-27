@@ -1,4 +1,5 @@
-import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, WalletCards } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, Landmark, ReceiptText, Scale, UserRound, WalletCards } from 'lucide-react'
+import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedMovementAmount } from '../lib/calculations'
 import { formatDate, formatMoney, todayISO } from '../lib/format'
 import type { AppData, User, PageId } from '../types'
@@ -9,9 +10,15 @@ interface Props {
   members: User[]
   onNavigate: (page: PageId) => void
   onReimburse: () => void
+  workspace?: {
+    familyId: string
+    families: FamilyOption[]
+    personalMode: boolean
+    onSwitch: (familyId: string) => Promise<void>
+  }
 }
 
-export function Dashboard({ data, user, members, onNavigate, onReimburse }: Props) {
+export function Dashboard({ data, user, members, onNavigate, onReimburse, workspace }: Props) {
   const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
@@ -36,11 +43,22 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
   return (
     <div className="page dashboard-page">
       <div className="page-heading">
-        <div><h1>Ciao, {user.name}</h1><p>Qui trovi il punto della situazione familiare.</p></div>
-        <p className="date-caption">{monthAndYear}</p>
+        <div><h1>Ciao, {user.name}</h1><p>{workspace?.personalMode ? 'Qui trovi la tua contabilità personale.' : 'Qui trovi il punto della situazione familiare.'}</p></div>
+        <div className="dashboard-heading-actions">
+          {workspace && workspace.families.length ? <label className="dashboard-family-selector">
+            <span>Vista condivisa</span>
+            <select value={workspace.familyId} onChange={(event) => void workspace.onSwitch(event.target.value)}>
+              <option value={PERSONAL_WORKSPACE_ID}>Solo personale</option>
+              {workspace.families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}
+            </select>
+          </label> : null}
+          <p className="date-caption">{monthAndYear}</p>
+        </div>
       </div>
 
-      <section className="balance-zone">
+      {workspace?.personalMode ? <section className="personal-workspace-card">
+        <span><UserRound /></span><div><h2>Contabilità personale</h2><p>I movimenti di questa vista sono privati. Seleziona una famiglia qui sopra quando vuoi consultare saldi e spese condivise.</p></div>
+      </section> : <section className="balance-zone">
         <div className="balance-summary">
           <span className={`balance-summary__icon ${balance >= 0 ? 'balance-summary__icon--positive' : ''}`}><Scale /></span>
           <div>
@@ -67,9 +85,9 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
           </div>
           <div className="chart-axis"><span>01</span><span>08</span><span>15</span><span>22</span><span>{daysInMonth}</span></div>
         </div>
-      </section>
+      </section>}
 
-      <section className="dashboard-section">
+      {!workspace?.personalMode ? <section className="dashboard-section">
         <div className="section-title-row"><div><h2>Ultimi movimenti condivisi</h2><p>Entrate e spese visibili a tutta la famiglia</p></div><button className="text-button" onClick={() => onNavigate('movements')}>Vedi tutti <ArrowRight /></button></div>
         <div className="expense-list expense-list--dashboard">
           {shared.slice(0, 4).map((movement) => {
@@ -89,7 +107,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse }: Prop
             )
           })}
         </div>
-      </section>
+      </section> : null}
 
       <section className="dashboard-section">
         <div className="section-title-row"><div><h2>I tuoi conti</h2><p>Il saldo include tutti i movimenti</p></div><button className="text-button" onClick={() => onNavigate('accounts')}>Gestisci <ArrowRight /></button></div>

@@ -35,6 +35,10 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - gestione account dal profilo nella barra laterale, con modifica di email e password;
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
+- archivio personale unico fra tutte le famiglie e selettore della vista condivisa direttamente in bacheca;
+- possibilità di iniziare senza creare una famiglia e aggiungerla in seguito dalle impostazioni;
+- esportazione completa in JSON, CSV o XML prima della cancellazione definitiva dell’account;
+- cancellazione amministrativa della famiglia, eliminando i dati condivisi oppure conservando come personali i movimenti creati da ciascun membro;
 - creazione di ulteriori famiglie; l’autore ne diventa amministratore e può rinominarle e invitare membri;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
 - guida integrata raggiungibile dal menù laterale, con introduzione, indice
@@ -54,7 +58,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260723183000_account_opening_balance_date.sql` e
    `supabase/migrations/20260724130000_multi_family_accounts.sql`,
    `supabase/migrations/20260725123000_private_family_app_data.sql` e
-   `supabase/migrations/20260726110000_family_shared_records.sql`;
+   `supabase/migrations/20260726110000_family_shared_records.sql` e
+   `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;
@@ -103,9 +108,10 @@ usa un CNAME esterno verso `valar-morghulis-web.pages.dev`, mantenendo DNS ed
 email presso Tophost.
 
 Il backend gestisce account, appartenenze multiple, ruoli per famiglia, inviti e
-conti condivisi. La famiglia attiva viene ricordata localmente per ogni utente.
-Conti e movimenti personali vengono salvati in uno snapshot privato Supabase per
-ciascuna coppia utente-famiglia. Movimenti condivisi, rimborsi, operazioni sui
+conti condivisi. La famiglia attiva, oppure la vista solo personale, viene
+ricordata localmente per ogni utente. Conti e movimenti personali vengono
+salvati in uno snapshot privato Supabase unico per utente, così restano
+invariati passando da una famiglia all’altra. Movimenti condivisi, rimborsi, operazioni sui
 conti familiari e relative anagrafiche sono invece conservati come record
 familiari normalizzati e aggiornati in tempo reale. Entrambi i livelli sono
 protetti da RLS. Il browser conserva una copia locale come cache.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCloudPersistence, mergeCloudPersistence, type SharedRecord } from './cloudData'
+import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from './cloudData'
 import { createStarterData, defaultData } from './seed'
 import type { AppData, Movement } from '../types'
 
@@ -17,7 +17,11 @@ describe('family cloud persistence', () => {
     const simone = buildCloudPersistence(data, 'simone')
     const anna = buildCloudPersistence(data, 'anna')
     const fallback = createStarterData('anna', data.accounts.filter((item) => item.scope === 'family'))
-    const merged = mergeCloudPersistence(anna.privateData, asDatabaseRecords(simone), fallback)
+    const merged = mergeCloudPersistence(
+      mergePrivateCloudData(anna.privateData, anna.familyPrivateData),
+      asDatabaseRecords(simone),
+      fallback,
+    )
 
     expect(merged.movements.some((item) => item.id === 'seed-1')).toBe(true)
     expect(merged.movements.some((item) => item.id === 'seed-3')).toBe(true)
@@ -51,7 +55,8 @@ describe('family cloud persistence', () => {
     expect(sharedMovement.categoryId).toBe('accessori-casa')
     expect(sharedMovement.shared).toBe(true)
     expect(sharedMovement.splits).toEqual([])
-    expect(payload.privateData.movements[0]).toEqual(movement)
+    expect(payload.privateData.movements).toEqual([])
+    expect(payload.familyPrivateData.movements[0]).toEqual(movement)
   })
 
   it('keeps the author full copy when private and shared records have the same id', () => {
@@ -59,10 +64,22 @@ describe('family cloud persistence', () => {
     const payload = buildCloudPersistence(data, 'simone')
     const sharedRecords = asDatabaseRecords(payload)
     const fallback = createStarterData('simone', data.accounts.filter((item) => item.scope === 'family'))
-    const merged = mergeCloudPersistence(payload.privateData, sharedRecords, fallback)
+    const merged = mergeCloudPersistence(
+      mergePrivateCloudData(payload.privateData, payload.familyPrivateData),
+      sharedRecords,
+      fallback,
+    )
 
     expect(merged.movements.find((item) => item.id === 'seed-1')).toEqual(
-      payload.privateData.movements.find((item) => item.id === 'seed-1'),
+      payload.familyPrivateData.movements.find((item) => item.id === 'seed-1'),
     )
+  })
+
+  it('keeps shared author copies out of the global personal snapshot', () => {
+    const payload = buildCloudPersistence(structuredClone(defaultData), 'simone')
+
+    expect(payload.privateData.movements.some((item) => item.id === 'seed-1')).toBe(false)
+    expect(payload.privateData.movements.some((item) => item.id === 'seed-5')).toBe(true)
+    expect(payload.familyPrivateData.movements.some((item) => item.id === 'seed-1')).toBe(true)
   })
 })

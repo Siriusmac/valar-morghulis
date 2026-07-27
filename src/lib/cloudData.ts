@@ -27,6 +27,7 @@ interface SharedRecordPayload {
 
 export interface CloudPersistencePayload {
   privateData: AppData
+  familyPrivateData: AppData
   sharedRecords: SharedRecordPayload[]
   ownedKeys: Array<{ type: SharedRecordType; id: string }>
 }
@@ -88,8 +89,8 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
 
 export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersistencePayload {
   const familyAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
-  const ownSharedMovements = data.movements
-    .filter((item) => item.authorId === userId)
+  const ownMovements = data.movements.filter((item) => item.authorId === userId)
+  const ownSharedMovements = ownMovements
     .flatMap((item) => {
       const shared = sanitizedSharedMovement(data, item)
       return shared ? [shared] : []
@@ -97,6 +98,8 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
   const ownSharedPayments = data.scheduledPayments.filter((item) => item.authorId === userId && item.shared)
   const ownSharedReimbursements = data.reimbursements.filter((item) => item.authorId === userId)
   const ownSharedTransfers = data.transfers.filter((item) => item.authorId === userId && (familyAccountIds.has(item.fromAccountId) || familyAccountIds.has(item.toAccountId)))
+  const familyMovementIds = new Set(ownSharedMovements.map((item) => item.id))
+  const personalTagIds = new Set(data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId).map((item) => item.id))
   const referenced = referencedDirectoryIds(ownSharedMovements, ownSharedPayments)
 
   const sharedCategories = data.categories
@@ -126,15 +129,50 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       categories: data.categories.filter((item) => item.scope === 'personal' && item.ownerId === userId),
       beneficiaries: data.beneficiaries.filter((item) => item.scope === 'personal' && item.ownerId === userId),
       tags: data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId),
-      movements: data.movements.filter((item) => item.authorId === userId),
-      scheduledPayments: data.scheduledPayments.filter((item) => item.authorId === userId),
-      transfers: data.transfers.filter((item) => item.authorId === userId),
-      reimbursements: data.reimbursements.filter((item) => item.authorId === userId),
+      tagReportIds: data.tagReportIds.filter((id) => personalTagIds.has(id)),
+      movements: ownMovements.filter((item) => !familyMovementIds.has(item.id)),
+      scheduledPayments: data.scheduledPayments.filter((item) => item.authorId === userId && !item.shared),
+      transfers: data.transfers.filter((item) => item.authorId === userId && !familyAccountIds.has(item.fromAccountId) && !familyAccountIds.has(item.toAccountId)),
+      reimbursements: [],
+    },
+    familyPrivateData: {
+      version: 3,
+      accounts: [],
+      categories: [],
+      beneficiaries: [],
+      tags: [],
+      tagReportIds: [],
+      movements: ownMovements.filter((item) => familyMovementIds.has(item.id)),
+      scheduledPayments: ownSharedPayments,
+      transfers: ownSharedTransfers,
+      reimbursements: ownSharedReimbursements,
     },
     sharedRecords,
     ownedKeys: sharedRecords
       .filter((item) => transactionTypes.has(item.type))
       .map((item) => ({ type: item.type, id: item.id })),
+  }
+}
+
+export function mergePrivateCloudData(
+  personalData: Partial<AppData> | null,
+  familyData: Partial<AppData> | null,
+): Partial<AppData> | null {
+  if (!personalData && !familyData) return null
+  const personal = personalData ?? {}
+  const family = familyData ?? {}
+  return {
+    ...personal,
+    version: 3,
+    accounts: mergeById(personal.accounts ?? [], family.accounts ?? []),
+    categories: mergeById(personal.categories ?? [], family.categories ?? []),
+    beneficiaries: mergeById(personal.beneficiaries ?? [], family.beneficiaries ?? []),
+    tags: mergeById(personal.tags ?? [], family.tags ?? []),
+    tagReportIds: [...new Set([...(personal.tagReportIds ?? []), ...(family.tagReportIds ?? [])])],
+    movements: mergeById(family.movements ?? [], personal.movements ?? []),
+    scheduledPayments: mergeById(family.scheduledPayments ?? [], personal.scheduledPayments ?? []),
+    transfers: mergeById(family.transfers ?? [], personal.transfers ?? []),
+    reimbursements: mergeById(family.reimbursements ?? [], personal.reimbursements ?? []),
   }
 }
 

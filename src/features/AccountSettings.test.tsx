@@ -15,6 +15,7 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     familyId: 'family-one',
     familyName: 'Famiglia Uno',
     role: 'admin',
+    personalMode: false,
     families: [
       { id: 'family-one', name: 'Famiglia Uno', role: 'admin' },
       { id: 'family-two', name: 'Famiglia Due', role: 'member' },
@@ -26,8 +27,11 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     createFamily: vi.fn().mockResolvedValue(undefined),
     renameFamily: vi.fn().mockResolvedValue(undefined),
     inviteMember: vi.fn().mockResolvedValue(undefined),
+    deleteFamily: vi.fn().mockResolvedValue(undefined),
     updateEmail: vi.fn().mockResolvedValue(undefined),
     updatePassword: vi.fn().mockResolvedValue(undefined),
+    exportAccountData: vi.fn().mockResolvedValue({ exportedAt: '2026-07-27T10:00:00.000Z', profile: simone, personalData: null, families: [] }),
+    deleteAccount: vi.fn().mockResolvedValue(undefined),
     loadAppData: vi.fn().mockResolvedValue(null),
     saveAppData: vi.fn().mockResolvedValue(undefined),
     updateSharedAccount: vi.fn().mockResolvedValue(undefined),
@@ -53,6 +57,22 @@ describe('AccountSettings', () => {
     render(<AccountSettings user={simone} cloud={cloud} />)
 
     expect(screen.queryByRole('heading', { name: 'Amministra Famiglia Uno' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Elimina questa famiglia/ })).toBeNull()
     expect(screen.getByText('Solo un amministratore di questa famiglia può cambiarne il nome o invitare nuovi membri.')).toBeTruthy()
+  })
+
+  it('switches to the personal workspace', async () => {
+    const cloud = familySession()
+    render(<AccountSettings user={simone} cloud={cloud} />)
+    fireEvent.click(screen.getByRole('button', { name: /Solo personale/ }))
+    await waitFor(() => expect(cloud.switchFamily).toHaveBeenCalledWith('personal'))
+  })
+
+  it('shows personal accounting without family administration', () => {
+    const cloud = familySession({ familyId: 'personal', familyName: 'Contabilità personale', personalMode: true, members: [simone] })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+    expect(screen.getByRole('heading', { name: 'Contabilità personale' })).toBeTruthy()
+    expect(screen.queryByText('Amministra Famiglia Uno')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Elimina questa famiglia/ })).toBeNull()
   })
 })

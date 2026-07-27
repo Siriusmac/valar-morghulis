@@ -4,15 +4,19 @@ import {
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
-import { buildCloudPersistence, mergeCloudPersistence, type SharedRecord } from '../lib/cloudData'
-import { createStarterData } from '../lib/seed'
+import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
+import type { AccountExportData } from '../lib/exportData'
+import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
 import type { Account, AppData, User } from '../types'
+
+export const PERSONAL_WORKSPACE_ID = 'personal'
 
 export interface FamilySession {
   familyId: string
   familyName: string
   role: 'admin' | 'member'
+  personalMode: boolean
   families: FamilyOption[]
   user: User
   members: User[]
@@ -21,8 +25,11 @@ export interface FamilySession {
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
   inviteMember: (email: string) => Promise<void>
+  deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
   updateEmail: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
+  exportAccountData: () => Promise<AccountExportData>
+  deleteAccount: () => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData) => Promise<void>
   subscribeToSharedData?: (onChange: () => void) => () => void
@@ -121,7 +128,7 @@ function CloudLogin() {
         <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
       </form>
       {mode === 'login' ? <button type="button" className="text-button auth-recovery" onClick={resetPassword}>Password dimenticata?</button> : null}
-      <small className="privacy-note"><LockKeyhole /> Dati personali protetti e separati da quelli familiari.</small>
+      <small className="privacy-note"><LockKeyhole /> I dati personali sono protetti e non sono visibili agli altri utenti. Gli accessi tecnici eccezionali sono limitati a sicurezza e assistenza.</small>
     </div>
   </AccessLayout>
 }
@@ -138,7 +145,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
-    const { data: profile, error: profileError } = await supabase.from('profiles').select('id, full_name, email').eq('id', session.user.id).single()
+    const { data: profile, error: profileError } = await supabase.from('profiles').select('id, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
 
     let acceptedFamilyId: string | undefined
@@ -158,26 +165,36 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       .select('family_id, role')
       .eq('user_id', session.user.id)
     if (membershipError) { setError(membershipError.message); setLoading(false); return }
-    if (!memberships.length) {
-      setSnapshot({ profile: toUser(profile), membership: null, family: null, families: [], members: [], accounts: [] })
-      setLoading(false); return
-    }
-
     const familyIds = memberships.map((item) => item.family_id)
-    const { data: familyRows, error: familiesError } = await supabase
+    const familiesResult = familyIds.length ? await supabase
       .from('families')
       .select('id, name, onboarding_completed')
-      .in('id', familyIds)
-    if (familiesError) { setError(familiesError.message); setLoading(false); return }
+      .in('id', familyIds) : { data: [], error: null }
+    if (familiesResult.error) { setError(familiesResult.error.message); setLoading(false); return }
+    const familyRows = familiesResult.data ?? []
     const familyById = new Map(familyRows.map((family) => [family.id, family]))
     const families: FamilyOption[] = memberships.flatMap((membership) => {
       const family = familyById.get(membership.family_id)
       return family ? [{ id: family.id, name: family.name, role: membership.role as FamilyOption['role'] }] : []
     }).toSorted((a, b) => a.name.localeCompare(b.name, 'it'))
-    if (!families.length) { setError('Nessuna famiglia disponibile.'); setLoading(false); return }
     const storedFamilyId = localStorage.getItem(activeFamilyKey(session.user.id)) ?? undefined
-    const activeFamilyId = [preferredFamilyId, acceptedFamilyId, storedFamilyId]
-      .find((candidate) => candidate && familyIds.includes(candidate)) ?? families[0].id
+    const requestedWorkspace = preferredFamilyId ?? acceptedFamilyId ?? storedFamilyId
+    const activeFamilyId = requestedWorkspace === PERSONAL_WORKSPACE_ID
+      ? undefined
+      : [requestedWorkspace].find((candidate) => candidate && familyIds.includes(candidate)) ?? families[0]?.id
+    if (!activeFamilyId) {
+      localStorage.setItem(activeFamilyKey(session.user.id), PERSONAL_WORKSPACE_ID)
+      setSnapshot({
+        profile: toUser(profile),
+        onboardingCompleted: profile.onboarding_completed,
+        membership: null,
+        family: null,
+        families,
+        members: [toUser(profile)],
+        accounts: [],
+      })
+      setLoading(false); return
+    }
     const membership = memberships.find((item) => item.family_id === activeFamilyId)!
     const activeFamily = familyById.get(activeFamilyId)!
     localStorage.setItem(activeFamilyKey(session.user.id), activeFamilyId)
@@ -195,6 +212,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     if (profilesError) { setError(profilesError.message); setLoading(false); return }
     setSnapshot({
       profile: toUser(profile),
+      onboardingCompleted: profile.onboarding_completed,
       membership,
       family: activeFamily,
       families,
@@ -223,15 +241,26 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   }} />
   if (loading) return <AccessLoading label="Carichiamo la tua famiglia" />
   if (!snapshot) return <AccessError message={error || 'Impossibile caricare il profilo.'} onRetry={load} />
-  if (!snapshot.membership) return <CreateFamily user={snapshot.profile} error={error} onCreated={(familyId) => load(familyId)} />
-  if (snapshot.family && snapshot.membership.role === 'admin' && !snapshot.family.onboarding_completed) {
+  if (!snapshot.onboardingCompleted && !snapshot.membership) return <CreateFamily
+    user={snapshot.profile}
+    error={error}
+    onCreated={(familyId) => load(familyId)}
+    onSkip={async () => {
+      const { error: skipError } = await supabase.rpc('complete_personal_onboarding')
+      if (skipError) throw skipError
+      await load(PERSONAL_WORKSPACE_ID)
+    }}
+  />
+  if (snapshot.family && snapshot.membership?.role === 'admin' && !snapshot.family.onboarding_completed) {
     return <InviteFamily family={snapshot.family} onCompleted={load} />
   }
-  if (!snapshot.family) return <AccessError message="Famiglia non disponibile." onRetry={load} />
+  const personalMode = !snapshot.family
+  const activeFamilyId = snapshot.family?.id
   return children({
-    familyId: snapshot.family.id,
-    familyName: snapshot.family.name,
-    role: snapshot.membership.role as FamilySession['role'],
+    familyId: activeFamilyId ?? PERSONAL_WORKSPACE_ID,
+    familyName: snapshot.family?.name ?? 'Contabilità personale',
+    role: (snapshot.membership?.role ?? 'member') as FamilySession['role'],
+    personalMode,
     families: snapshot.families,
     user: snapshot.profile,
     members: snapshot.members,
@@ -249,18 +278,29 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       await load(familyId)
     },
     renameFamily: async (name) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
       const { error: renameError } = await supabase
         .from('families')
         .update({ name: name.trim() })
-        .eq('id', snapshot.family!.id)
+        .eq('id', activeFamilyId)
       if (renameError) throw renameError
-      await load(snapshot.family!.id)
+      await load(activeFamilyId)
     },
     inviteMember: async (email) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
       const { data, error: functionError } = await supabase.functions.invoke('invite-family-member', {
-        body: { familyId: snapshot.family!.id, email: email.trim().toLowerCase() },
+        body: { familyId: activeFamilyId, email: email.trim().toLowerCase() },
       })
       if (functionError || data?.error) throw new Error(onboardingMessage(data?.error ?? functionError?.message ?? 'Invito non inviato'))
+    },
+    deleteFamily: async (preserveAuthoredData) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
+      const { error: deleteError } = await supabase.rpc('delete_family', {
+        target_family_id: activeFamilyId,
+        preserve_authored_data: preserveAuthoredData,
+      })
+      if (deleteError) throw deleteError
+      await load(PERSONAL_WORKSPACE_ID)
     },
     updateEmail: async (email) => {
       const { error: updateError } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() })
@@ -270,59 +310,99 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw new Error(authMessage(updateError.message))
     },
+    exportAccountData: async () => {
+      const familyIds = snapshot.families.map((family) => family.id)
+      const personalResult = await supabase.from('user_app_data').select('data').eq('user_id', snapshot.profile.id).maybeSingle()
+      if (personalResult.error) throw personalResult.error
+      let accountRows: Array<Record<string, unknown>> = []
+      let sharedRows: Array<{ family_id: string; record_type: string; record_id: string; data: unknown }> = []
+      let familyPrivateRows: Array<{ family_id: string; data: unknown }> = []
+      if (familyIds.length) {
+        const [accountsResult, recordsResult, privateRowsResult] = await Promise.all([
+          supabase.from('accounts').select('id, family_id, name, institution, account_type, scope, opening_balance, opening_balance_date').in('family_id', familyIds).eq('scope', 'family'),
+          supabase.from('family_shared_records').select('family_id, record_type, record_id, data').in('family_id', familyIds),
+          supabase.from('family_user_app_data').select('family_id, data').eq('user_id', snapshot.profile.id).in('family_id', familyIds),
+        ])
+        if (accountsResult.error || recordsResult.error || privateRowsResult.error) throw accountsResult.error ?? recordsResult.error ?? privateRowsResult.error
+        accountRows = accountsResult.data
+        sharedRows = recordsResult.data
+        familyPrivateRows = privateRowsResult.data
+      }
+      return {
+        exportedAt: new Date().toISOString(),
+        profile: snapshot.profile,
+        personalData: personalResult.data?.data as Partial<AppData> | null,
+        families: snapshot.families.map((family) => ({
+          ...family,
+          privateData: familyPrivateRows.find((row) => row.family_id === family.id)?.data as Partial<AppData> | undefined ?? null,
+          accounts: accountRows.filter((account) => account.family_id === family.id),
+          sharedRecords: sharedRows.filter((record) => record.family_id === family.id)
+            .map((record) => ({ recordType: record.record_type, recordId: record.record_id, data: record.data })),
+        })),
+      }
+    },
+    deleteAccount: async () => {
+      const { error: deleteError } = await supabase.rpc('delete_my_account')
+      if (deleteError) throw deleteError
+      await supabase.auth.signOut()
+    },
     loadAppData: async () => {
-      const [privateResult, sharedResult] = await Promise.all([
-        supabase
-          .from('family_user_app_data')
-          .select('data')
-          .eq('family_id', snapshot.family!.id)
-          .eq('user_id', snapshot.profile.id)
-          .maybeSingle(),
-        supabase
-          .from('family_shared_records')
-          .select('record_type, record_id, data')
-          .eq('family_id', snapshot.family!.id),
+      const [privateResult, familyPrivateResult] = await Promise.all([
+        supabase.from('user_app_data').select('data').eq('user_id', snapshot.profile.id).maybeSingle(),
+        activeFamilyId ? supabase.from('family_user_app_data').select('data')
+          .eq('family_id', activeFamilyId).eq('user_id', snapshot.profile.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       ])
-      if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
-      const privateData = privateResult.data?.data as Partial<AppData> | null
+      if (privateResult.error || familyPrivateResult.error) throw privateResult.error ?? familyPrivateResult.error
+      const sharedResult = activeFamilyId ? await supabase.from('family_shared_records')
+        .select('record_type, record_id, data').eq('family_id', activeFamilyId) : { data: [], error: null }
+      if (sharedResult.error) throw sharedResult.error
+      const privateData = mergePrivateCloudData(
+        privateResult.data?.data as Partial<AppData> | null,
+        familyPrivateResult.data?.data as Partial<AppData> | null,
+      )
       if (!privateData && !sharedResult.data.length) return null
       return mergeCloudPersistence(
         privateData,
         sharedResult.data as SharedRecord[],
-        createStarterData(snapshot.profile.id, snapshot.accounts),
+        personalMode ? createPersonalStarterData(snapshot.profile.id) : createStarterData(snapshot.profile.id, snapshot.accounts),
       )
     },
     saveAppData: async (appData) => {
       const payload = buildCloudPersistence(appData, snapshot.profile.id)
       const [privateResult, sharedResult] = await Promise.all([
-        supabase
-          .from('family_user_app_data')
-          .upsert({
-            family_id: snapshot.family!.id,
+        supabase.from('user_app_data').upsert({
+          user_id: snapshot.profile.id,
+          data: payload.privateData,
+        }, { onConflict: 'user_id' }),
+        activeFamilyId ? Promise.all([
+          supabase.from('family_user_app_data').upsert({
+            family_id: activeFamilyId,
             user_id: snapshot.profile.id,
-            data: payload.privateData,
+            data: payload.familyPrivateData,
           }, { onConflict: 'family_id,user_id' }),
-        supabase.rpc('sync_family_shared_records', {
-          target_family_id: snapshot.family!.id,
-          records: payload.sharedRecords,
-          owned_keys: payload.ownedKeys,
-        }),
+          supabase.rpc('sync_family_shared_records', {
+            target_family_id: activeFamilyId,
+            records: payload.sharedRecords,
+            owned_keys: payload.ownedKeys,
+          }),
+        ]).then(([familyPrivate, shared]) => ({ error: familyPrivate.error ?? shared.error })) : Promise.resolve({ error: null }),
       ])
       if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
     },
-    subscribeToSharedData: (onChange) => {
+    subscribeToSharedData: activeFamilyId ? (onChange) => {
       const channel = supabase
-        .channel(`family-shared-data:${snapshot.family!.id}:${snapshot.profile.id}`)
+        .channel(`family-shared-data:${activeFamilyId}:${snapshot.profile.id}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'family_shared_records',
-          filter: `family_id=eq.${snapshot.family!.id}`,
+          filter: `family_id=eq.${activeFamilyId}`,
         }, onChange)
         .subscribe()
       return () => { void supabase.removeChannel(channel) }
-    },
+    } : undefined,
     updateSharedAccount: async (account) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
       const { error: updateError } = await supabase
         .from('accounts')
         .update({
@@ -330,7 +410,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           opening_balance_date: account.openingBalanceDate,
         })
         .eq('id', account.id)
-        .eq('family_id', snapshot.family!.id)
+        .eq('family_id', activeFamilyId)
         .eq('scope', 'family')
       if (updateError) throw updateError
     },
@@ -371,7 +451,12 @@ function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
   </AccessLayout>
 }
 
-function CreateFamily({ user, error: initialError, onCreated }: { user: User; error: string; onCreated: (familyId: string) => Promise<void> }) {
+function CreateFamily({ user, error: initialError, onCreated, onSkip }: {
+  user: User
+  error: string
+  onCreated: (familyId: string) => Promise<void>
+  onSkip: () => Promise<void>
+}) {
   const supabase = getSupabase()
   const familySuggestion = user.name.split(' ').at(-1) || user.name
   const [familyName, setFamilyName] = useState(`Famiglia ${familySuggestion}`)
@@ -395,6 +480,11 @@ function CreateFamily({ user, error: initialError, onCreated }: { user: User; er
     if (rpcError) setError(onboardingMessage(rpcError.message))
     else await onCreated(familyId)
   }
+  const skip = async () => {
+    setBusy(true); setError('')
+    try { await onSkip() }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Operazione non riuscita.'); setBusy(false) }
+  }
 
   return <AccessLayout compact>
     <div className="onboarding-card">
@@ -415,6 +505,10 @@ function CreateFamily({ user, error: initialError, onCreated }: { user: User; er
         {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
         <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}Crea famiglia <ArrowRight /></button>
       </form>
+      <div className="onboarding-skip">
+        <button type="button" className="button button--ghost button--full" onClick={() => void skip()} disabled={busy}>Usa solo la contabilità personale</button>
+        <small>Potrai creare una famiglia dalle impostazioni in qualsiasi momento.</small>
+      </div>
     </div>
   </AccessLayout>
 }
@@ -505,6 +599,7 @@ function onboardingMessage(message: string) {
 interface FamilyRow { id: string; name: string; onboarding_completed: boolean }
 interface FamilySnapshot {
   profile: User
+  onboardingCompleted: boolean
   membership: { family_id: string; role: string } | null
   family: FamilyRow | null
   families: FamilyOption[]

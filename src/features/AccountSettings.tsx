@@ -1,8 +1,10 @@
 import {
-  Check, ChevronRight, KeyRound, Landmark, Mail, Plus, ShieldCheck, UserRoundCog, UsersRound,
+  AlertTriangle, Check, ChevronRight, Download, KeyRound, Landmark, Mail, Plus, ShieldCheck,
+  Trash2, UserRound, UserRoundCog, UsersRound,
 } from 'lucide-react'
 import { useState } from 'react'
-import type { FamilySession } from './CloudAccess'
+import { PERSONAL_WORKSPACE_ID, type FamilySession } from './CloudAccess'
+import { downloadAccountExport, type ExportFormat } from '../lib/exportData'
 import type { User } from '../types'
 
 interface Props {
@@ -31,9 +33,10 @@ export function AccountSettings({ user, cloud }: Props) {
       <div className="settings-column">
         <FamilySwitcher cloud={cloud} />
         <SecuritySettings cloud={cloud} />
+        <AccountDeletion cloud={cloud} />
       </div>
       <div className="settings-column">
-        {cloud.role === 'admin' ? <FamilyAdministration cloud={cloud} /> : <MemberFamilyCard cloud={cloud} />}
+        {cloud.personalMode ? <PersonalWorkspaceCard /> : cloud.role === 'admin' ? <FamilyAdministration cloud={cloud} /> : <MemberFamilyCard cloud={cloud} />}
         <CreateFamily cloud={cloud} />
       </div>
     </div>
@@ -42,7 +45,7 @@ export function AccountSettings({ user, cloud }: Props) {
 
 function PageHeading() {
   return <div className="page-heading">
-    <div><h1>Account e famiglie</h1><p>Gestisci accesso, appartenenze e membri della famiglia attiva.</p></div>
+    <div><h1>Account e famiglie</h1><p>Gestisci accesso, dati personali e spazi familiari.</p></div>
   </div>
 }
 
@@ -60,6 +63,10 @@ function FamilySwitcher({ cloud }: { cloud: FamilySession }) {
   return <section className="settings-card">
     <div className="settings-card__heading"><span><UsersRound /></span><div><h2>Le tue famiglie</h2><p>Scegli lo spazio sul quale vuoi lavorare.</p></div></div>
     <div className="family-switcher">
+      <button type="button" className={cloud.personalMode ? 'family-choice family-choice--active' : 'family-choice'} onClick={() => void select(PERSONAL_WORKSPACE_ID)} disabled={Boolean(busyId)}>
+        <span><strong>Solo personale</strong><small>Movimenti privati</small></span>
+        {cloud.personalMode ? <Check /> : <ChevronRight className={busyId === PERSONAL_WORKSPACE_ID ? 'spin' : ''} />}
+      </button>
       {cloud.families.map((family) => <button
         type="button"
         key={family.id}
@@ -116,6 +123,14 @@ function SecuritySettings({ cloud }: { cloud: FamilySession }) {
     </form>
     {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
     {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
+    {!cloud.personalMode && cloud.role === 'admin' ? <FamilyDeletion cloud={cloud} /> : null}
+  </section>
+}
+
+function PersonalWorkspaceCard() {
+  return <section className="settings-card">
+    <div className="settings-card__heading"><span><UserRound /></span><div><h2>Contabilità personale</h2><p>Questo spazio è visibile soltanto a te.</p></div></div>
+    <p className="settings-card__note">Puoi creare una famiglia qui sotto oppure accettare un invito senza perdere conti e movimenti personali.</p>
   </section>
 }
 
@@ -206,6 +221,68 @@ function CreateFamily({ cloud }: { cloud: FamilySession }) {
       {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
       <button className="button button--primary" disabled={busy}><Plus /> Crea e apri famiglia</button>
     </form> : null}
+  </section>
+}
+
+function FamilyDeletion({ cloud }: { cloud: FamilySession }) {
+  const [expanded, setExpanded] = useState(false)
+  const [preserve, setPreserve] = useState(true)
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const remove = async () => {
+    if (confirmation !== 'ELIMINA') return
+    setBusy(true); setError('')
+    try { await cloud.deleteFamily(preserve) }
+    catch (reason) { setError(errorText(reason)); setBusy(false) }
+  }
+  return <div className="danger-settings">
+    <button type="button" className="danger-settings__toggle" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+      <Trash2 /><span><strong>Elimina questa famiglia</strong><small>Operazione riservata agli amministratori.</small></span><ChevronRight className={expanded ? 'rotate-90' : ''} />
+    </button>
+    {expanded ? <div className="danger-settings__body">
+      <p>La famiglia, i conti condivisi e gli inviti verranno rimossi per tutti i membri.</p>
+      <fieldset><legend>Cosa fare dei movimenti condivisi?</legend>
+        <label className="inline-choice"><input type="radio" name="family-data" checked={preserve} onChange={() => setPreserve(true)} /><span><strong>Conservali come personali</strong><small>Ogni membro mantiene i movimenti che aveva registrato personalmente, senza effetto sui saldi dei vecchi conti condivisi.</small></span></label>
+        <label className="inline-choice"><input type="radio" name="family-data" checked={!preserve} onChange={() => setPreserve(false)} /><span><strong>Elimina tutti i dati condivisi</strong><small>I dati familiari non potranno essere recuperati.</small></span></label>
+      </fieldset>
+      <label>Scrivi ELIMINA per confermare<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" /></label>
+      {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
+      <button type="button" className="button button--danger" disabled={busy || confirmation !== 'ELIMINA'} onClick={() => void remove()}><Trash2 /> Elimina famiglia</button>
+    </div> : null}
+  </div>
+}
+
+function AccountDeletion({ cloud }: { cloud: FamilySession }) {
+  const [expanded, setExpanded] = useState(false)
+  const [download, setDownload] = useState(true)
+  const [format, setFormat] = useState<ExportFormat>('json')
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const remove = async () => {
+    if (confirmation !== 'ELIMINA') return
+    setBusy(true); setError('')
+    try {
+      if (download) downloadAccountExport(await cloud.exportAccountData(), format)
+      await cloud.deleteAccount()
+    } catch (reason) { setError(errorText(reason)); setBusy(false) }
+  }
+  return <section className="settings-card settings-card--danger">
+    <button type="button" className="settings-card__heading settings-card__toggle" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+      <span><AlertTriangle /></span><div><h2>Elimina account</h2><p>Cancella profilo e dati collegati.</p></div><ChevronRight className={expanded ? 'rotate-90' : ''} />
+    </button>
+    {expanded ? <div className="account-deletion">
+      <p>Prima della cancellazione puoi scaricare una copia completa. L’operazione elimina i tuoi dati personali e i record condivisi creati da te.</p>
+      <fieldset><legend>Vuoi scaricare i dati?</legend>
+        <label className="inline-choice"><input type="radio" name="account-download" checked={download} onChange={() => setDownload(true)} /><span><strong>Sì, scarica prima una copia</strong><small>Il file viene creato sul dispositivo prima della cancellazione.</small></span></label>
+        <label className="inline-choice"><input type="radio" name="account-download" checked={!download} onChange={() => setDownload(false)} /><span><strong>No, elimina senza scaricare</strong><small>Non sarà possibile recuperare i dati.</small></span></label>
+      </fieldset>
+      {download ? <label>Formato del file<select value={format} onChange={(event) => setFormat(event.target.value as ExportFormat)}><option value="json">JSON · completo e consigliato</option><option value="csv">CSV · apribile con Excel</option><option value="xml">XML · per altri software</option></select></label> : null}
+      <label>Scrivi ELIMINA per confermare<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" /></label>
+      {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
+      <button type="button" className="button button--danger" disabled={busy || confirmation !== 'ELIMINA'} onClick={() => void remove()}>{download ? <Download /> : <Trash2 />}{busy ? 'Eliminazione…' : 'Elimina definitivamente l’account'}</button>
+    </div> : null}
   </section>
 }
 
