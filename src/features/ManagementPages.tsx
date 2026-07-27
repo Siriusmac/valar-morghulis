@@ -1,9 +1,9 @@
-import { ArrowLeftRight, Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
+import { ArrowLeftRight, Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Send, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
 import { accountBalance, movementAllocations, totalsByCategory, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
-import type { Account, AppData, Beneficiary, Category, MovementType, Tag, User } from '../types'
+import type { Account, AppData, Beneficiary, Category, MovementType, Sender, Tag, User } from '../types'
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean) => void }
 
@@ -54,18 +54,88 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onShowMovements }:
   return <DirectoryPage title="Categorie" subtitle="Categorie distinte per spese ed entrate." addLabel="Nuova categoria" showForm={showForm} setShowForm={setShowForm}>{showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(e) => setMovementType(e.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}<div className="directory-grid">{categories.map((item) => <article key={item.id}><span className="category-dot" style={{ background: item.color }} /><div>{editingId === item.id ? <input className="directory-edit-input" value={editingName} onChange={(e) => setEditingName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName(item)} autoFocus /> : <strong>{item.name}</strong>}<small>{item.movementType === 'income' ? 'Entrata' : 'Spesa'} · {item.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div><div className="directory-actions">{editingId === item.id ? <><button className="icon-button" title="Salva nome" onClick={() => saveName(item)}><Check /></button><button className="icon-button" title="Annulla modifica" onClick={() => setEditingId('')}><X /></button></> : <button className="icon-button" title="Modifica nome" onClick={() => { setEditingId(item.id); setEditingName(item.name) }}><Edit3 /></button>}<button className="icon-button" title="Vedi movimenti" onClick={() => onShowMovements(`Movimenti · ${item.name}`, (movement) => movementAllocations(movement).some((allocation) => allocation.categoryId === item.id))}><Eye /></button></div></article>)}</div></DirectoryPage>
 }
 
-export function BeneficiariesPage({ data, user, onAdd, onUpdate, onShowMovements }: BaseProps & { onAdd: (beneficiary: Beneficiary) => void; onUpdate: (beneficiary: Beneficiary) => void }) {
+export function BeneficiariesPage({
+  data, user, onAddBeneficiary, onUpdateBeneficiary, onDeleteBeneficiary,
+  onAddSender, onUpdateSender, onDeleteSender, onShowMovements,
+}: BaseProps & {
+  onAddBeneficiary: (beneficiary: Beneficiary) => void
+  onUpdateBeneficiary: (beneficiary: Beneficiary) => void
+  onDeleteBeneficiary: (beneficiaryId: string, replacementId?: string) => void
+  onAddSender: (sender: Sender) => void
+  onUpdateSender: (sender: Sender) => void
+  onDeleteSender: (senderId: string, replacementId?: string) => void
+}) {
+  const [section, setSection] = useState<'beneficiaries' | 'senders'>('beneficiaries')
   const [showForm, setShowForm] = useState(false); const [name, setName] = useState(''); const [scope, setScope] = useState<'family' | 'personal'>('family')
   const [editingId, setEditingId] = useState(''); const [editingName, setEditingName] = useState('')
+  const [deletingId, setDeletingId] = useState('')
+  const [replacementId, setReplacementId] = useState('')
   const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id))
-  const submit = (event: React.FormEvent) => { event.preventDefault(); if (!name.trim()) return; onAdd({ id: makeId('beneficiary'), name: name.trim(), scope, ownerId: scope === 'personal' ? user.id : undefined }); setName(''); setShowForm(false) }
-  const saveName = (item: Beneficiary) => {
+  const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const items = section === 'beneficiaries' ? beneficiaries : senders
+  const singular = section === 'beneficiaries' ? 'beneficiario' : 'mittente'
+  const unassignedMovements = data.movements.filter((movement) => section === 'beneficiaries'
+    ? movement.type === 'expense' && !movement.beneficiaryId
+    : movement.type === 'income' && !movement.senderId)
+  const unassignedLabel = section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'
+  const changeSection = (next: 'beneficiaries' | 'senders') => {
+    setSection(next)
+    setShowForm(false)
+    setEditingId('')
+    setEditingName('')
+    setDeletingId('')
+    setReplacementId('')
+    setName('')
+  }
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!name.trim()) return
+    const item = { id: makeId(singular), name: name.trim(), scope, ownerId: scope === 'personal' ? user.id : undefined }
+    if (section === 'beneficiaries') onAddBeneficiary(item)
+    else onAddSender(item)
+    setName('')
+    setShowForm(false)
+  }
+  const saveName = (item: Beneficiary | Sender) => {
     if (!editingName.trim()) return
-    onUpdate({ ...item, name: editingName.trim() })
+    if (section === 'beneficiaries') onUpdateBeneficiary({ ...item, name: editingName.trim() })
+    else onUpdateSender({ ...item, name: editingName.trim() })
     setEditingId('')
     setEditingName('')
   }
-  return <DirectoryPage title="Beneficiari" subtitle="Negozi e fornitori associati alle spese." addLabel="Nuovo beneficiario" showForm={showForm} setShowForm={setShowForm}>{showForm ? <InlineForm title="Nuovo beneficiario" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}<div className="directory-grid">{beneficiaries.map((item) => <article key={item.id}><span className="directory-icon"><Building2 /></span><div>{editingId === item.id ? <input aria-label={`Nome beneficiario ${item.name}`} className="directory-edit-input" value={editingName} onChange={(e) => setEditingName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName(item)} autoFocus /> : <strong>{item.name}</strong>}<small>{item.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div><div className="directory-actions">{editingId === item.id ? <><button className="icon-button" title="Salva nome" onClick={() => saveName(item)}><Check /></button><button className="icon-button" title="Annulla modifica" onClick={() => { setEditingId(''); setEditingName('') }}><X /></button></> : <button className="icon-button" title="Modifica nome" onClick={() => { setEditingId(item.id); setEditingName(item.name) }}><Edit3 /></button>}<button className="icon-button" title="Vedi movimenti" onClick={() => onShowMovements(`Movimenti · ${item.name}`, (movement) => movement.beneficiaryId === item.id)}><Eye /></button></div></article>)}</div></DirectoryPage>
+  const deletingItem = items.find((item) => item.id === deletingId)
+  const replacements = items.filter((item) => item.id !== deletingId && (deletingItem?.scope !== 'family' || item.scope === 'family'))
+  const affectedCount = deletingItem
+    ? section === 'beneficiaries'
+      ? data.movements.filter((movement) => movement.beneficiaryId === deletingItem.id).length
+        + data.scheduledPayments.filter((payment) => payment.beneficiaryId === deletingItem.id).length
+      : data.movements.filter((movement) => movement.senderId === deletingItem.id).length
+    : 0
+  const confirmDeletion = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!deletingItem) return
+    const replacement = replacementId || undefined
+    if (section === 'beneficiaries') onDeleteBeneficiary(deletingItem.id, replacement)
+    else onDeleteSender(deletingItem.id, replacement)
+    setDeletingId('')
+    setReplacementId('')
+  }
+  return <DirectoryPage title="Beneficiari e mittenti" subtitle="Negozi e fornitori per le spese, persone ed enti per le entrate." addLabel={`Nuovo ${singular}`} showForm={showForm} setShowForm={setShowForm}>
+    <div className="tabs movement-tabs directory-tabs" aria-label="Tipo di anagrafica">
+      <button className={section === 'beneficiaries' ? 'active' : ''} onClick={() => changeSection('beneficiaries')}>Beneficiari</button>
+      <button className={section === 'senders' ? 'active tab-income' : 'tab-income'} onClick={() => changeSection('senders')}>Mittenti</button>
+    </div>
+    {showForm ? <InlineForm title={`Nuovo ${singular}`} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input aria-label={`Nome nuovo ${singular}`} value={name} onChange={(e) => setName(e.target.value)} placeholder={section === 'beneficiaries' ? 'Es. Lidl, Amazon' : 'Es. Datore di lavoro, INPS'} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
+    {deletingItem ? <form className="directory-delete-form" onSubmit={confirmDeletion}>
+      <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa anagrafica.` : 'Questa anagrafica non è utilizzata.'}</p></div>
+      <label>Attribuisci i movimenti a<select value={replacementId} onChange={(event) => setReplacementId(event.target.value)} autoFocus><option value="">{section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'}</option>{replacements.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
+    </form> : null}
+    <div className="directory-grid">
+      {unassignedMovements.length ? <article className="directory-unassigned"><span className="directory-icon">{section === 'beneficiaries' ? <Building2 /> : <Send />}</span><div><strong>{unassignedLabel}</strong><small>{unassignedMovements.length} {unassignedMovements.length === 1 ? 'movimento' : 'movimenti'}</small></div><div className="directory-actions"><button className="icon-button" title="Vedi movimenti" onClick={() => onShowMovements(`Movimenti · ${unassignedLabel}`, (movement) => section === 'beneficiaries' ? movement.type === 'expense' && !movement.beneficiaryId : movement.type === 'income' && !movement.senderId)}><Eye /></button></div></article> : null}
+      {items.map((item) => <article key={item.id}><span className="directory-icon">{section === 'beneficiaries' ? <Building2 /> : <Send />}</span><div>{editingId === item.id ? <input aria-label={`Nome ${singular} ${item.name}`} className="directory-edit-input" value={editingName} onChange={(e) => setEditingName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName(item)} autoFocus /> : <strong>{item.name}</strong>}<small>{item.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div><div className="directory-actions">{editingId === item.id ? <><button className="icon-button" title="Salva nome" onClick={() => saveName(item)}><Check /></button><button className="icon-button" title="Annulla modifica" onClick={() => { setEditingId(''); setEditingName('') }}><X /></button></> : <button className="icon-button" title="Modifica nome" onClick={() => { setEditingId(item.id); setEditingName(item.name) }}><Edit3 /></button>}<button className="icon-button" title="Vedi movimenti" onClick={() => onShowMovements(`Movimenti · ${item.name}`, (movement) => section === 'beneficiaries' ? movement.beneficiaryId === item.id : movement.senderId === item.id)}><Eye /></button><button className="icon-button icon-button--danger" title={`Elimina ${singular}`} onClick={() => { setDeletingId(item.id); setReplacementId(''); setEditingId('') }}><Trash2 /></button></div></article>)}
+    </div>
+  </DirectoryPage>
 }
 
 export function TagsPage({ data, user, onAdd, onAddReport, onRemoveReport, onShowMovements }: BaseProps & { onAdd: (tag: Tag) => void; onAddReport: (tagId: string) => void; onRemoveReport: (tagId: string) => void }) {

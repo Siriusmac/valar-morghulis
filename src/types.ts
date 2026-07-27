@@ -37,6 +37,13 @@ export interface Beneficiary {
   ownerId?: UserId
 }
 
+export interface Sender {
+  id: string
+  name: string
+  scope: Scope
+  ownerId?: UserId
+}
+
 export interface Tag {
   id: string
   name: string
@@ -61,7 +68,8 @@ export interface Movement {
   date: string
   description: string
   categoryId: string
-  beneficiaryId: string
+  beneficiaryId?: string
+  senderId?: string
   accountId: string
   tagId?: string
   comments?: string
@@ -85,7 +93,7 @@ export interface ScheduledPayment {
   dueDate: string
   description: string
   categoryId: string
-  beneficiaryId: string
+  beneficiaryId?: string
   accountId: string
   tagId?: string
   comments?: string
@@ -123,6 +131,9 @@ export interface AppData {
   accounts: Account[]
   categories: Category[]
   beneficiaries: Beneficiary[]
+  senders: Sender[]
+  deletedBeneficiaryIds?: string[]
+  deletedSenderIds?: string[]
   tags: Tag[]
   tagReportIds: string[]
   movements: Movement[]

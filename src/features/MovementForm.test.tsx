@@ -37,9 +37,9 @@ describe('MovementForm', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: '__new' } })
-    expect((screen.getByLabelText('Nome nuovo beneficiario') as HTMLInputElement).value).toBe('')
-    fireEvent.change(screen.getByLabelText('Nome nuovo beneficiario'), { target: { value: 'Nuovo negozio' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Nuovo negozio' } })
+    expect(screen.getByRole('button', { name: 'Crea “Nuovo negozio”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '25' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -49,31 +49,40 @@ describe('MovementForm', () => {
     expect(movement.beneficiaryId).toBe(additions.beneficiary.id)
   })
 
-  it('opens a new category field empty and uses example text as a placeholder', () => {
+  it('filters categories while typing and offers to create a missing one', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: '__new' } })
-
-    const input = screen.getByLabelText('Nome nuova categoria') as HTMLInputElement
+    const input = screen.getByLabelText('Categoria') as HTMLInputElement
     expect(input.value).toBe('')
-    expect(input.placeholder).toBe('Es. Alimentari, ristorante')
+    expect(input.placeholder).toBe('Inserisci categoria')
+
+    fireEvent.change(input, { target: { value: 'Alim' } })
+    expect(screen.getByRole('option', { name: 'Alimentari' })).toBeTruthy()
+
+    fireEvent.change(input, { target: { value: 'Categoria speciale' } })
+    expect(screen.getByRole('button', { name: 'Crea “Categoria speciale”' })).toBeTruthy()
   })
 
-  it('hides the beneficiary for an income and assigns the current user automatically', () => {
+  it('hides the beneficiary for an income and creates a selectable sender', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Entrata' }))
 
     expect(screen.queryByLabelText('Beneficiario')).toBeNull()
-    expect(screen.queryByLabelText('Nome nuovo beneficiario')).toBeNull()
+    expect(screen.getByLabelText('Mittente')).toBeTruthy()
 
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Stipendio' } })
+    fireEvent.change(screen.getByLabelText('Mittente'), { target: { value: 'Cliente prova' } })
+    expect(screen.getByRole('button', { name: 'Crea “Cliente prova”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '1200' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     expect(onSave).toHaveBeenCalledOnce()
     const [movement, additions] = onSave.mock.calls[0]
     expect(movement.beneficiaryId).toBe('beneficiary-user-simone')
+    expect(movement.senderId).toBe(additions.sender.id)
+    expect(additions.sender.name).toBe('Cliente prova')
     expect(additions.beneficiary).toMatchObject({
       id: 'beneficiary-user-simone',
       name: 'Simone',
@@ -82,10 +91,31 @@ describe('MovementForm', () => {
     })
   })
 
+  it('can add a sender while editing a historical income without one', () => {
+    const onSave = vi.fn()
+    const historicalIncome = {
+      ...defaultData.movements.find((movement) => movement.id === 'seed-4')!,
+      senderId: undefined,
+    }
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={historicalIncome} onSave={onSave} onCancel={vi.fn()} />)
+
+    expect((screen.getByLabelText('Mittente') as HTMLInputElement).value).toBe('')
+    fireEvent.change(screen.getByLabelText('Mittente'), { target: { value: 'Datore di lavoro' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave).toHaveBeenCalledOnce()
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      id: historicalIncome.id,
+      senderId: 'datore-lavoro',
+    })
+  })
+
   it('keeps new movements private in the personal-only workspace', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} personalOnly onSave={onSave} onCancel={vi.fn()} />)
     expect(screen.getByText('In questa vista i movimenti restano privati e non partecipano a saldi familiari.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '20' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
     expect(onSave.mock.calls[0][0].shared).toBe(false)
@@ -164,7 +194,8 @@ describe('MovementForm', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
-    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'alimentari' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
     fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'accessori-casa' } })

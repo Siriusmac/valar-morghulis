@@ -9,7 +9,7 @@ const chapters = [
   { id: 'movimenti', label: 'Spese ed entrate', icon: ReceiptText },
   { id: 'condivisione', label: 'Movimenti condivisi', icon: Users },
   { id: 'conti', label: 'Conti e giro fondi', icon: CreditCard },
-  { id: 'anagrafiche', label: 'Categorie, beneficiari e tag', icon: Tags },
+  { id: 'anagrafiche', label: 'Categorie, beneficiari, mittenti e tag', icon: Tags },
   { id: 'rate-rimborsi', label: 'Rate e rimborsi', icon: CalendarClock },
   { id: 'famiglia', label: 'Account e famiglia', icon: ShieldCheck },
 ]
@@ -72,9 +72,10 @@ export function GuidePage() {
           <ChapterHeading number="02" title="Spese ed entrate" icon={ReceiptText} />
           <p>
             Quando registri un movimento scegli il tipo, l’importo, la data, il conto, la
-            categoria e, per le spese, il beneficiario. Nelle entrate il beneficiario coincide
-            con l’utente. Puoi aggiungere un tag e un commento per ritrovare il movimento più
-            facilmente.
+            categoria e, per le spese, il beneficiario. Per le entrate scegli invece il
+            mittente. Inizia a scrivere nei campi: l’app filtra i nomi già presenti e, se non
+            trova una corrispondenza, crea l’anagrafica con il testo inserito. Puoi aggiungere
+            un tag e un commento per ritrovare il movimento più facilmente.
           </p>
           <div className="guide-note">
             <strong>Modifica o eliminazione</strong>
@@ -116,16 +117,18 @@ export function GuidePage() {
         </section>
 
         <section id="anagrafiche" className="guide-chapter">
-          <ChapterHeading number="05" title="Categorie, beneficiari e tag" icon={Tags} />
+          <ChapterHeading number="05" title="Categorie, beneficiari, mittenti e tag" icon={Tags} />
           <p>
             Le anagrafiche rendono ordinati i movimenti e alimentano i riepiloghi. Puoi
-            crearle dalle rispettive pagine; categorie e beneficiari possono essere aggiunti
-            anche mentre registri un movimento.
+            crearle dalle rispettive pagine; categorie, beneficiari e mittenti possono essere
+            aggiunti anche mentre registri un movimento.
           </p>
           <ul>
             <li>Le <strong>categorie</strong> raggruppano entrate e spese nei grafici mensili.</li>
-            <li>I <strong>beneficiari</strong> indicano a chi hai pagato o da chi hai ricevuto denaro.</li>
+            <li>I <strong>beneficiari</strong> indicano a chi hai pagato una spesa.</li>
+            <li>I <strong>mittenti</strong> indicano da chi hai ricevuto un’entrata.</li>
             <li>I <strong>tag</strong> collegano movimenti diversi e permettono di ottenere un bilancio dedicato.</li>
+            <li>Beneficiari e mittenti possono essere rinominati o eliminati. Prima della cancellazione puoi riassegnare i movimenti a un’altra anagrafica oppure lasciarli in <strong>Nessun beneficiario</strong> o <strong>Nessun mittente</strong>.</li>
           </ul>
         </section>
 

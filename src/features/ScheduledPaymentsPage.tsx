@@ -20,7 +20,7 @@ export function ScheduledPaymentsPage({ data, user }: { data: AppData; user: Use
       const pendingTotal = payments.reduce((sum, item) => sum + item.amount, 0)
       const paidCount = first.installmentCount - payments.length
       return <section className="scheduled-plan" key={first.planId}>
-        <header><span className="scheduled-plan__icon"><CalendarClock /></span><div><h2>{first.description}</h2><p>{beneficiary?.name} · {first.provider ?? 'Pagamento rateale'}</p></div><div className="scheduled-plan__total"><small>Ancora da pagare</small><strong>{formatMoney(pendingTotal)}</strong></div></header>
+        <header><span className="scheduled-plan__icon"><CalendarClock /></span><div><h2>{first.description}</h2><p>{beneficiary?.name ?? 'Nessun beneficiario'} · {first.provider ?? 'Pagamento rateale'}</p></div><div className="scheduled-plan__total"><small>Ancora da pagare</small><strong>{formatMoney(pendingTotal)}</strong></div></header>
         <div className="scheduled-plan__meta"><span><Landmark />{account?.name}</span><span><Timer />{paidCount} di {first.installmentCount} pagate</span><span className={first.shared ? 'scope-label scope-label--shared' : 'scope-label'}>{first.shared ? 'Famiglia' : 'Personale'}</span></div>
         <div className="scheduled-installments">{payments.map((payment) => <article key={payment.id}><span className="scheduled-installments__number">{payment.installmentNumber}</span><div><strong>Rata {payment.installmentNumber} di {payment.installmentCount}</strong><small>Scadenza {formatDate(payment.dueDate)}</small></div><span><CreditCard />{account?.name}</span><b>{formatMoney(payment.amount)}</b></article>)}</div>
       </section>

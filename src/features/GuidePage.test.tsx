@@ -19,6 +19,8 @@ describe('GuidePage', () => {
     expect(chapterLinks[6].getAttribute('href')).toBe('#famiglia')
 
     expect(screen.getByRole('heading', { name: 'Primi passi' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Categorie, beneficiari, mittenti e tag' })).toBeTruthy()
+    expect(screen.getByText(/Per le entrate scegli invece il mittente/)).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Account e famiglia' })).toBeTruthy()
     expect(screen.getByText(/Gli inviti in attesa o scaduti possono essere reinviati/)).toBeTruthy()
     expect(screen.getByText(/Prima di eliminare definitivamente l’account/)).toBeTruthy()

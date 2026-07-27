@@ -268,6 +268,17 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .inline-form input, .inline-form select, .expense-form input, .expense-form select, .reimbursement-form input { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
 .expense-form textarea { width: 100%; min-height: 72px; resize: vertical; border: 1px solid #d5d1cb; border-radius: 5px; padding: 10px 12px; background: white; color: var(--ink); font: 13px/1.45 'DM Sans', system-ui, sans-serif; }
 .field-error { color: #a83b32; font-size: 10px; font-weight: 500; }
+.lookup-field { position: relative; display: grid; gap: 7px; color: var(--ink); font-size: 11px; font-weight: 600; }
+.lookup-field__control { position: relative; display: block; }
+.lookup-field__control > svg { position: absolute; left: 12px; top: 50%; width: 15px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+.expense-form .lookup-field__control input { padding-left: 36px; }
+.lookup-field__menu { position: absolute; z-index: 12; inset: 68px 0 auto; display: grid; max-height: 210px; overflow-y: auto; padding: 5px; border: 1px solid #d5d1cb; border-radius: 6px; background: white; box-shadow: 0 12px 28px rgba(30, 38, 46, .13); }
+.lookup-field__menu button { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; border-radius: 4px; padding: 6px 9px; background: transparent; color: var(--ink); text-align: left; font-size: 12px; cursor: pointer; }
+.lookup-field__menu button:hover, .lookup-field__menu button[aria-selected="true"] { background: var(--sand); }
+.lookup-field__menu button svg { width: 15px; color: var(--positive); }
+.lookup-field__menu .lookup-field__create { color: var(--accent); }
+.lookup-field__menu .lookup-field__create svg { color: currentColor; }
+.lookup-field__menu > small { padding: 10px; color: var(--muted); font-weight: 400; }
 .inline-form__actions { display: flex; gap: 7px; }
 .management-list { border-top: 1px solid var(--line); }
 .management-row { min-height: 92px; display: grid; grid-template-columns: 52px 1fr auto; gap: 17px; align-items: center; border-bottom: 1px solid var(--line); }
@@ -285,11 +296,20 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .directory-grid article > div { display: grid; }
 .directory-grid small { display: flex; align-items: center; gap: 4px; }
 .directory-grid small svg { width: 12px; }
+.directory-delete-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 22px; margin-bottom: 24px; padding: 20px; border: 1px solid #e2b9b5; border-radius: 8px; background: #fff7f5; }
+.directory-delete-form > div:first-child { display: grid; gap: 4px; }
+.directory-delete-form strong { font: 600 20px/1.2 'Newsreader', Georgia, serif; }
+.directory-delete-form p { color: var(--muted); font-size: 11px; }
+.directory-delete-form label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
+.directory-delete-form select { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
+.directory-delete-form > div:last-child { display: flex; gap: 8px; }
+.directory-unassigned { background: linear-gradient(90deg, rgba(97, 124, 105, .05), transparent); }
 .category-dot { width: 12px; height: 46px; border-radius: 8px; flex: 0 0 auto; }
 
 .heading-actions { display: flex; gap: 10px; align-items: center; }
 .movement-toolbar { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); margin-top: -18px; }
 .movement-tabs { border-bottom: 0; }
+.directory-tabs { margin: -18px 0 24px; border-bottom: 1px solid var(--line); }
 .tabs .tab-income.active { color: var(--positive); border-color: var(--positive); }
 .month-field { height: 40px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: white; }
 .month-field svg { width: 16px; color: var(--muted); }
@@ -700,6 +720,9 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .expense-row--full .row-actions { grid-column: 4; grid-row: 1; }
   .directory-grid { grid-template-columns: 1fr; }
   .directory-grid article, .directory-grid article:nth-child(even) { border-left: 0; padding: 0; }
+  .directory-delete-form { grid-template-columns: 1fr; gap: 14px; }
+  .directory-delete-form > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
+  .directory-delete-form .button { justify-content: center; }
   .inline-form { padding: 19px; gap: 18px; }
   .inline-form__fields { grid-template-columns: 1fr; }
   .directory-actions { flex: 0 0 auto; }

@@ -12,7 +12,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
-  { id: 'beneficiaries', label: 'Beneficiari', icon: Building2 },
+  { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
   { id: 'tags', label: 'Tag', icon: Tag },
   { id: 'guide', label: 'Guida', icon: BookOpen },
 ]

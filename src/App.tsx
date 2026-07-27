@@ -18,8 +18,9 @@ import { formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
+import { deleteCounterpartyData, type CounterpartyKind } from './lib/directories'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, Movement, PageId, Transfer, User, UserId } from './types'
+import type { AppData, Beneficiary, Movement, PageId, Sender, Transfer, User, UserId } from './types'
 
 type ModalState =
   | { type: 'movement'; movement?: Movement }
@@ -132,6 +133,17 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setModal(null)
     setToast('Movimento eliminato e saldi aggiornati')
   }
+  const deleteCounterparty = (kind: CounterpartyKind, id: string, replacementId?: string) => {
+    const item = kind === 'beneficiary'
+      ? data.beneficiaries.find((entry) => entry.id === id)
+      : data.senders.find((entry) => entry.id === id)
+    setData((current) => deleteCounterpartyData(current, kind, id, replacementId))
+    if (cloud && item?.scope === 'family' && cloud.deleteSharedDirectory) {
+      void cloud.deleteSharedDirectory(kind, id, replacementId)
+        .catch(() => setToast('Anagrafica eliminata sul dispositivo, ma non ancora sincronizzata'))
+    }
+    setToast(`${kind === 'beneficiary' ? 'Beneficiario' : 'Mittente'} eliminato`)
+  }
   const registerReimbursement = (amount: number, fromAccountId: string, toAccountId: string, counterpartId: string) => {
     const balance = sharedBalance(data, user.id, appUsers.length); const otherId = counterpartId
     if (!otherId) return
@@ -163,10 +175,13 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} />
     : page === 'accounts' ? <AccountsPage {...common} onTransfer={() => setModal({ type: 'transfer' })} onAdd={(account) => setData((current) => ({ ...current, accounts: [...current.accounts, account] }))} onUpdate={updateAccount} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
-    : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAdd={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} onUpdate={(beneficiary) => {
+    : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAddBeneficiary={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} onUpdateBeneficiary={(beneficiary) => {
       setData((current) => ({ ...current, beneficiaries: current.beneficiaries.map((item) => item.id === beneficiary.id ? beneficiary : item) }))
       setToast('Beneficiario aggiornato in tutti i movimenti')
-    }} />
+    }} onDeleteBeneficiary={(id, replacementId) => deleteCounterparty('beneficiary', id, replacementId)} onAddSender={(sender: Sender) => setData((current) => ({ ...current, senders: [...current.senders, sender] }))} onUpdateSender={(sender) => {
+      setData((current) => ({ ...current, senders: current.senders.map((item) => item.id === sender.id ? sender : item) }))
+      setToast('Mittente aggiornato in tutti i movimenti')
+    }} onDeleteSender={(id, replacementId) => deleteCounterparty('sender', id, replacementId)} />
     : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
     : page === 'guide' ? <GuidePage />
     : <AccountSettings user={user} cloud={cloud} />

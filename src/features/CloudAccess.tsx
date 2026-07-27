@@ -35,6 +35,7 @@ export interface FamilySession {
   deleteAccount: () => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData) => Promise<void>
+  deleteSharedDirectory?: (recordType: 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void) => () => void
   updateSharedAccount: (account: Account) => Promise<void>
   signOut: () => Promise<void>
@@ -426,6 +427,16 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         ]).then(([familyPrivate, shared]) => ({ error: familyPrivate.error ?? shared.error })) : Promise.resolve({ error: null }),
       ])
       if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
+    },
+    deleteSharedDirectory: async (recordType, recordId, replacementId) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: deleteError } = await supabase.rpc('delete_family_directory_record', {
+        target_family_id: activeFamilyId,
+        target_record_type: recordType,
+        target_record_id: recordId,
+        replacement_record_id: replacementId ?? null,
+      })
+      if (deleteError) throw deleteError
     },
     subscribeToSharedData: activeFamilyId ? (onChange) => {
       const channel = supabase

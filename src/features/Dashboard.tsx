@@ -93,13 +93,14 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, worksp
           {shared.slice(0, 4).map((movement) => {
             const category = data.categories.find((item) => item.id === movement.categoryId)
             const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
+            const sender = data.senders.find((item) => item.id === movement.senderId)
             const member = members.find((item) => item.id === movement.memberId)
             const account = data.accounts.find((item) => item.id === movement.accountId)
             const displayedAmount = account?.scope === 'family' ? movement.amount : sharedMovementAmount(movement)
             return (
               <article className="expense-row" key={movement.id}>
                 <span className="expense-row__icon" style={{ color: category?.color }}>{movement.type === 'income' ? <ArrowDownLeft /> : <ReceiptText />}</span>
-                <div className="expense-row__name"><strong>{movement.description}</strong><small>{movement.splits?.length ? `${movement.splits.length + 1} categorie` : category?.name} · {beneficiary?.name}</small></div>
+                <div className="expense-row__name"><strong>{movement.description}</strong><small>{movement.splits?.length ? `${movement.splits.length + 1} categorie` : category?.name} · {movement.type === 'income' ? sender?.name ?? 'Nessun mittente' : beneficiary?.name ?? 'Nessun beneficiario'}</small></div>
                 <div className="expense-row__payer"><small>{movement.type === 'income' ? 'Ricevuto da' : 'Pagato da'}</small><span>{member?.name}</span></div>
                 <time>{formatDate(movement.date)}</time>
                 <strong className={`expense-row__amount ${movement.type === 'income' ? 'positive-text' : ''}`} title="Quota condivisa">{movement.type === 'income' ? '+' : '−'}{formatMoney(displayedAmount)}</strong>

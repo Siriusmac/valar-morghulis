@@ -2,7 +2,7 @@
 
 <img src="public/valar-logo.png" alt="Logo Valar Morghulis" width="120" />
 
-Web app mobile-first per gestire entrate e spese personali e familiari, conti, categorie, beneficiari e tag. I movimenti condivisi vengono ripartiti in parti uguali tra tutti i membri della famiglia e il saldo si aggiorna automaticamente.
+Web app mobile-first per gestire entrate e spese personali e familiari, conti, categorie, beneficiari, mittenti e tag. I movimenti condivisi vengono ripartiti in parti uguali tra tutti i membri della famiglia e il saldo si aggiorna automaticamente.
 
 ![Spese ed Entrate di Valar Morghulis](docs/movements-desktop.png)
 
@@ -21,8 +21,10 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - rimborsi registrati indicando il conto di origine del debitore e quello di destinazione, anche condiviso; in quest’ultimo caso compensa soltanto la quota appartenente agli altri membri;
 - conti personali e condivisi, contanti e giro fondi tra conti; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
-- categorie, beneficiari e tag creabili durante l'uso, con i relativi movimenti;
-- nomi di categorie e beneficiari modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
+- categorie, beneficiari e mittenti ricercabili mentre si scrive e creati automaticamente quando il nome non esiste; tag creabili durante l'uso;
+- beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
+- nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
+- beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
 - suddivisione facoltativa di uno scontrino in più categorie, con parziali personali o condivisi indipendenti e residuo automatico sulla categoria principale;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
@@ -61,7 +63,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260725123000_private_family_app_data.sql` e
    `supabase/migrations/20260726110000_family_shared_records.sql` e
    `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql` e
-   `supabase/migrations/20260727150000_invitation_lifecycle.sql`;
+   `supabase/migrations/20260727150000_invitation_lifecycle.sql` e
+   `supabase/migrations/20260727170000_movement_senders.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;

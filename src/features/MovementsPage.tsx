@@ -27,8 +27,10 @@ export function MovementsPage({ data, user, onEdit, onDelete }: Props) {
     .filter((item) => {
       const category = movementAllocations(item).map((allocation) => data.categories.find((entry) => entry.id === allocation.categoryId)?.name ?? '').join(' ')
       const beneficiary = data.beneficiaries.find((entry) => entry.id === item.beneficiaryId)?.name ?? ''
+      const sender = data.senders.find((entry) => entry.id === item.senderId)?.name ?? ''
+      const missingCounterparty = item.type === 'income' && !item.senderId ? 'nessun mittente' : item.type === 'expense' && !item.beneficiaryId ? 'nessun beneficiario' : ''
       const tag = data.tags.find((entry) => entry.id === item.tagId)?.name ?? ''
-      return `${item.description} ${item.comments ?? ''} ${category} ${beneficiary} ${tag}`.toLowerCase().includes(deferredQuery)
+      return `${item.description} ${item.comments ?? ''} ${category} ${beneficiary} ${sender} ${missingCounterparty} ${tag}`.toLowerCase().includes(deferredQuery)
     }).toSorted((a, b) => b.date.localeCompare(a.date))
 
   return <div className="page movements-page">

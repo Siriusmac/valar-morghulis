@@ -82,4 +82,58 @@ describe('family cloud persistence', () => {
     expect(payload.privateData.movements.some((item) => item.id === 'seed-5')).toBe(true)
     expect(payload.familyPrivateData.movements.some((item) => item.id === 'seed-1')).toBe(true)
   })
+
+  it('shares a sender referenced by a family income', () => {
+    const data = structuredClone(defaultData)
+    const payload = buildCloudPersistence(data, 'anna')
+    const senderRecord = payload.sharedRecords.find((item) => item.type === 'sender' && item.id === 'inps')
+    const fallback = createStarterData('simone', data.accounts.filter((item) => item.scope === 'family'))
+    const merged = mergeCloudPersistence(null, asDatabaseRecords(payload), fallback)
+
+    expect(senderRecord?.data).toMatchObject({ id: 'inps', name: 'INPS', scope: 'family' })
+    expect(merged.senders).toContainEqual(expect.objectContaining({ id: 'inps', name: 'INPS' }))
+    expect(merged.movements.find((item) => item.id === 'seed-7')?.senderId).toBe('inps')
+  })
+
+  it('applies a family directory deletion to private author copies too', () => {
+    const data = structuredClone(defaultData)
+    const payload = buildCloudPersistence(data, 'simone')
+    const records: SharedRecord[] = [
+      ...asDatabaseRecords(payload),
+      {
+        record_type: 'directory_redirect',
+        record_id: 'beneficiary:lidl',
+        data: { kind: 'beneficiary', oldId: 'lidl', replacementId: 'eurospar' },
+      },
+    ]
+    const fallback = createStarterData('simone', data.accounts.filter((item) => item.scope === 'family'))
+    const merged = mergeCloudPersistence(
+      mergePrivateCloudData(payload.privateData, payload.familyPrivateData),
+      records,
+      fallback,
+    )
+
+    expect(merged.beneficiaries.some((item) => item.id === 'lidl')).toBe(false)
+    expect(merged.movements.find((item) => item.id === 'seed-1')?.beneficiaryId).toBe('eurospar')
+  })
+
+  it('resolves chained directory deletions to the final empty value', () => {
+    const records: SharedRecord[] = [
+      {
+        record_type: 'directory_redirect',
+        record_id: 'sender:datore-lavoro',
+        data: { kind: 'sender', oldId: 'datore-lavoro', replacementId: 'inps' },
+      },
+      {
+        record_type: 'directory_redirect',
+        record_id: 'sender:inps',
+        data: { kind: 'sender', oldId: 'inps' },
+      },
+    ]
+    const merged = mergeCloudPersistence(structuredClone(defaultData), records, structuredClone(defaultData))
+
+    expect(merged.senders.some((item) => item.id === 'datore-lavoro')).toBe(false)
+    expect(merged.senders.some((item) => item.id === 'inps')).toBe(false)
+    expect(merged.movements.find((item) => item.id === 'seed-4')?.senderId).toBeUndefined()
+  })
 })

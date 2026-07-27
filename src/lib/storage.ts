@@ -25,6 +25,7 @@ interface LegacyData {
   accounts?: Array<Omit<AppData['accounts'][number], 'scope'> & { scope?: 'family' | 'personal' }>
   categories?: Array<Omit<AppData['categories'][number], 'movementType'> & { movementType?: 'expense' | 'income' }>
   beneficiaries?: AppData['beneficiaries']
+  senders?: AppData['senders']
   expenses?: LegacyExpense[]
   reimbursements?: Array<Omit<Reimbursement, 'fromAccountId' | 'toAccountId'> & { fromAccountId?: string; toAccountId?: string }>
 }
@@ -60,13 +61,18 @@ export function hydrateData(data: Partial<AppData>, fallbackData: AppData = defa
 function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
   const base = structuredClone(fallbackData)
   const accounts = mergeMissingById(data.accounts, base.accounts)
+  const deletedBeneficiaryIds = data.deletedBeneficiaryIds ?? []
+  const deletedSenderIds = data.deletedSenderIds ?? []
   const fallbackAccount = (userId: UserId) => accounts.find((item) => item.scope === 'personal' && item.ownerId === userId)?.id ?? ''
   return {
     ...data,
     version: 3,
     accounts,
     categories: mergeMissingById(data.categories, base.categories),
-    beneficiaries: mergeMissingById(data.beneficiaries, base.beneficiaries),
+    beneficiaries: mergeMissingById(data.beneficiaries, base.beneficiaries).filter((item) => !deletedBeneficiaryIds.includes(item.id)),
+    senders: mergeMissingById(data.senders, base.senders).filter((item) => !deletedSenderIds.includes(item.id)),
+    deletedBeneficiaryIds,
+    deletedSenderIds,
     tags: mergeMissingById(data.tags, base.tags),
     tagReportIds: data.tagReportIds ?? base.tagReportIds,
     movements: data.movements ?? [],
@@ -87,6 +93,7 @@ export function hasMeaningfulUserData(data: AppData, userId: UserId) {
     || data.transfers.length > 0
     || data.reimbursements.length > 0
     || data.beneficiaries.length > 0
+    || data.senders.length > 0
     || data.tags.length > 0
     || personalAccounts.some((account) => account.type !== 'cash' || account.openingBalance !== 0)
 }
@@ -98,6 +105,9 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     accounts: mergePreferredById(local.accounts, remoteData.accounts),
     categories: mergePreferredById(local.categories, remoteData.categories),
     beneficiaries: mergePreferredById(local.beneficiaries, remoteData.beneficiaries),
+    senders: mergePreferredById(local.senders, remoteData.senders),
+    deletedBeneficiaryIds: [...new Set([...(local.deletedBeneficiaryIds ?? []), ...(remoteData.deletedBeneficiaryIds ?? [])])],
+    deletedSenderIds: [...new Set([...(local.deletedSenderIds ?? []), ...(remoteData.deletedSenderIds ?? [])])],
     tags: mergePreferredById(local.tags, remoteData.tags),
     tagReportIds: [...new Set([...local.tagReportIds, ...remoteData.tagReportIds])],
     movements: mergePreferredById(local.movements, remoteData.movements),
@@ -121,6 +131,7 @@ function migrateLegacy(legacy: LegacyData): AppData {
     accounts,
     categories: legacy.categories?.map((item) => ({ ...item, movementType: item.movementType ?? 'expense' as const })) ?? base.categories,
     beneficiaries: legacy.beneficiaries ?? base.beneficiaries,
+    senders: legacy.senders ?? base.senders,
     tags: base.tags,
     tagReportIds: base.tagReportIds,
     movements: legacy.expenses?.map(({ payerId, ...item }) => ({ ...item, type: 'expense' as const, memberId: payerId })) ?? base.movements,

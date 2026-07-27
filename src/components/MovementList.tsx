@@ -20,6 +20,10 @@ export function MovementList({ data, movements, user, onEdit, onDelete, compact 
       const category = data.categories.find((item) => item.id === movement.categoryId)
       const account = data.accounts.find((item) => item.id === movement.accountId)
       const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
+      const sender = data.senders.find((item) => item.id === movement.senderId)
+      const counterparty = movement.type === 'income'
+        ? sender?.name ?? 'Nessun mittente'
+        : beneficiary?.name ?? 'Nessun beneficiario'
       const tag = data.tags.find((item) => item.id === movement.tagId)
       const canEdit = user?.id === movement.authorId
       const allocations = movementAllocations(movement)
@@ -28,7 +32,7 @@ export function MovementList({ data, movements, user, onEdit, onDelete, compact 
       const displayedAmount = sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : movement.amount
       return <article className="movement-row" key={movement.id}>
         <span className={`movement-row__icon movement-row__icon--${movement.type}`}>{movement.type === 'income' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
-        <div className="movement-row__name"><strong>{movement.description}</strong><small>{beneficiary?.name}{tag ? ` · #${tag.name}` : ''}{movement.comments ? ` · ${movement.comments}` : ''}</small></div>
+        <div className="movement-row__name"><strong>{movement.description}</strong><small>{counterparty}{tag ? `${counterparty ? ' · ' : ''}#${tag.name}` : ''}{movement.comments ? `${counterparty || tag ? ' · ' : ''}${movement.comments}` : ''}</small></div>
         <div className="movement-row__meta"><small>Categoria</small><span><i style={{ background: category?.color }} />{movement.splits?.length ? `${allocations.length} categorie` : category?.name}</span></div>
         <div className="movement-row__meta"><small>Conto</small><span>{account?.name}</span></div>
         <span className={`scope-label ${hasSharedPortion ? 'scope-label--shared' : ''}`}>{hasSharedPortion ? <Share2 /> : <LockKeyhole />}{isMixed ? 'Misto' : hasSharedPortion ? 'Condiviso' : 'Personale'}</span>

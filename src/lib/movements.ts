@@ -1,8 +1,9 @@
-import type { AppData, Beneficiary, Category, Movement, ScheduledPayment, Tag } from '../types'
+import type { AppData, Beneficiary, Category, Movement, ScheduledPayment, Sender, Tag } from '../types'
 
 export interface MovementAdditions {
   category?: Category
   beneficiary?: Beneficiary
+  sender?: Sender
   tag?: Tag
   scheduledPayments?: ScheduledPayment[]
 }
@@ -38,6 +39,7 @@ export function saveMovementData(current: AppData, movement: Movement, additions
     ...current,
     categories: additions.category ? [...current.categories, additions.category] : current.categories,
     beneficiaries: additions.beneficiary ? [...current.beneficiaries, additions.beneficiary] : current.beneficiaries,
+    senders: additions.sender ? [...current.senders, additions.sender] : current.senders,
     tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
     scheduledPayments,
     movements: previous

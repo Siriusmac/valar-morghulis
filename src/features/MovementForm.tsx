@@ -1,14 +1,15 @@
 import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { CreatableLookup } from '../components/CreatableLookup'
 import { addMonthsISO, makeId, splitAmount, todayISO } from '../lib/format'
-import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Tag, User } from '../types'
+import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
 interface Props {
   data: AppData
   user: User
   otherName?: string
   memberCount?: number
-  onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
+  onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; sender?: Sender; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
   onCancel: () => void
   onDelete?: (id: string) => void
   initial?: Movement
@@ -17,6 +18,11 @@ interface Props {
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 type SplitDraft = Omit<MovementSplit, 'amount'> & { amount: string }
+
+function findByName<T extends { name: string }>(items: T[], value: string) {
+  const normalized = value.trim().toLocaleLowerCase('it-IT')
+  return items.find((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
+}
 
 export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
@@ -36,14 +42,15 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   )
   const categories = data.categories.filter((item) => item.movementType === type && (item.scope === 'family' || item.ownerId === user.id))
   const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id))
+  const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id)
-  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? categories[0]?.id ?? '')
-  const [beneficiaryId, setBeneficiaryId] = useState(initial?.beneficiaryId ?? beneficiaries[0]?.id ?? '')
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '')
+  const [categoryQuery, setCategoryQuery] = useState(() => data.categories.find((item) => item.id === initial?.categoryId)?.name ?? '')
+  const [beneficiaryId, setBeneficiaryId] = useState(initial?.beneficiaryId ?? '')
+  const [beneficiaryQuery, setBeneficiaryQuery] = useState(() => data.beneficiaries.find((item) => item.id === initial?.beneficiaryId)?.name ?? '')
+  const [senderId, setSenderId] = useState(initial?.senderId ?? '')
+  const [senderQuery, setSenderQuery] = useState(() => data.senders.find((item) => item.id === initial?.senderId)?.name ?? '')
   const [tagId, setTagId] = useState(initial?.tagId ?? '')
-  const [newCategory, setNewCategory] = useState('')
-  const [creatingCategory, setCreatingCategory] = useState(false)
-  const [newBeneficiary, setNewBeneficiary] = useState('')
-  const [creatingBeneficiary, setCreatingBeneficiary] = useState(false)
   const [newTag, setNewTag] = useState('')
   const [splitsEnabled, setSplitsEnabled] = useState(Boolean(initial?.splits?.length))
   const [splits, setSplits] = useState<SplitDraft[]>(() => (initial?.splits ?? []).map((item) => ({ ...item, amount: item.amount.toString() })))
@@ -60,10 +67,27 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const numericAmount = Number(amount.replace(',', '.')) || 0
   const splitTotal = splits.reduce((sum, item) => sum + (Number(item.amount.replace(',', '.')) || 0), 0)
   const mainRemainder = Math.max(0, Math.round((numericAmount - splitTotal) * 100) / 100)
+  const beneficiaryMissing = type === 'expense' && !beneficiaryQuery.trim() && (!initial || initial.type !== 'expense')
+  const senderMissing = type === 'income' && !senderQuery.trim() && (!initial || initial.type !== 'income')
 
   const addSplit = () => {
     const fallbackCategory = categories.find((item) => item.id !== categoryId) ?? categories[0]
     setSplits((items) => [...items, { id: makeId('movement-split'), amount: '', categoryId: fallbackCategory?.id ?? '', shared: false }])
+  }
+
+  const changeCategoryQuery = (value: string) => {
+    setCategoryQuery(value)
+    setCategoryId(findByName(categories, value)?.id ?? '')
+  }
+
+  const changeBeneficiaryQuery = (value: string) => {
+    setBeneficiaryQuery(value)
+    setBeneficiaryId(findByName(beneficiaries, value)?.id ?? '')
+  }
+
+  const changeSenderQuery = (value: string) => {
+    setSenderQuery(value)
+    setSenderId(findByName(senders, value)?.id ?? '')
   }
 
   const updateSplit = (id: string, patch: Partial<SplitDraft>) => {
@@ -72,11 +96,12 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
 
   const changeType = (nextType: MovementType) => {
     setType(nextType)
-    setCategoryId(data.categories.find((item) => item.movementType === nextType)?.id ?? '')
-    setCreatingCategory(false)
-    setNewCategory('')
-    setCreatingBeneficiary(false)
-    setNewBeneficiary('')
+    setCategoryId('')
+    setCategoryQuery('')
+    setBeneficiaryId('')
+    setBeneficiaryQuery('')
+    setSenderId('')
+    setSenderQuery('')
     setInstallmentsEnabled(false)
     setSplitsEnabled(false)
     setSplits([])
@@ -123,23 +148,34 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitted(true)
-    const beneficiaryMissing = type === 'expense' && (creatingBeneficiary ? !newBeneficiary.trim() : !beneficiaryId)
+    const categoryName = categoryQuery.trim()
+    const beneficiaryName = beneficiaryQuery.trim()
+    const senderName = senderQuery.trim()
     const invalidSplits = splitsEnabled && (
       splits.length === 0
       || splits.some((item) => !item.categoryId || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0)
       || splitTotal > numericAmount
     )
-    if (!numericAmount || numericAmount <= 0 || !accountId || (!categoryId && !newCategory.trim()) || beneficiaryMissing || invalidSplits) return
-    const category = newCategory.trim() ? { id: makeId('category'), name: newCategory.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, movementType: type, color: type === 'income' ? '#3f7650' : '#c64e2f' } : undefined
+    if (!numericAmount || numericAmount <= 0 || !accountId || !categoryName || beneficiaryMissing || senderMissing || invalidSplits) return
+    const categoryMatch = findByName(categories, categoryName)
+    const beneficiaryMatch = findByName(beneficiaries, beneficiaryName)
+    const senderMatch = findByName(senders, senderName)
+    const category = categoryMatch ? undefined : { id: makeId('category'), name: categoryName, scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, movementType: type, color: type === 'income' ? '#3f7650' : '#c64e2f' }
     const userBeneficiaryId = `beneficiary-user-${user.id}`
     const beneficiary = type === 'income'
       ? (data.beneficiaries.some((item) => item.id === userBeneficiaryId) ? undefined : { id: userBeneficiaryId, name: user.name, scope: 'personal' as const, ownerId: user.id })
-      : (creatingBeneficiary ? { id: makeId('beneficiary'), name: newBeneficiary.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id } : undefined)
+      : (beneficiaryName && !beneficiaryMatch ? { id: makeId('beneficiary'), name: beneficiaryName, scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id } : undefined)
+    const sender = type === 'income' && senderName && !senderMatch
+      ? { id: makeId('sender'), name: senderName, scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id }
+      : undefined
     const tag = newTag.trim() ? { id: makeId('tag'), name: newTag.trim(), scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, color: '#c64e2f' } : undefined
-    const resolvedCategoryId = category?.id ?? categoryId
-    const resolvedBeneficiaryId = type === 'income' ? userBeneficiaryId : beneficiary?.id ?? beneficiaryId
+    const resolvedCategoryId = category?.id ?? categoryMatch?.id ?? categoryId
+    const resolvedBeneficiaryId = type === 'income'
+      ? userBeneficiaryId
+      : beneficiaryName ? beneficiary?.id ?? beneficiaryMatch?.id ?? beneficiaryId : undefined
+    const resolvedSenderId = type === 'income' && senderName ? sender?.id ?? senderMatch?.id ?? senderId : undefined
     const resolvedTagId = tag?.id ?? (tagId || undefined)
-    const resolvedDescription = description.trim() || (category?.name ?? data.categories.find((item) => item.id === categoryId)?.name ?? 'Movimento')
+    const resolvedDescription = description.trim() || categoryName || 'Movimento'
     const resolvedComments = comments.trim() || undefined
     const shouldInstall = type === 'expense' && installmentsEnabled && !initial
     const planId = shouldInstall ? makeId('installment-plan') : undefined
@@ -186,6 +222,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       description: shouldInstall ? `${resolvedDescription} · rata 1/${installmentCount}` : resolvedDescription,
       categoryId: resolvedCategoryId,
       beneficiaryId: resolvedBeneficiaryId,
+      senderId: resolvedSenderId,
       accountId,
       tagId: resolvedTagId,
       comments: resolvedComments,
@@ -198,7 +235,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       sharedSettlementAmount: shouldInstall && effectivelyShared ? numericAmount : editedInstallmentSettlementAmount,
       affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
-    }, { category, beneficiary, tag, scheduledPayments })
+    }, { category, beneficiary, sender, tag, scheduledPayments })
   }
 
   return <form className="expense-form movement-form" onSubmit={submit}>
@@ -213,16 +250,9 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     <label>Descrizione<input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={type === 'income' ? 'Es. Stipendio luglio' : 'Es. Spesa settimanale'} /></label>
     <label>Commenti<textarea value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Dettagli facoltativi sul movimento" rows={3} /></label>
     <div className="form-grid">
-      <label>Categoria<select value={creatingCategory ? '__new' : categoryId} onChange={(e) => {
-        if (e.target.value === '__new') { setCreatingCategory(true); setNewCategory('') }
-        else { setCreatingCategory(false); setNewCategory(''); setCategoryId(e.target.value) }
-      }}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuova categoria</option></select></label>
-      {creatingCategory ? <label>Nome nuova categoria<input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Es. Alimentari, ristorante" autoFocus required /></label> : null}
-      {type === 'expense' ? <label>Beneficiario<select value={creatingBeneficiary ? '__new' : beneficiaryId} onChange={(e) => {
-        if (e.target.value === '__new') { setCreatingBeneficiary(true); setNewBeneficiary('') }
-        else { setCreatingBeneficiary(false); setNewBeneficiary(''); setBeneficiaryId(e.target.value) }
-      }}><option value="" disabled>Scegli un beneficiario</option>{beneficiaries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Aggiungi beneficiario</option></select></label> : null}
-      {type === 'expense' && creatingBeneficiary ? <label>Nome nuovo beneficiario<input value={newBeneficiary} onChange={(e) => setNewBeneficiary(e.target.value)} placeholder="Es. Lidl, Amazon" autoFocus required />{submitted && !newBeneficiary.trim() ? <small className="field-error">Inserisci il nome del beneficiario.</small> : null}</label> : null}
+      <CreatableLookup label="Categoria" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} error={submitted && !categoryQuery.trim() ? 'Inserisci una categoria.' : undefined} />
+      {type === 'expense' ? <CreatableLookup label="Beneficiario" value={beneficiaryQuery} options={beneficiaries} placeholder="Inserisci beneficiario" onChange={changeBeneficiaryQuery} error={submitted && beneficiaryMissing ? 'Inserisci un beneficiario.' : undefined} /> : null}
+      {type === 'income' ? <CreatableLookup label="Mittente" value={senderQuery} options={senders} placeholder="Inserisci mittente" onChange={changeSenderQuery} error={submitted && senderMissing ? 'Inserisci un mittente.' : undefined} /> : null}
       <label>Conto<select value={accountId} onChange={(e) => selectAccount(e.target.value)}>{availableAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>
       <label>Tag<select value={newTag ? '__new' : tagId} onChange={(e) => e.target.value === '__new' ? setNewTag('Nuovo tag') : (setNewTag(''), setTagId(e.target.value))}><option value="">Nessun tag</option>{tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuovo tag</option></select></label>
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}

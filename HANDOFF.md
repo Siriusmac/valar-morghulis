@@ -18,8 +18,10 @@ Funzioni disponibili:
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
-- categorie, beneficiari e tag creabili durante l’uso;
-- modifica del nome di categorie e beneficiari; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
+- categorie, beneficiari e mittenti ricercabili per testo e creati automaticamente dal modulo del movimento quando non esiste una corrispondenza; tag creabili durante l’uso;
+- beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
+- modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
+- eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
 - suddivisione facoltativa di un movimento in parziali per categoria, ciascuno personale o condiviso, interamente modificabile a posteriori;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
@@ -105,13 +107,14 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 26 luglio 2026: lint, 46 test automatici e build
+Ultima verifica completata il 27 luglio 2026: lint, 72 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
-per categoria e la loro quota condivisa, nuovo beneficiario, modifica e
-cancellazione con ricalcolo dei saldi, dipendenze dei pagamenti rateali e
-importazione dei dati locali nello snapshot cloud. La pagina Guida è stata
-verificata nel browser a 1440 × 1000 e 390 × 844 pixel, senza overflow o errori
-in console.
+per categoria e la loro quota condivisa, ricerca e creazione contestuale di
+beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,
+propagazione familiare delle cancellazioni, dipendenze dei pagamenti rateali e
+importazione dei dati locali nello snapshot cloud. La verifica interattiva
+locale dell’ultimo aggiornamento resta da ripetere perché il browser integrato
+ha bloccato l’URL locale per una regola di rete dell’ambiente.
 
 ## Limiti dell’MVP e prossimi passi
 
@@ -134,6 +137,13 @@ La migrazione `20260727150000_invitation_lifecycle.sql` aggiunge lo stato
 invito rifiutato. La Edge Function `invite-family-member` riutilizza gli inviti
 in attesa, rinnova token e scadenza durante il reinvio e restituisce errori
 strutturati all’interfaccia.
+
+La migrazione `20260727170000_movement_senders.sql` abilita il tipo di record
+familiare `sender` e aggiorna la sincronizzazione protetta. Registra inoltre le
+cancellazioni delle anagrafiche familiari e l’eventuale destinazione scelta, così
+la riassegnazione viene applicata in modo coerente a tutti i membri. Le entrate
+nuove richiedono un mittente; quelle storiche senza mittente restano valide e
+possono essere completate dal pannello di modifica.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita
