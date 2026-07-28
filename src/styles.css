@@ -4,6 +4,7 @@
   font-family: 'DM Sans', system-ui, sans-serif;
   color: #14243a;
   background: #fbfaf8;
+  color-scheme: only light;
   font-synthesis: none;
   --ink: #14243a;
   --muted: #667080;
@@ -22,6 +23,11 @@
 html { background: #fbfaf8; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select { font: inherit; }
+select, option, optgroup {
+  color: var(--ink);
+  background-color: var(--white);
+  color-scheme: only light;
+}
 button { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(198, 78, 47, .22); outline-offset: 2px; }
 button:disabled { opacity: .35; cursor: not-allowed; }

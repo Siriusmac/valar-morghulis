@@ -39,6 +39,7 @@ Funzioni disponibili:
 - eliminazione della prima rata estesa al piano collegato e modifiche anagrafiche propagate alle rate non ancora scadute;
 - creazione e selezione affidabile di un nuovo beneficiario nel modulo del movimento;
 - campi mobile a 16 px e viewport adattiva per evitare lo zoom automatico invasivo con la tastiera virtuale;
+- selettori nativi mantenuti per accessibilità e futura corrispondenza con i `Picker` SwiftUI, con schema colore chiaro esplicito per evitare menu diversi in base al tema del browser;
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
 - pagina Account raggiungibile dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
