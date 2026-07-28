@@ -75,6 +75,35 @@ describe('family cloud persistence', () => {
     )
   })
 
+  it('uses the confirmed family reimbursement instead of the author pending copy', () => {
+    const fallback = structuredClone(defaultData)
+    const pending = {
+      id: 'reimbursement-approved-by-anna',
+      fromId: 'simone',
+      toId: 'anna',
+      amount: 25,
+      date: '2026-07-28',
+      authorId: 'simone',
+      fromAccountId: 'simone-bank',
+      toAccountId: 'anna-bank',
+      status: 'pending' as const,
+    }
+    const confirmed = {
+      ...pending,
+      status: 'confirmed' as const,
+      confirmedBy: 'anna',
+      confirmedAt: '2026-07-28T09:00:00.000Z',
+    }
+    const merged = mergeCloudPersistence(
+      { ...fallback, reimbursements: [pending] },
+      [{ record_type: 'reimbursement', record_id: confirmed.id, data: confirmed }],
+      fallback,
+    )
+
+    expect(merged.reimbursements).toContainEqual(confirmed)
+    expect(merged.reimbursements).toHaveLength(1)
+  })
+
   it('keeps shared author copies out of the global personal snapshot', () => {
     const payload = buildCloudPersistence(structuredClone(defaultData), 'simone')
 

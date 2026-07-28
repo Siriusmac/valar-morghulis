@@ -63,6 +63,38 @@ describe('persistenza dei dati operativi', () => {
     expect(merged.beneficiaries.some((item) => item.id === 'negozio')).toBe(true)
   })
 
+  it('mantiene lo stato remoto confermato durante l’importazione della cache locale', () => {
+    const fallback = createStarterData('user-1', [sharedAccount])
+    const pending = {
+      id: 'reimbursement-1',
+      fromId: 'user-1',
+      toId: 'user-2',
+      amount: 20,
+      date: '2026-07-28',
+      authorId: 'user-1',
+      fromAccountId: 'user-1-cash',
+      toAccountId: 'user-2-cash',
+      status: 'pending' as const,
+    }
+    const confirmed = {
+      ...pending,
+      status: 'confirmed' as const,
+      confirmedBy: 'user-2',
+      confirmedAt: '2026-07-28T09:00:00.000Z',
+    }
+    const localOnly = { ...pending, id: 'reimbursement-local-only', amount: 5 }
+
+    const merged = mergeAppData(
+      { ...fallback, reimbursements: [confirmed] },
+      { ...fallback, reimbursements: [pending, localOnly] },
+      fallback,
+    )
+
+    expect(merged.reimbursements).toContainEqual(confirmed)
+    expect(merged.reimbursements).toContainEqual(localOnly)
+    expect(merged.reimbursements).toHaveLength(2)
+  })
+
   it('completa uno snapshot cloud parziale con i dati iniziali necessari', () => {
     const fallback = createStarterData('user-1', [sharedAccount])
     const hydrated = hydrateData({ version: 3, movements: [movement] }, fallback)

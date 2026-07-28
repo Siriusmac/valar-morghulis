@@ -113,7 +113,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     movements: mergePreferredById(local.movements, remoteData.movements),
     scheduledPayments: mergePreferredById(local.scheduledPayments, remoteData.scheduledPayments),
     transfers: mergePreferredById(local.transfers, remoteData.transfers),
-    reimbursements: mergePreferredById(local.reimbursements, remoteData.reimbursements),
+    reimbursements: mergePreferredById(remoteData.reimbursements, local.reimbursements),
   }, fallbackData)
 }
 

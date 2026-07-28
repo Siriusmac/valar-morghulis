@@ -28,6 +28,7 @@ Funzioni disponibili:
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
+- il record familiare confermato o rifiutato prevale sulla copia privata precedente dell’autore, evitando che un rimborso approvato torni a risultare “in attesa” dopo il login;
 - pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
 - completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
 - modifica dei movimenti riservata all’autore;
@@ -111,7 +112,7 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 27 luglio 2026: lint, 76 test automatici e build
+Ultima verifica completata il 28 luglio 2026: lint, 78 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
 per categoria e la loro quota condivisa, ricerca e creazione contestuale di
 beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,

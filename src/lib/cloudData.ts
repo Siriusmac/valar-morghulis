@@ -231,7 +231,9 @@ export function mergeCloudPersistence(
     movements: mergeById(personal.movements ?? [], shared.movements),
     scheduledPayments: mergeById(personal.scheduledPayments ?? [], shared.scheduledPayments),
     transfers: mergeById(personal.transfers ?? [], shared.transfers),
-    reimbursements: mergeById(personal.reimbursements ?? [], shared.reimbursements),
+    // Lo stato approvato o rifiutato dalla controparte vive nel record familiare:
+    // deve prevalere sull'eventuale copia privata ancora ferma a "pending".
+    reimbursements: mergeById(shared.reimbursements, personal.reimbursements ?? []),
   }, fallback)
   const redirectMap = new Map(shared.redirects.map((item) => [`${item.kind}:${item.oldId}`, item]))
   const finalReplacement = (redirect: typeof shared.redirects[number]) => {
