@@ -14,6 +14,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - entrate e spese personali private, oppure condivise con la famiglia;
 - grafici mensili per categoria su spese, entrate e movimenti condivisi;
 - grafico giornaliero della bacheca calcolato sulle spese condivise del mese corrente;
+- confronto mensile in bacheca degli importi anticipati da ciascun membro per le spese condivise, escludendo i pagamenti effettuati direttamente da un conto condiviso;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
 - saldo iniziale dei conti modificabile con data di riferimento;

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Dashboard } from './Dashboard'
 import { defaultData, users } from '../lib/seed'
+import { todayISO } from '../lib/format'
 
 afterEach(cleanup)
 describe('Dashboard workspace selector', () => {
@@ -28,6 +29,23 @@ describe('Dashboard workspace selector', () => {
     expect(screen.getByRole('heading', { name: 'Contabilità personale' })).toBeTruthy()
     expect(screen.queryByText('Spese condivise giornaliere')).toBeNull()
     expect(screen.queryByText('Ultimi movimenti condivisi')).toBeNull()
+  })
+
+  it('shows how much each member advanced for shared expenses in the current month', () => {
+    const data = structuredClone(defaultData)
+    const currentMonth = todayISO().slice(0, 7)
+    data.movements = [
+      { ...data.movements[0], id: 'simone-current', amount: 35, date: `${currentMonth}-02`, accountId: 'simone-bank', memberId: 'simone', authorId: 'simone', shared: true },
+      { ...data.movements[1], id: 'anna-current', amount: 65, date: `${currentMonth}-03`, accountId: 'anna-bank', memberId: 'anna', authorId: 'anna', shared: true },
+      { ...data.movements[2], id: 'family-current', amount: 90, date: `${currentMonth}-04`, accountId: 'family-bank', memberId: 'simone', authorId: 'simone', shared: true },
+    ]
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Per persona' }))
+
+    expect(screen.getByRole('img', { name: /Simone: 35,00/ })).toBeTruthy()
+    expect(screen.getByRole('img', { name: /Anna: 65,00/ })).toBeTruthy()
+    expect(screen.getByText('Sono escluse le spese pagate direttamente con un conto condiviso.')).toBeTruthy()
   })
 
   it('lets the counterparty choose their account and confirm a pending reimbursement', async () => {

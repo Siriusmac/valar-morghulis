@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 27 luglio 2026.
+Aggiornato il 30 luglio 2026.
 
 ## Stato del prodotto
 
@@ -15,6 +15,7 @@ Funzioni disponibili:
 - ripartizione in quote uguali in base al numero di membri e saldo debito/credito;
 - esclusione dal saldo dei movimenti effettuati con un conto condiviso;
 - grafico giornaliero della bacheca derivato dalle spese condivise del mese corrente;
+- grafico mensile alternabile “Per giorno / Per persona”, con confronto in euro delle spese condivise anticipate da ciascun membro e conti condivisi esclusi dall’attribuzione personale;
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
@@ -113,14 +114,17 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 28 luglio 2026: lint, 78 test automatici e build
+Ultima verifica completata il 30 luglio 2026: lint, 80 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
 per categoria e la loro quota condivisa, ricerca e creazione contestuale di
 beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,
 propagazione familiare delle cancellazioni, dipendenze dei pagamenti rateali e
-importazione dei dati locali nello snapshot cloud. La verifica interattiva
-locale ha confermato caricamento, apertura e invio del rimborso nella modalità
-locale, assenza di errori in console e nessun overflow orizzontale a 390 px.
+importazione dei dati locali nello snapshot cloud. Coprono inoltre il confronto
+mensile delle spese condivise anticipate da ciascun membro, incluse le quote
+condivise dei movimenti suddivisi e l’esclusione dei conti familiari. La verifica
+interattiva locale ha confermato il passaggio “Per giorno / Per persona”, le
+barre proporzionali, l’assenza di errori in console e nessun overflow orizzontale
+a 390 px.
 La cattura visuale del viewport mobile del browser integrato ha applicato una
 scala anomala, quindi la resa smartphone resta da ricontrollare su un dispositivo
 o browser esterno reale dopo l’applicazione della migrazione.

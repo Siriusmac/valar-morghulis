@@ -106,6 +106,19 @@ export function movementsForMonth(movements: Movement[], month: string, type?: M
   return movements.filter((item) => item.date.startsWith(month) && (!type || item.type === type))
 }
 
+export function sharedExpensesByMember(data: AppData, memberIds: UserId[], month: string) {
+  const totals = new Map(memberIds.map((memberId) => [memberId, 0]))
+  for (const movement of data.movements) {
+    if (movement.type !== 'expense' || !movement.date.startsWith(month)) continue
+    const account = data.accounts.find((item) => item.id === movement.accountId)
+    if (account?.scope === 'family' || !totals.has(movement.memberId)) continue
+    const amount = sharedMovementAmount(movement)
+    if (amount <= 0) continue
+    totals.set(movement.memberId, roundMoney((totals.get(movement.memberId) ?? 0) + amount))
+  }
+  return memberIds.map((memberId) => ({ memberId, total: totals.get(memberId) ?? 0 }))
+}
+
 export function totalsByCategory(data: AppData, movements: Movement[], sharedOnly = false) {
   const totals = new Map<string, number>()
   for (const movement of movements) {

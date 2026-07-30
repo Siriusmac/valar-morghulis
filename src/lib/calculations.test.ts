@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, movementAllocations, sharedBalance, totalsByCategory } from './calculations'
+import { accountBalance, movementAllocations, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -150,6 +150,26 @@ describe('movement category splits', () => {
     }
     expect(totalsByCategory(data, [movement], true).map((item) => [item.category?.id, item.total])).toEqual([
       ['accessori-casa', 30],
+    ])
+  })
+})
+
+describe('sharedExpensesByMember', () => {
+  it('reports the monthly shared expenses advanced by each family member', () => {
+    const data = cleanData()
+    data.movements = [
+      expense('simone-shared', 'simone', 30, 'simone-bank'),
+      expense('anna-shared', 'anna', 50, 'anna-bank'),
+      { ...expense('simone-partial', 'simone', 100, 'simone-bank'), shared: false, splits: [{ id: 'shared', amount: 20, categoryId: 'accessori-casa', shared: true }] },
+      expense('family-account', 'simone', 90, 'family-bank'),
+      { ...expense('income', 'anna', 500, 'anna-bank'), type: 'income', categoryId: 'stipendio' },
+      { ...expense('other-month', 'anna', 70, 'anna-bank'), date: '2026-08-01' },
+    ]
+
+    expect(sharedExpensesByMember(data, ['simone', 'anna', 'third'], '2026-07')).toEqual([
+      { memberId: 'simone', total: 50 },
+      { memberId: 'anna', total: 50 },
+      { memberId: 'third', total: 0 },
     ])
   })
 })

@@ -216,6 +216,10 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .balance-summary small { color: var(--muted); font-size: 12px; }
 .balance-summary .text-button { grid-column: 2; margin-top: 14px; justify-self: start; }
 .monthly-chart { padding: 36px 0 30px 8%; display: flex; flex-direction: column; }
+.monthly-chart__heading { display: grid; gap: 14px; }
+.monthly-chart__switch { width: fit-content; padding: 3px; display: inline-flex; border: 1px solid var(--line); border-radius: 999px; background: var(--sand); }
+.monthly-chart__switch button { min-height: 30px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 600; cursor: pointer; }
+.monthly-chart__switch button[aria-pressed="true"] { color: var(--ink); background: white; box-shadow: 0 2px 8px rgba(20, 36, 58, .08); }
 .section-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
 .section-title-row h2 { font-size: 23px; line-height: 1.1; }
 .section-title-row p { color: var(--muted); font-size: 12px; margin-top: 4px; }
@@ -226,6 +230,20 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .bar-chart i.bar-chart__day--active:hover { opacity: 1; transform: scaleX(1.2); }
 .bar-chart__empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 11px; pointer-events: none; }
 .chart-axis { display: flex; justify-content: space-between; padding: 8px 10px 0; color: var(--muted); font-size: 9px; }
+.member-spending-chart { flex: 1; min-height: 150px; padding: 20px 10px 0; display: grid; align-content: center; gap: 14px; }
+.member-spending-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 11px; }
+.member-spending-row__avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
+.member-spending-row > div { min-width: 0; display: grid; gap: 6px; }
+.member-spending-row > div > span { display: flex; align-items: baseline; gap: 7px; }
+.member-spending-row > div strong { font: 600 15px/1 'Newsreader', Georgia, serif; }
+.member-spending-row > div small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .7px; }
+.member-spending-row > div > i { height: 7px; overflow: hidden; border-radius: 999px; background: #e7e3de; }
+.member-spending-row > div > i > b { height: 100%; min-width: 0; display: block; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
+.member-spending-row--current .member-spending-row__avatar { color: var(--positive); background: var(--positive-soft); }
+.member-spending-row--current > div > i > b { background: var(--positive); }
+.member-spending-row > strong { min-width: 78px; text-align: right; font: 600 15px/1 'Newsreader', Georgia, serif; }
+.member-spending-chart__empty { padding: 10px 0; color: var(--muted); text-align: center; font-size: 11px; }
+.member-spending-chart__note { padding-top: 2px; color: var(--muted); font-size: 9px; line-height: 1.4; }
 .dashboard-section { padding-top: 38px; }
 .dashboard-section + .dashboard-section { padding-top: 32px; }
 .dashboard-section > .section-title-row { padding-bottom: 13px; border-bottom: 1px solid var(--line); }
@@ -684,6 +702,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .balance-summary small { font-size: 10px; }
   .balance-summary .text-button { grid-column: 1 / span 2; }
   .monthly-chart { padding: 28px 0 24px; min-height: 250px; }
+  .monthly-chart__switch { width: 100%; }
+  .monthly-chart__switch button { flex: 1; }
+  .member-spending-chart { padding-inline: 0; }
+  .member-spending-row { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; }
+  .member-spending-row__avatar { width: 34px; height: 34px; }
+  .member-spending-row > strong { min-width: 72px; font-size: 14px; }
   .dashboard-section { padding-top: 30px; }
   .section-title-row h2 { font-size: 21px; }
   .expense-row { grid-template-columns: 41px 1fr auto; min-height: 72px; gap: 11px; }
