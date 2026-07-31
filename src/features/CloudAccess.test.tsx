@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { afterEach, vi } from 'vitest'
-import { InvitationDecision } from './CloudAccess'
+import { CloudLogin, InvitationDecision } from './CloudAccess'
 import { invitationInvokeError } from '../lib/functionErrors'
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
@@ -53,5 +53,44 @@ describe('InvitationDecision', () => {
 
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('decline_family_invitation', { invitation_token: 'token-two' }))
     expect(onResolved).toHaveBeenCalledWith(null)
+  })
+})
+
+describe('CloudLogin tabs', () => {
+  it('espone tablist, tab e pannello associato con lo stato selezionato', () => {
+    render(<CloudLogin />)
+    const loginTab = screen.getByRole('tab', { name: 'Accedi' })
+    const signupTab = screen.getByRole('tab', { name: 'Registrati' })
+    const panel = screen.getByRole('tabpanel')
+
+    expect(screen.getByRole('tablist', { name: 'Accesso' })).toBeTruthy()
+    expect(loginTab.getAttribute('aria-selected')).toBe('true')
+    expect(loginTab.tabIndex).toBe(0)
+    expect(signupTab.getAttribute('aria-selected')).toBe('false')
+    expect(signupTab.tabIndex).toBe(-1)
+    expect(loginTab.getAttribute('aria-controls')).toBe(panel.id)
+    expect(panel.getAttribute('aria-labelledby')).toBe(loginTab.id)
+  })
+
+  it('cambia tab con le frecce e sposta il focus', () => {
+    render(<CloudLogin />)
+    const loginTab = screen.getByRole('tab', { name: 'Accedi' })
+    loginTab.focus()
+    fireEvent.keyDown(loginTab, { key: 'ArrowRight' })
+
+    const signupTab = screen.getByRole('tab', { name: 'Registrati' })
+    expect(signupTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(signupTab)
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(signupTab.id)
+
+    fireEvent.keyDown(signupTab, { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Accedi' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('mantiene un solo tab nell’ordine di focus', () => {
+    render(<CloudLogin />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Registrati' }))
+    expect(screen.getByRole('tab', { name: 'Accedi' }).tabIndex).toBe(-1)
+    expect(screen.getByRole('tab', { name: 'Registrati' }).tabIndex).toBe(0)
   })
 })

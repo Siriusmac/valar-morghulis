@@ -2,7 +2,7 @@ import {
   BookOpen, Building2, CalendarClock, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
   ReceiptText, Tag, Tags, X,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Brand } from './Brand'
 import type { PageId, User } from '../types'
 
@@ -28,6 +28,15 @@ interface Props {
 
 export function AppShell({ children, page, user, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileLayout, setMobileLayout] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 720px)')
+    if (!media) return
+    const updateLayout = () => setMobileLayout(media.matches)
+    updateLayout()
+    media.addEventListener('change', updateLayout)
+    return () => media.removeEventListener('change', updateLayout)
+  }, [])
   const selectPage = (id: PageId) => {
     onPageChange(id)
     setMenuOpen(false)
@@ -35,7 +44,7 @@ export function AppShell({ children, page, user, onPageChange, onAddMovement, on
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`}>
+      <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`} inert={mobileLayout && !menuOpen ? true : undefined} aria-hidden={mobileLayout && !menuOpen ? true : undefined}>
         <div className="sidebar__top">
           <Brand />
           <button className="icon-button sidebar__close" onClick={() => setMenuOpen(false)} aria-label="Chiudi menu"><X /></button>

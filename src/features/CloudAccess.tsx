@@ -86,7 +86,7 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
   return <FamilyBootstrap session={session}>{children}</FamilyBootstrap>
 }
 
-function CloudLogin() {
+export function CloudLogin() {
   const supabase = getSupabase()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [firstName, setFirstName] = useState('')
@@ -96,6 +96,22 @@ function CloudLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+
+  const selectMode = (nextMode: 'login' | 'signup') => {
+    setMode(nextMode)
+    setError('')
+    setMessage('')
+  }
+
+  const navigateTabs = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const nextMode = event.key === 'Home' ? 'login'
+      : event.key === 'End' ? 'signup'
+        : mode === 'login' ? 'signup' : 'login'
+    selectMode(nextMode)
+    document.getElementById(`auth-tab-${nextMode}`)?.focus()
+  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -133,10 +149,11 @@ function CloudLogin() {
       <span className="eyebrow">{mode === 'signup' ? 'Nuova famiglia' : 'Area riservata'}</span>
       <h2>{mode === 'signup' ? 'Crea il tuo account' : 'Bentornato'}</h2>
       <p>{mode === 'signup' ? 'Inizia dal tuo profilo personale. La famiglia viene creata al passo successivo.' : 'Accedi al tuo spazio familiare.'}</p>
-      <div className="auth-switch" role="tablist">
-        <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError(''); setMessage('') }}>Accedi</button>
-        <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setError(''); setMessage('') }}>Registrati</button>
+      <div className="auth-switch" role="tablist" aria-label="Accesso">
+        <button id="auth-tab-login" type="button" role="tab" aria-selected={mode === 'login'} aria-controls="auth-panel-login" tabIndex={mode === 'login' ? 0 : -1} className={mode === 'login' ? 'active' : ''} onKeyDown={navigateTabs} onClick={() => selectMode('login')}>Accedi</button>
+        <button id="auth-tab-signup" type="button" role="tab" aria-selected={mode === 'signup'} aria-controls="auth-panel-signup" tabIndex={mode === 'signup' ? 0 : -1} className={mode === 'signup' ? 'active' : ''} onKeyDown={navigateTabs} onClick={() => selectMode('signup')}>Registrati</button>
       </div>
+      <div id={`auth-panel-${mode}`} role="tabpanel" aria-labelledby={`auth-tab-${mode}`}>
       <form onSubmit={submit}>
         {mode === 'signup' ? <>
           <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
@@ -149,6 +166,7 @@ function CloudLogin() {
         <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
       </form>
       {mode === 'login' ? <button type="button" className="text-button auth-recovery" onClick={resetPassword}>Password dimenticata?</button> : null}
+      </div>
       <small className="privacy-note"><LockKeyhole /> I dati personali sono protetti e non sono visibili agli altri utenti. Gli accessi tecnici eccezionali sono limitati a sicurezza e assistenza.</small>
     </div>
   </AccessLayout>

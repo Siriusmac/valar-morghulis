@@ -105,6 +105,7 @@ export interface ScheduledPayment {
   installmentCount: number
   status: 'scheduled' | 'paid'
   paidMovementId?: string
+  affectsAccountBalance?: boolean
 }
 
 export interface Transfer {

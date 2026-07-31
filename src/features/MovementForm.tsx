@@ -181,8 +181,14 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     const planId = shouldInstall ? makeId('installment-plan') : undefined
     const amounts = shouldInstall ? splitAmount(numericAmount, installmentCount) : [numericAmount]
     const resolvedProvider = shouldInstall ? (provider === 'Altro' ? customProvider.trim() || 'Altro' : provider) : undefined
+    const matchesInitialMovement = (item: Movement) => item.id === initial?.id
+      || Boolean(initial && item.authorId === initial.authorId && item.createdAt === initial.createdAt)
     const editedInstallmentSettlementAmount = initial?.installmentPlanId && initial.installmentNumber === 1 && effectivelyShared
-      ? [...data.movements.filter((item) => item.installmentPlanId === initial.installmentPlanId), ...data.scheduledPayments.filter((item) => item.planId === initial.installmentPlanId)]
+      ? [
+        { amount: numericAmount },
+        ...data.movements.filter((item) => item.installmentPlanId === initial.installmentPlanId && !matchesInitialMovement(item)),
+        ...data.scheduledPayments.filter((item) => item.planId === initial.installmentPlanId && item.status === 'scheduled'),
+      ]
         .reduce((total, item) => total + item.amount, 0)
       : initial?.sharedSettlementAmount
     const resolvedSplits = type === 'expense' && splitsEnabled
@@ -193,25 +199,29 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
         shared: selectedAccount?.scope === 'family' || item.shared,
       }))
       : undefined
-    const scheduledPayments: ScheduledPayment[] = shouldInstall ? amounts.slice(1).map((installmentAmount, index) => ({
-      id: makeId('scheduled-payment'),
-      planId: planId!,
-      authorId: user.id,
-      memberId: user.id,
-      amount: installmentAmount,
-      dueDate: addMonthsISO(date, index + 1),
-      description: resolvedDescription,
-      categoryId: resolvedCategoryId,
-      beneficiaryId: resolvedBeneficiaryId,
-      accountId,
-      tagId: resolvedTagId,
-      comments: resolvedComments,
-      shared: effectivelyShared,
-      provider: resolvedProvider,
-      installmentNumber: index + 2,
-      installmentCount,
-      status: 'scheduled',
-    })) : []
+    const scheduledPayments: ScheduledPayment[] = shouldInstall ? amounts.slice(1).map((installmentAmount, index) => {
+      const dueDate = addMonthsISO(date, index + 1)
+      return {
+        id: makeId('scheduled-payment'),
+        planId: planId!,
+        authorId: user.id,
+        memberId: user.id,
+        amount: installmentAmount,
+        dueDate,
+        description: resolvedDescription,
+        categoryId: resolvedCategoryId,
+        beneficiaryId: resolvedBeneficiaryId,
+        accountId,
+        tagId: resolvedTagId,
+        comments: resolvedComments,
+        shared: effectivelyShared,
+        provider: resolvedProvider,
+        installmentNumber: index + 2,
+        installmentCount,
+        status: 'scheduled',
+        ...(selectedAccount?.openingBalanceDate && dueDate < selectedAccount.openingBalanceDate ? { affectsAccountBalance } : {}),
+      }
+    }) : []
     onSave({
       id: initial?.id ?? makeId('movement'),
       type,

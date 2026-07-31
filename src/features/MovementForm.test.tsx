@@ -4,6 +4,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MovementForm } from './MovementForm'
 import { defaultData, users } from '../lib/seed'
+import { accountBalance } from '../lib/calculations'
+import { saveMovementData } from '../lib/movements'
+import { materializeDuePayments } from '../lib/scheduled'
 
 afterEach(() => {
   cleanup()
@@ -39,7 +42,7 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Nuovo negozio' } })
-    expect(screen.getByRole('button', { name: 'Crea “Nuovo negozio”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Crea “Nuovo negozio”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '25' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -60,7 +63,7 @@ describe('MovementForm', () => {
     expect(screen.getByRole('option', { name: 'Alimentari' })).toBeTruthy()
 
     fireEvent.change(input, { target: { value: 'Categoria speciale' } })
-    expect(screen.getByRole('button', { name: 'Crea “Categoria speciale”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Crea “Categoria speciale”' })).toBeTruthy()
   })
 
   it('hides the beneficiary for an income and creates a selectable sender', () => {
@@ -74,7 +77,7 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Stipendio' } })
     fireEvent.change(screen.getByLabelText('Mittente'), { target: { value: 'Cliente prova' } })
-    expect(screen.getByRole('button', { name: 'Crea “Cliente prova”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Crea “Cliente prova”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '1200' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -133,6 +136,90 @@ describe('MovementForm', () => {
     expect(movement.installmentPlanId).toBe('seed-plan')
     expect(movement.installmentNumber).toBe(1)
     expect(movement.installmentCount).toBe(3)
+  })
+
+  it('ricalcola il totale condiviso usando il nuovo importo della prima rata', () => {
+    const onSave = vi.fn()
+    const data = structuredClone(defaultData)
+    const initial = { ...data.movements.find((movement) => movement.id === 'seed-installment-1')!, shared: true, sharedSettlementAmount: 120 }
+    data.movements = data.movements.map((movement) => movement.id === initial.id ? initial : movement)
+    data.scheduledPayments = data.scheduledPayments.map((payment) => ({ ...payment, shared: true }))
+    render(<MovementForm data={data} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '50' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave.mock.calls[0][0].sharedSettlementAmount).toBe(130)
+  })
+
+  it('non conta due volte una rata già materializzata', () => {
+    const onSave = vi.fn()
+    const data = structuredClone(defaultData)
+    const initial = { ...data.movements.find((movement) => movement.id === 'seed-installment-1')!, shared: true, sharedSettlementAmount: 120 }
+    const paid = { ...data.scheduledPayments[0], shared: true, status: 'paid' as const, paidMovementId: 'installment-paid' }
+    data.movements = [
+      ...data.movements.map((movement) => movement.id === initial.id ? initial : movement),
+      { ...initial, id: 'installment-paid', amount: 40, installmentNumber: 2, sharedSettlementAmount: 0, createdAt: '2026-08-18T08:00:00.000Z' },
+    ]
+    data.scheduledPayments = [paid, { ...data.scheduledPayments[1], shared: true }]
+    render(<MovementForm data={data} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+    expect(onSave.mock.calls[0][0].sharedSettlementAmount).toBe(120)
+  })
+
+  it('non conta un duplicato importato della prima rata con ID diverso', () => {
+    const onSave = vi.fn()
+    const data = structuredClone(defaultData)
+    const initial = { ...data.movements.find((movement) => movement.id === 'seed-installment-1')!, shared: true, sharedSettlementAmount: 120 }
+    data.movements = [
+      ...data.movements.map((movement) => movement.id === initial.id ? initial : movement),
+      { ...initial, id: 'duplicato-importato' },
+    ]
+    data.scheduledPayments = data.scheduledPayments.map((payment) => ({ ...payment, shared: true }))
+    render(<MovementForm data={data} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSave.mock.calls[0][0].sharedSettlementAmount).toBe(120)
+  })
+
+  it('mantiene le rate antecedenti al saldo iniziale fuori dal saldo del conto', () => {
+    let savedData = structuredClone(defaultData)
+    savedData.movements = []
+    savedData.scheduledPayments = []
+    savedData.accounts = savedData.accounts.map((account) => account.id === 'simone-bank'
+      ? { ...account, openingBalanceDate: '2026-10-20' }
+      : account)
+    const openingBalance = savedData.accounts.find((account) => account.id === 'simone-bank')!.openingBalance
+    const onSave = vi.fn((movement, additions) => {
+      savedData = saveMovementData(savedData, movement, additions)
+    })
+    render(<MovementForm data={savedData} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-07-10' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '90' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(savedData.scheduledPayments.map((payment) => payment.affectsAccountBalance)).toEqual([false, false])
+    savedData = materializeDuePayments(savedData, '2026-09-10')
+    expect(accountBalance(savedData, 'simone-bank')).toBe(openingBalance)
+  })
+
+  it('preserva il totale della prima rata quando cambia un campo non economico', () => {
+    const onSave = vi.fn()
+    const data = structuredClone(defaultData)
+    const initial = { ...data.movements.find((movement) => movement.id === 'seed-installment-1')!, shared: true, sharedSettlementAmount: 120 }
+    data.movements = data.movements.map((movement) => movement.id === initial.id ? initial : movement)
+    data.scheduledPayments = data.scheduledPayments.map((payment) => ({ ...payment, shared: true }))
+    render(<MovementForm data={data} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Descrizione aggiornata' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+    expect(onSave.mock.calls[0][0].sharedSettlementAmount).toBe(120)
   })
 
   it('keeps the original identity and submits the edited movement values', () => {

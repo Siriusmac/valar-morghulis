@@ -192,6 +192,26 @@ describe('scheduled installments', () => {
     expect(updated.movements[0].amount).toBe(20)
     expect(updated.scheduledPayments.map((item) => item.status)).toEqual(['paid', 'scheduled'])
   })
+
+  it.each([false, true])('preserva affectsAccountBalance=%s nella materializzazione', (affectsAccountBalance) => {
+    const data = cleanData()
+    data.scheduledPayments = [{
+      id: 'due', planId: 'plan', authorId: 'simone', memberId: 'simone', amount: 20, dueDate: '2026-07-18',
+      description: 'Acquisto', categoryId: 'alimentari', accountId: 'simone-card', shared: false,
+      installmentNumber: 2, installmentCount: 3, status: 'scheduled', affectsAccountBalance,
+    }]
+    expect(materializeDuePayments(data, '2026-07-18').movements[0].affectsAccountBalance).toBe(affectsAccountBalance)
+  })
+
+  it('mantiene il comportamento predefinito quando affectsAccountBalance manca', () => {
+    const data = cleanData()
+    data.scheduledPayments = [{
+      id: 'due', planId: 'plan', authorId: 'simone', memberId: 'simone', amount: 20, dueDate: '2026-07-18',
+      description: 'Acquisto', categoryId: 'alimentari', accountId: 'simone-card', shared: false,
+      installmentNumber: 2, installmentCount: 3, status: 'scheduled',
+    }]
+    expect(Object.hasOwn(materializeDuePayments(data, '2026-07-18').movements[0], 'affectsAccountBalance')).toBe(false)
+  })
 })
 
 describe('accountBalance', () => {

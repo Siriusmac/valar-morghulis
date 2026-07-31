@@ -26,6 +26,7 @@ export function materializeDuePayments(data: AppData, today: string): AppData {
         installmentNumber: payment.installmentNumber,
         installmentCount: payment.installmentCount,
         sharedSettlementAmount: payment.shared ? 0 : undefined,
+        ...(payment.affectsAccountBalance === undefined ? {} : { affectsAccountBalance: payment.affectsAccountBalance }),
         createdAt: `${payment.dueDate}T08:00:00.000Z`,
       })
       existingIds.add(movementId)
