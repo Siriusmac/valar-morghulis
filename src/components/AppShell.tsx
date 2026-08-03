@@ -21,12 +21,13 @@ interface Props {
   children: ReactNode
   page: PageId
   user: User
+  registeredUserCount?: number
   onPageChange: (page: PageId) => void
   onAddMovement: () => void
   onLogout: () => void
 }
 
-export function AppShell({ children, page, user, onPageChange, onAddMovement, onLogout }: Props) {
+export function AppShell({ children, page, user, registeredUserCount, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches)
   useEffect(() => {
@@ -46,7 +47,12 @@ export function AppShell({ children, page, user, onPageChange, onAddMovement, on
     <div className="app-shell">
       <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`} inert={mobileLayout && !menuOpen ? true : undefined} aria-hidden={mobileLayout && !menuOpen ? true : undefined}>
         <div className="sidebar__top">
-          <Brand />
+          <div className="sidebar__brand">
+            <Brand />
+            {registeredUserCount !== undefined
+              ? <small className="app-usage">{registeredUserCount} utenti stanno utilizzando questa app</small>
+              : null}
+          </div>
           <button className="icon-button sidebar__close" onClick={() => setMenuOpen(false)} aria-label="Chiudi menu"><X /></button>
         </div>
         <nav className="sidebar__nav" aria-label="Navigazione principale">

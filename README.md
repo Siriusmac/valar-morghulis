@@ -46,7 +46,8 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - esportazione completa in JSON, CSV o XML prima della cancellazione definitiva dell’account;
 - cancellazione amministrativa della famiglia, eliminando i dati condivisi oppure conservando come personali i movimenti creati da ciascun membro;
 - creazione di ulteriori famiglie; l’autore ne diventa amministratore e può rinominarle e invitare membri;
-- interfaccia italiana, euro e date italiane, ottimizzata per smartphone.
+- interfaccia italiana, euro e date italiane, ottimizzata per smartphone;
+- totale aggregato degli utenti iscritti visibile sotto il logo dopo l’accesso, senza esporre profili o dati personali;
 - guida integrata raggiungibile dal menù laterale, con introduzione, indice
   navigabile e capitoli su movimenti, condivisione, conti, anagrafiche, rate,
   rimborsi e gestione della famiglia;
@@ -67,8 +68,9 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260726110000_family_shared_records.sql` e
    `supabase/migrations/20260727100000_personal_workspace_and_deletion.sql` e
    `supabase/migrations/20260727150000_invitation_lifecycle.sql` e
-   `supabase/migrations/20260727170000_movement_senders.sql` e
-   `supabase/migrations/20260727233000_private_reimbursement_accounts.sql`;
+   `supabase/migrations/20260727170000_movement_senders.sql`,
+   `supabase/migrations/20260727233000_private_reimbursement_accounts.sql` e
+   `supabase/migrations/20260803120000_registered_user_count.sql`;
 3. pubblica la funzione `invite-family-member`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;

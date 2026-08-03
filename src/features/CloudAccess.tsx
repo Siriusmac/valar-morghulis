@@ -24,6 +24,7 @@ export interface FamilySession {
   invitations: FamilyInvitation[]
   sharedAccounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]
+  registeredUserCount?: number
   switchFamily: (familyId: string) => Promise<void>
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
@@ -185,6 +186,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
+    const registeredUserCountPromise = supabase.rpc('registered_user_count')
     const { data: profile, error: profileError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
 
@@ -194,6 +196,11 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       .eq('user_id', session.user.id)
     if (membershipError) { setError(membershipError.message); setLoading(false); return }
     const familyIds = memberships.map((item) => item.family_id)
+    const registeredUserCountResult = await registeredUserCountPromise
+    const parsedRegisteredUserCount = Number(registeredUserCountResult.data)
+    const registeredUserCount = !registeredUserCountResult.error && Number.isSafeInteger(parsedRegisteredUserCount) && parsedRegisteredUserCount >= 0
+      ? parsedRegisteredUserCount
+      : undefined
     const familiesResult = familyIds.length ? await supabase
       .from('families')
       .select('id, name, onboarding_completed')
@@ -222,6 +229,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         invitations: [],
         accounts: [],
         reimbursementAccountReferences: [],
+        registeredUserCount,
       })
       setLoading(false); return
     }
@@ -279,6 +287,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         accountId: account.account_id,
         name: account.display_name,
       })),
+      registeredUserCount,
     })
     setLoading(false)
   }, [session.user.id, supabase])
@@ -332,6 +341,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     invitations: snapshot.invitations,
     sharedAccounts: snapshot.accounts,
     reimbursementAccountReferences: snapshot.reimbursementAccountReferences,
+    registeredUserCount: snapshot.registeredUserCount,
     switchFamily: async (familyId) => { await load(familyId) },
     createFamily: async (input) => {
       const { data: familyId, error: createError } = await supabase.rpc('create_family_with_optional_account', {
@@ -794,6 +804,7 @@ interface FamilySnapshot {
   invitations: FamilyInvitation[]
   accounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]
+  registeredUserCount?: number
 }
 
 function activeFamilyKey(userId: string) {

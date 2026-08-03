@@ -1,18 +1,9 @@
 import { ArrowRight, CheckCircle2, LoaderCircle, Scale } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { Login } from './components/Login'
 import { Modal } from './components/Modal'
-import { MovementList } from './components/MovementList'
-import { Dashboard } from './features/Dashboard'
-import { GuidePage } from './features/GuidePage'
-import { MovementForm } from './features/MovementForm'
-import { MovementsPage } from './features/MovementsPage'
-import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './features/ManagementPages'
-import { ScheduledPaymentsPage } from './features/ScheduledPaymentsPage'
-import { TransferForm } from './features/TransferForm'
 import { CloudAccess, type FamilySession } from './features/CloudAccess'
-import { AccountSettings } from './features/AccountSettings'
 import { sharedBalance, visibleMovements } from './lib/calculations'
 import { formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
@@ -21,6 +12,19 @@ import { deleteMovementData, saveMovementData, type MovementAdditions } from './
 import { deleteCounterpartyData, type CounterpartyKind } from './lib/directories'
 import { cloudAuthEnabled } from './lib/supabase'
 import type { AppData, Beneficiary, Movement, PageId, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+
+const MovementList = lazy(() => import('./components/MovementList').then((module) => ({ default: module.MovementList })))
+const Dashboard = lazy(() => import('./features/Dashboard').then((module) => ({ default: module.Dashboard })))
+const GuidePage = lazy(() => import('./features/GuidePage').then((module) => ({ default: module.GuidePage })))
+const MovementForm = lazy(() => import('./features/MovementForm').then((module) => ({ default: module.MovementForm })))
+const MovementsPage = lazy(() => import('./features/MovementsPage').then((module) => ({ default: module.MovementsPage })))
+const AccountsPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.AccountsPage })))
+const BeneficiariesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.BeneficiariesPage })))
+const CategoriesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.CategoriesPage })))
+const TagsPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.TagsPage })))
+const ScheduledPaymentsPage = lazy(() => import('./features/ScheduledPaymentsPage').then((module) => ({ default: module.ScheduledPaymentsPage })))
+const TransferForm = lazy(() => import('./features/TransferForm').then((module) => ({ default: module.TransferForm })))
+const AccountSettings = lazy(() => import('./features/AccountSettings').then((module) => ({ default: module.AccountSettings })))
 
 type ModalState =
   | { type: 'movement'; movement?: Movement }
@@ -207,13 +211,19 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
   return <>
-    <AppShell page={page} user={user} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>{content}</AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} personalOnly={cloud?.personalMode} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Modal> : null}
+    <AppShell page={page} user={user} registeredUserCount={cloud ? cloud.registeredUserCount : appUsers.length} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+      <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
+    </AppShell>
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} personalOnly={cloud?.personalMode} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'transfer' ? <Modal title="Giro fondi" onClose={() => setModal(null)}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><MovementList data={data} movements={detailMovements} compact /></Modal> : null}
+    {modal?.type === 'transfer' ? <Modal title="Giro fondi" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
+    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} compact /></Suspense></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
+}
+
+function FeatureLoading({ compact = false }: { compact?: boolean }) {
+  return <div className={`feature-loading ${compact ? 'feature-loading--compact' : ''}`} role="status"><LoaderCircle className="spin" />Caricamento…</div>
 }
 
 function cloudImportKey(familyId: string, userId: string) {

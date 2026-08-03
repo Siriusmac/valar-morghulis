@@ -32,4 +32,11 @@ describe('AppShell sidebar', () => {
     expect(sidebar.hasAttribute('inert')).toBe(false)
     expect(sidebar.hasAttribute('aria-hidden')).toBe(false)
   })
+
+  it('mostra sotto il logo il totale aggregato degli utenti iscritti', () => {
+    setMobile(false)
+    render(<AppShell page="dashboard" user={users[0]} registeredUserCount={27} onPageChange={vi.fn()} onAddMovement={vi.fn()} onLogout={vi.fn()}>Contenuto</AppShell>)
+
+    expect(screen.getByText('27 utenti stanno utilizzando questa app')).toBeTruthy()
+  })
 })

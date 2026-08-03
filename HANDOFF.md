@@ -56,6 +56,8 @@ Funzioni disponibili:
 - accettazione o rifiuto esplicito da parte del destinatario prima di entrare nella famiglia;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
+- conteggio aggregato degli utenti iscritti mostrato sotto il logo agli utenti autenticati, senza accesso all’elenco globale dei profili;
+- caricamento differito delle pagine e dei moduli secondari per ridurre il bundle JavaScript iniziale;
 
 ## Decisioni di prodotto
 
@@ -113,8 +115,10 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 3 agosto 2026: lint, 116 test automatici e build
-di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
+Ultima verifica completata il 3 agosto 2026: lint, 117 test automatici e build
+di produzione. Il bundle principale è sceso da 563,64 kB a 473,39 kB grazie al
+caricamento differito e non genera più l’avviso Vite oltre 500 kB. I test coprono
+anche l’indice e i capitoli della guida, i parziali
 per categoria e beneficiario, la combinazione con le rate e la loro quota
 condivisa, ricerca e creazione contestuale di beneficiari e mittenti,
 cancellazione con riassegnazione o anagrafica vuota,
@@ -170,6 +174,10 @@ La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
 nuovi utenti. Gli utenti esistenti vengono inizializzati a partire dal nome già
 salvato e possono poi correggere entrambi i campi dalle impostazioni.
+
+La migrazione `20260803120000_registered_user_count.sql` espone agli utenti
+autenticati soltanto il totale dei profili registrati. La funzione usa privilegi
+minimi e non rende consultabile l’elenco globale degli utenti.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita
