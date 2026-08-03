@@ -2,7 +2,7 @@ import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, Recei
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
-import { formatDate, formatMoney, todayISO } from '../lib/format'
+import { addMonthsISO, formatDate, formatMoney, todayISO } from '../lib/format'
 import type { AppData, User, PageId, Reimbursement } from '../types'
 
 interface Props {
@@ -20,18 +20,26 @@ interface Props {
   }
 }
 
+const dashboardMonthFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+
 export function Dashboard({ data, user, members, onNavigate, onReimburse, onRespondReimbursement, workspace }: Props) {
+  const todayMonth = todayISO().slice(0, 7)
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
-  const [selectedMonth, setSelectedMonth] = useState(() => todayISO().slice(0, 7))
+  const [selectedMonth, setSelectedMonth] = useState(() => todayMonth)
   const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
   const shared = data.movements.filter((item) => movementHasSharedPortion(data, item)).toSorted((a, b) => b.date.localeCompare(a.date))
   const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const currentMonth = selectedMonth
+  const monthOptions = [...new Set([
+    ...Array.from({ length: 37 }, (_, index) => addMonthsISO(`${todayMonth}-01`, index - 24).slice(0, 7)),
+    ...data.movements.map((movement) => movement.date.slice(0, 7)),
+    selectedMonth,
+  ])].toSorted((a, b) => b.localeCompare(a))
   const monthDate = new Date(`${currentMonth}-01T12:00:00`)
   const monthLabel = new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(monthDate)
-  const monthAndYear = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(new Date(`${todayISO().slice(0, 7)}-01T12:00:00`))
+  const monthAndYear = dashboardMonthFormatter.format(new Date(`${todayMonth}-01T12:00:00`))
   const daysInMonth = new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)), 0).getDate()
   const dailyTotals = Array.from({ length: daysInMonth }, () => 0)
   for (const movement of shared) {
@@ -84,7 +92,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
                 <button type="button" aria-pressed={monthlyChartView === 'daily'} onClick={() => setMonthlyChartView('daily')}>Per giorno</button>
                 <button type="button" aria-pressed={monthlyChartView === 'members'} onClick={() => setMonthlyChartView('members')}>Per persona</button>
               </div>
-              <label className="month-field"><CalendarDays /><input aria-label="Mese del grafico condiviso" type="month" value={selectedMonth} onChange={(event) => event.target.value && setSelectedMonth(event.target.value)} /></label>
+              <label className="month-field"><CalendarDays /><select aria-label="Mese del grafico condiviso" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{dashboardMonthFormatter.format(new Date(`${month}-01T12:00:00`))}</option>)}</select></label>
             </div>
           </div>
           {monthlyChartView === 'daily' ? <>

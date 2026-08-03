@@ -55,6 +55,7 @@ describe('Dashboard workspace selector', () => {
     ]
     render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
 
+    expect((screen.getByLabelText('Mese del grafico condiviso') as HTMLSelectElement).tagName).toBe('SELECT')
     fireEvent.change(screen.getByLabelText('Mese del grafico condiviso'), { target: { value: '2026-06' } })
     expect(screen.getByRole('img', { name: /05 giugno: 42,00/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Per persona' }))

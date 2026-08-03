@@ -286,7 +286,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Movimenti condivisi parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     expect(onSave).toHaveBeenCalledOnce()
@@ -332,7 +332,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Movimenti condivisi parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
 
     expect(screen.getByLabelText('Importo parziale 1')).toBeTruthy()
@@ -354,7 +354,7 @@ describe('MovementForm', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '12,50' } })
-    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Movimenti condivisi parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
     const [movement] = onSave.mock.calls[0]

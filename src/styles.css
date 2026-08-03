@@ -340,7 +340,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .tabs .tab-income.active { color: var(--positive); border-color: var(--positive); }
 .month-field { height: 40px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: white; }
 .month-field svg { width: 16px; color: var(--muted); }
-.month-field input { border: 0; background: transparent; color: var(--ink); font-size: 11px; outline: 0; }
+.month-field input, .month-field select { border: 0; background: transparent; color: var(--ink); font-size: 11px; outline: 0; }
+.month-field select { min-width: 128px; }
 .donut-section { padding: 28px 0 34px; border-bottom: 1px solid var(--line); }
 .donut-section > h2 { font-size: 22px; margin-bottom: 20px; }
 .donut-layout { display: grid; grid-template-columns: 260px minmax(300px, 520px); gap: 44px; align-items: center; }
