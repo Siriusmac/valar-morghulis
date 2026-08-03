@@ -1,7 +1,8 @@
-import type { AppData, Movement, MovementType, Reimbursement, UserId } from '../types'
+import type { AppData, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
 
 export interface MovementAllocation {
   categoryId: string
+  beneficiaryId?: string
   amount: number
   shared: boolean
 }
@@ -10,21 +11,29 @@ function roundMoney(value: number) {
   return Math.round(value * 100) / 100
 }
 
-export function movementAllocations(movement: Movement): MovementAllocation[] {
+interface AllocationSource {
+  amount: number
+  categoryId: string
+  beneficiaryId?: string
+  shared: boolean
+  splits?: MovementSplit[]
+}
+
+export function movementAllocations(movement: AllocationSource): MovementAllocation[] {
   const splits = (movement.splits ?? [])
     .filter((item) => Number.isFinite(item.amount) && item.amount > 0 && item.categoryId)
-    .map((item) => ({ categoryId: item.categoryId, amount: roundMoney(item.amount), shared: item.shared }))
+    .map((item) => ({ categoryId: item.categoryId, beneficiaryId: item.beneficiaryId, amount: roundMoney(item.amount), shared: item.shared }))
   const splitTotal = splits.reduce((sum, item) => sum + item.amount, 0)
   const remainder = roundMoney(Math.max(0, movement.amount - splitTotal))
   return [
-    ...(remainder > 0 ? [{ categoryId: movement.categoryId, amount: remainder, shared: movement.shared }] : []),
+    ...(remainder > 0 ? [{ categoryId: movement.categoryId, beneficiaryId: movement.beneficiaryId, amount: remainder, shared: movement.shared }] : []),
     ...splits,
   ]
 }
 
 export function sharedMovementAmount(movement: Movement) {
-  if (!movement.splits?.length && movement.sharedSettlementAmount !== undefined) {
-    return movement.shared ? movement.sharedSettlementAmount : 0
+  if (movement.sharedSettlementAmount !== undefined) {
+    return movement.shared || movement.splits?.some((item) => item.shared) ? movement.sharedSettlementAmount : 0
   }
   return roundMoney(movementAllocations(movement)
     .filter((item) => item.shared)

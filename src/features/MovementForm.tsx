@@ -1,7 +1,7 @@
 import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
-import { addMonthsISO, makeId, splitAmount, todayISO } from '../lib/format'
+import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   user: User
   otherName?: string
   memberCount?: number
-  onSave: (movement: Movement, additions: { category?: Category; beneficiary?: Beneficiary; sender?: Sender; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
+  onSave: (movement: Movement, additions: { category?: Category; categories?: Category[]; beneficiary?: Beneficiary; beneficiaries?: Beneficiary[]; sender?: Sender; tag?: Tag; scheduledPayments?: ScheduledPayment[] }) => void
   onCancel: () => void
   onDelete?: (id: string) => void
   initial?: Movement
@@ -17,7 +17,11 @@ interface Props {
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
-type SplitDraft = Omit<MovementSplit, 'amount'> & { amount: string }
+type SplitDraft = Omit<MovementSplit, 'amount'> & {
+  amount: string
+  categoryQuery: string
+  beneficiaryQuery: string
+}
 
 function findByName<T extends { name: string }>(items: T[], value: string) {
   const normalized = value.trim().toLocaleLowerCase('it-IT')
@@ -53,7 +57,12 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [tagId, setTagId] = useState(initial?.tagId ?? '')
   const [newTag, setNewTag] = useState('')
   const [splitsEnabled, setSplitsEnabled] = useState(Boolean(initial?.splits?.length))
-  const [splits, setSplits] = useState<SplitDraft[]>(() => (initial?.splits ?? []).map((item) => ({ ...item, amount: item.amount.toString() })))
+  const [splits, setSplits] = useState<SplitDraft[]>(() => (initial?.splits ?? []).map((item) => ({
+    ...item,
+    amount: item.amount.toString(),
+    categoryQuery: data.categories.find((category) => category.id === item.categoryId)?.name ?? '',
+    beneficiaryQuery: data.beneficiaries.find((beneficiary) => beneficiary.id === item.beneficiaryId)?.name ?? '',
+  })))
   const [installmentsEnabled, setInstallmentsEnabled] = useState(false)
   const [installmentCount, setInstallmentCount] = useState(3)
   const [provider, setProvider] = useState('PayPal')
@@ -71,8 +80,15 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const senderMissing = type === 'income' && !senderQuery.trim() && (!initial || initial.type !== 'income')
 
   const addSplit = () => {
-    const fallbackCategory = categories.find((item) => item.id !== categoryId) ?? categories[0]
-    setSplits((items) => [...items, { id: makeId('movement-split'), amount: '', categoryId: fallbackCategory?.id ?? '', shared: false }])
+    setSplits((items) => [...items, {
+      id: makeId('movement-split'),
+      amount: '',
+      categoryId: '',
+      categoryQuery: '',
+      beneficiaryId: undefined,
+      beneficiaryQuery: '',
+      shared: false,
+    }])
   }
 
   const changeCategoryQuery = (value: string) => {
@@ -92,6 +108,14 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
 
   const updateSplit = (id: string, patch: Partial<SplitDraft>) => {
     setSplits((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item))
+  }
+
+  const changeSplitCategoryQuery = (id: string, value: string) => {
+    updateSplit(id, { categoryQuery: value, categoryId: findByName(categories, value)?.id ?? '' })
+  }
+
+  const changeSplitBeneficiaryQuery = (id: string, value: string) => {
+    updateSplit(id, { beneficiaryQuery: value, beneficiaryId: findByName(beneficiaries, value)?.id })
   }
 
   const changeType = (nextType: MovementType) => {
@@ -153,7 +177,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     const senderName = senderQuery.trim()
     const invalidSplits = splitsEnabled && (
       splits.length === 0
-      || splits.some((item) => !item.categoryId || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0)
+      || splits.some((item) => !item.categoryQuery.trim() || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0)
       || splitTotal > numericAmount
     )
     if (!numericAmount || numericAmount <= 0 || !accountId || !categoryName || beneficiaryMissing || senderMissing || invalidSplits) return
@@ -191,14 +215,58 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       ]
         .reduce((total, item) => total + item.amount, 0)
       : initial?.sharedSettlementAmount
+    const newSplitCategories: Category[] = []
+    const newSplitBeneficiaries: Beneficiary[] = []
     const resolvedSplits = type === 'expense' && splitsEnabled
-      ? splits.map((item) => ({
-        id: item.id,
-        amount: Math.round(Number(item.amount.replace(',', '.')) * 100) / 100,
-        categoryId: item.categoryId,
-        shared: selectedAccount?.scope === 'family' || item.shared,
-      }))
+      ? splits.map((item) => {
+        const categoryName = item.categoryQuery.trim()
+        const beneficiaryName = item.beneficiaryQuery.trim()
+        let resolvedSplitCategory = findByName(categories, categoryName) ?? findByName(newSplitCategories, categoryName)
+        if (!resolvedSplitCategory && category?.name.toLocaleLowerCase('it-IT') === categoryName.toLocaleLowerCase('it-IT')) resolvedSplitCategory = category
+        if (!resolvedSplitCategory) {
+          resolvedSplitCategory = {
+            id: makeId('category'),
+            name: categoryName,
+            scope: selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal',
+            ownerId: selectedAccount?.scope === 'family' || item.shared ? undefined : user.id,
+            movementType: 'expense',
+            color: '#c64e2f',
+          }
+          newSplitCategories.push(resolvedSplitCategory)
+        }
+        let resolvedSplitBeneficiary = beneficiaryName
+          ? findByName(beneficiaries, beneficiaryName) ?? findByName(newSplitBeneficiaries, beneficiaryName)
+          : undefined
+        if (!resolvedSplitBeneficiary && beneficiary?.name.toLocaleLowerCase('it-IT') === beneficiaryName.toLocaleLowerCase('it-IT')) resolvedSplitBeneficiary = beneficiary
+        if (beneficiaryName && !resolvedSplitBeneficiary) {
+          resolvedSplitBeneficiary = {
+            id: makeId('beneficiary'),
+            name: beneficiaryName,
+            scope: selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal',
+            ownerId: selectedAccount?.scope === 'family' || item.shared ? undefined : user.id,
+          }
+          newSplitBeneficiaries.push(resolvedSplitBeneficiary)
+        }
+        return {
+          id: item.id,
+          amount: Math.round(Number(item.amount.replace(',', '.')) * 100) / 100,
+          categoryId: resolvedSplitCategory.id,
+          beneficiaryId: resolvedSplitBeneficiary?.id,
+          shared: selectedAccount?.scope === 'family' || item.shared,
+        }
+      })
       : undefined
+    const installmentAllocations = shouldInstall && resolvedSplits
+      ? splitAllocationsAcrossInstallments([mainRemainder, ...resolvedSplits.map((item) => item.amount)], amounts)
+      : undefined
+    const splitsForInstallment = (index: number) => resolvedSplits?.map((item, splitIndex) => ({
+      ...item,
+      amount: installmentAllocations?.[index]?.[splitIndex + 1] ?? item.amount,
+    }))
+    const sharedPurchaseAmount = Math.round((
+      (effectivelyShared ? mainRemainder : 0)
+      + (resolvedSplits ?? []).filter((item) => item.shared).reduce((sum, item) => sum + item.amount, 0)
+    ) * 100) / 100
     const scheduledPayments: ScheduledPayment[] = shouldInstall ? amounts.slice(1).map((installmentAmount, index) => {
       const dueDate = addMonthsISO(date, index + 1)
       return {
@@ -215,6 +283,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
         tagId: resolvedTagId,
         comments: resolvedComments,
         shared: effectivelyShared,
+        splits: splitsForInstallment(index + 1),
         provider: resolvedProvider,
         installmentNumber: index + 2,
         installmentCount,
@@ -237,15 +306,15 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       tagId: resolvedTagId,
       comments: resolvedComments,
       shared: effectivelyShared,
-      splits: resolvedSplits,
+      splits: shouldInstall ? splitsForInstallment(0) : resolvedSplits,
       installmentPlanId: planId ?? initial?.installmentPlanId,
       installmentProvider: resolvedProvider ?? initial?.installmentProvider,
       installmentNumber: shouldInstall ? 1 : initial?.installmentNumber,
       installmentCount: shouldInstall ? installmentCount : initial?.installmentCount,
-      sharedSettlementAmount: shouldInstall && effectivelyShared ? numericAmount : editedInstallmentSettlementAmount,
+      sharedSettlementAmount: shouldInstall && sharedPurchaseAmount > 0 ? sharedPurchaseAmount : editedInstallmentSettlementAmount,
       affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
-    }, { category, beneficiary, sender, tag, scheduledPayments })
+    }, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag, scheduledPayments })
   }
 
   return <form className="expense-form movement-form" onSubmit={submit}>
@@ -268,12 +337,11 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}
       <label>Data<input type="date" value={date} onChange={(e) => changeDate(e.target.value)} required /></label>
     </div>
-    {type === 'expense' && !initial?.installmentPlanId ? <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
+    {type === 'expense' ? <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
       <label className="split-selector">Suddivisione per categorie<select value={splitsEnabled ? 'split' : 'single'} onChange={(e) => {
         const enabled = e.target.value === 'split'
         setSplitsEnabled(enabled)
         if (enabled) {
-          setInstallmentsEnabled(false)
           if (!splits.length) addSplit()
         } else {
           setSplits([])
@@ -282,14 +350,15 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       {splitsEnabled ? <div className="split-editor">
         <div className="split-editor__intro"><div><strong>Parziali dello scontrino</strong><small>Ogni parziale viene sottratto dalla categoria principale.</small></div><button className="button button--ghost" type="button" onClick={addSplit}><Plus />Aggiungi parziale</button></div>
         {splits.map((item, index) => <div className="split-row" key={item.id}>
-          <label>Importo parziale<input aria-label={`Importo parziale ${index + 1}`} inputMode="decimal" placeholder="0,00" value={item.amount} onChange={(e) => updateSplit(item.id, { amount: e.target.value })} /></label>
-          <label>Categoria<select aria-label={`Categoria parziale ${index + 1}`} value={item.categoryId} onChange={(e) => updateSplit(item.id, { categoryId: e.target.value })}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-          <label>Contabilità<select aria-label={`Contabilità parziale ${index + 1}`} value={selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(e) => updateSplit(item.id, { shared: e.target.value === 'family' })}><option value="personal">Personale</option><option value="family">Condivisa</option></select></label>
+          <label className="split-row__amount">Importo parziale<input aria-label={`Importo parziale ${index + 1}`} inputMode="decimal" placeholder="0,00" value={item.amount} onChange={(e) => updateSplit(item.id, { amount: e.target.value })} /></label>
+          <CreatableLookup className="split-row__category" label={`Categoria parziale ${index + 1}`} value={item.categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={(value) => changeSplitCategoryQuery(item.id, value)} />
+          <CreatableLookup className="split-row__beneficiary" label={`Beneficiario parziale ${index + 1}`} value={item.beneficiaryQuery} options={beneficiaries} placeholder="Inserisci beneficiario" onChange={(value) => changeSplitBeneficiaryQuery(item.id, value)} />
+          <label className="split-row__sharing">Contabilità<select aria-label={`Contabilità parziale ${index + 1}`} value={selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(e) => updateSplit(item.id, { shared: e.target.value === 'family' })}><option value="personal">Personale</option><option value="family">Condivisa</option></select></label>
           <button className="icon-button icon-button--danger split-row__remove" type="button" title={`Elimina parziale ${index + 1}`} onClick={() => setSplits((items) => items.filter((entry) => entry.id !== item.id))}><Trash2 /></button>
         </div>)}
         <div className={`split-remainder ${splitTotal > numericAmount ? 'split-remainder--error' : ''}`}><span>Residuo nella categoria principale</span><strong>€ {mainRemainder.toFixed(2).replace('.', ',')}</strong></div>
         {submitted && splits.length === 0 ? <small className="field-error">Aggiungi almeno un parziale.</small> : null}
-        {submitted && splits.some((item) => !item.categoryId || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0) ? <small className="field-error">Completa tutti i parziali con categoria e importo valido.</small> : null}
+        {submitted && splits.some((item) => !item.categoryQuery.trim() || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0) ? <small className="field-error">Completa tutti i parziali con categoria e importo valido.</small> : null}
         {splitTotal > numericAmount ? <small className="field-error">La somma dei parziali non può superare l’importo totale.</small> : null}
       </div> : null}
     </section> : null}
@@ -301,14 +370,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     </fieldset> : null}
     {type === 'expense' && !initial ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" onClick={() => {
-        setInstallmentsEnabled((value) => {
-          const enabled = !value
-          if (enabled) {
-            setSplitsEnabled(false)
-            setSplits([])
-          }
-          return enabled
-        })
+        setInstallmentsEnabled((value) => !value)
       }}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}

@@ -13,9 +13,10 @@ interface Props {
   placeholder: string
   onChange: (value: string) => void
   error?: string
+  className?: string
 }
 
-export function CreatableLookup({ label, value, options, placeholder, onChange, error }: Props) {
+export function CreatableLookup({ label, value, options, placeholder, onChange, error, className }: Props) {
   const inputId = useId()
   const listId = useId()
   const errorId = useId()
@@ -40,7 +41,7 @@ export function CreatableLookup({ label, value, options, placeholder, onChange, 
     setActiveIndex(-1)
   }
 
-  return <div className="lookup-field">
+  return <div className={`lookup-field${className ? ` ${className}` : ''}`}>
     <label htmlFor={inputId}>{label}</label>
     <span className="lookup-field__control">
       <Search aria-hidden="true" />

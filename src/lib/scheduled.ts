@@ -21,11 +21,12 @@ export function materializeDuePayments(data: AppData, today: string): AppData {
         tagId: payment.tagId,
         comments: payment.comments,
         shared: payment.shared,
+        splits: payment.splits,
         installmentPlanId: payment.planId,
         installmentProvider: payment.provider,
         installmentNumber: payment.installmentNumber,
         installmentCount: payment.installmentCount,
-        sharedSettlementAmount: payment.shared ? 0 : undefined,
+        sharedSettlementAmount: payment.shared || payment.splits?.some((split) => split.shared) ? 0 : undefined,
         ...(payment.affectsAccountBalance === undefined ? {} : { affectsAccountBalance: payment.affectsAccountBalance }),
         createdAt: `${payment.dueDate}T08:00:00.000Z`,
       })

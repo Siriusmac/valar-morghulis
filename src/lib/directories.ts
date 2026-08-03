@@ -23,11 +23,15 @@ export function deleteCounterpartyData(
     ...data,
     beneficiaries: data.beneficiaries.filter((item) => item.id !== itemId),
     deletedBeneficiaryIds: [...new Set([...(data.deletedBeneficiaryIds ?? []), itemId])],
-    movements: data.movements.map((movement) => movement.beneficiaryId === itemId
-      ? { ...movement, beneficiaryId: replacementId }
-      : movement),
-    scheduledPayments: data.scheduledPayments.map((payment) => payment.beneficiaryId === itemId
-      ? { ...payment, beneficiaryId: replacementId }
-      : payment),
+    movements: data.movements.map((movement) => ({
+      ...movement,
+      beneficiaryId: movement.beneficiaryId === itemId ? replacementId : movement.beneficiaryId,
+      splits: movement.splits?.map((split) => split.beneficiaryId === itemId ? { ...split, beneficiaryId: replacementId } : split),
+    })),
+    scheduledPayments: data.scheduledPayments.map((payment) => ({
+      ...payment,
+      beneficiaryId: payment.beneficiaryId === itemId ? replacementId : payment.beneficiaryId,
+      splits: payment.splits?.map((split) => split.beneficiaryId === itemId ? { ...split, beneficiaryId: replacementId } : split),
+    })),
   }
 }

@@ -31,3 +31,27 @@ export function splitAmount(value: number, count: number) {
   const remainder = cents - base * count
   return Array.from({ length: count }, (_, index) => (base + (index === count - 1 ? remainder : 0)) / 100)
 }
+
+export function splitAllocationsAcrossInstallments(allocationAmounts: number[], installmentAmounts: number[]) {
+  const remaining = allocationAmounts.map((amount) => Math.round(amount * 100))
+  const installmentCents = installmentAmounts.map((amount) => Math.round(amount * 100))
+  return installmentCents.map((installment, installmentIndex) => {
+    if (installmentIndex === installmentCents.length - 1) return remaining.map((amount) => amount / 100)
+    const remainingTotal = remaining.reduce((sum, amount) => sum + amount, 0)
+    if (!remainingTotal) return remaining.map(() => 0)
+    const exact = remaining.map((amount) => (amount * installment) / remainingTotal)
+    const row = exact.map((amount, index) => Math.min(remaining[index], Math.floor(amount)))
+    let centsToAssign = installment - row.reduce((sum, amount) => sum + amount, 0)
+    const priority = exact
+      .map((amount, index) => ({ index, fraction: amount - Math.floor(amount) }))
+      .toSorted((a, b) => b.fraction - a.fraction || a.index - b.index)
+    for (const { index } of priority) {
+      if (!centsToAssign) break
+      if (row[index] >= remaining[index]) continue
+      row[index] += 1
+      centsToAssign -= 1
+    }
+    row.forEach((amount, index) => { remaining[index] -= amount })
+    return row.map((amount) => amount / 100)
+  })
+}

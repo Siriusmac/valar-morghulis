@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowRight, Check, Clock3, Landmark, ReceiptText, Scale, UserRound, WalletCards, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, ReceiptText, Scale, UserRound, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
@@ -22,16 +22,16 @@ interface Props {
 
 export function Dashboard({ data, user, members, onNavigate, onReimburse, onRespondReimbursement, workspace }: Props) {
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
+  const [selectedMonth, setSelectedMonth] = useState(() => todayISO().slice(0, 7))
   const balance = sharedBalance(data, user.id, members.length)
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
   const shared = data.movements.filter((item) => movementHasSharedPortion(data, item)).toSorted((a, b) => b.date.localeCompare(a.date))
   const ownAccounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
-  const today = todayISO()
-  const currentMonth = today.slice(0, 7)
+  const currentMonth = selectedMonth
   const monthDate = new Date(`${currentMonth}-01T12:00:00`)
   const monthLabel = new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(monthDate)
-  const monthAndYear = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(monthDate)
+  const monthAndYear = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(new Date(`${todayISO().slice(0, 7)}-01T12:00:00`))
   const daysInMonth = new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)), 0).getDate()
   const dailyTotals = Array.from({ length: daysInMonth }, () => 0)
   for (const movement of shared) {
@@ -79,9 +79,12 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
         <div className="monthly-chart">
           <div className="monthly-chart__heading">
             <div className="section-title-row"><div><h2>Spese condivise del mese</h2><p>{formatMoney(monthlyTotal)} complessivi</p></div><span>{monthLabel}</span></div>
-            <div className="monthly-chart__switch" role="group" aria-label="Visualizzazione del grafico mensile">
-              <button type="button" aria-pressed={monthlyChartView === 'daily'} onClick={() => setMonthlyChartView('daily')}>Per giorno</button>
-              <button type="button" aria-pressed={monthlyChartView === 'members'} onClick={() => setMonthlyChartView('members')}>Per persona</button>
+            <div className="monthly-chart__controls">
+              <div className="monthly-chart__switch" role="group" aria-label="Visualizzazione del grafico mensile">
+                <button type="button" aria-pressed={monthlyChartView === 'daily'} onClick={() => setMonthlyChartView('daily')}>Per giorno</button>
+                <button type="button" aria-pressed={monthlyChartView === 'members'} onClick={() => setMonthlyChartView('members')}>Per persona</button>
+              </div>
+              <label className="month-field"><CalendarDays /><input aria-label="Mese del grafico condiviso" type="month" value={selectedMonth} onChange={(event) => event.target.value && setSelectedMonth(event.target.value)} /></label>
             </div>
           </div>
           {monthlyChartView === 'daily' ? <>

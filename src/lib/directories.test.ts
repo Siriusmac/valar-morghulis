@@ -20,6 +20,17 @@ describe('counterparty deletion', () => {
     expect(updated.movements.find((item) => item.id === 'seed-1')?.beneficiaryId).toBeUndefined()
   })
 
+  it('reassigns beneficiaries used by movement and scheduled-payment partials', () => {
+    const data = structuredClone(defaultData)
+    data.movements[0].splits = [{ id: 'partial', amount: 10, categoryId: 'alimentari', beneficiaryId: 'amazon', shared: true }]
+    data.scheduledPayments[0].splits = [{ id: 'future-partial', amount: 5, categoryId: 'alimentari', beneficiaryId: 'amazon', shared: true }]
+
+    const updated = deleteCounterpartyData(data, 'beneficiary', 'amazon', 'lidl')
+
+    expect(updated.movements[0].splits?.[0].beneficiaryId).toBe('lidl')
+    expect(updated.scheduledPayments[0].splits?.[0].beneficiaryId).toBe('lidl')
+  })
+
   it('keeps a deleted starter beneficiary removed after hydration', () => {
     const updated = deleteCounterpartyData(structuredClone(defaultData), 'beneficiary', 'lidl')
     const hydrated = hydrateData(updated, structuredClone(defaultData))

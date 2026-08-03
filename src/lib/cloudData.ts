@@ -61,14 +61,38 @@ function sanitizedSharedMovement(data: AppData, movement: Movement): Movement | 
     ...structuredClone(movement),
     amount,
     categoryId: primary.categoryId,
+    beneficiaryId: primary.beneficiaryId,
     shared: true,
     splits: partials.map((item, index) => ({
       id: `${movement.id}-shared-${index + 1}`,
       amount: item.amount,
       categoryId: item.categoryId,
+      beneficiaryId: item.beneficiaryId,
       shared: true,
     })),
-    sharedSettlementAmount: undefined,
+    sharedSettlementAmount: movement.sharedSettlementAmount,
+    affectsAccountBalance: false,
+  }
+}
+
+function sanitizedSharedPayment(payment: ScheduledPayment): ScheduledPayment | null {
+  if (payment.shared && !payment.splits?.length) return structuredClone(payment)
+  const sharedAllocations = movementAllocations(payment).filter((item) => item.shared)
+  if (!sharedAllocations.length) return null
+  const [primary, ...partials] = sharedAllocations
+  return {
+    ...structuredClone(payment),
+    amount: Math.round(sharedAllocations.reduce((sum, item) => sum + item.amount, 0) * 100) / 100,
+    categoryId: primary.categoryId,
+    beneficiaryId: primary.beneficiaryId,
+    shared: true,
+    splits: partials.map((item, index) => ({
+      id: `${payment.id}-shared-${index + 1}`,
+      amount: item.amount,
+      categoryId: item.categoryId,
+      beneficiaryId: item.beneficiaryId,
+      shared: true,
+    })),
     affectsAccountBalance: false,
   }
 }
@@ -79,14 +103,18 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
   const senderIds = new Set<string>()
   const tagIds = new Set<string>()
   for (const movement of movements) {
-    for (const allocation of movementAllocations(movement)) categoryIds.add(allocation.categoryId)
-    if (movement.beneficiaryId) beneficiaryIds.add(movement.beneficiaryId)
+    for (const allocation of movementAllocations(movement)) {
+      categoryIds.add(allocation.categoryId)
+      if (allocation.beneficiaryId) beneficiaryIds.add(allocation.beneficiaryId)
+    }
     if (movement.senderId) senderIds.add(movement.senderId)
     if (movement.tagId) tagIds.add(movement.tagId)
   }
   for (const payment of scheduledPayments) {
-    categoryIds.add(payment.categoryId)
-    if (payment.beneficiaryId) beneficiaryIds.add(payment.beneficiaryId)
+    for (const allocation of movementAllocations(payment)) {
+      categoryIds.add(allocation.categoryId)
+      if (allocation.beneficiaryId) beneficiaryIds.add(allocation.beneficiaryId)
+    }
     if (payment.tagId) tagIds.add(payment.tagId)
   }
   return { categoryIds, beneficiaryIds, senderIds, tagIds }
@@ -100,7 +128,12 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       const shared = sanitizedSharedMovement(data, item)
       return shared ? [shared] : []
     })
-  const ownSharedPayments = data.scheduledPayments.filter((item) => item.authorId === userId && item.shared)
+  const ownSharedPayments = data.scheduledPayments
+    .filter((item) => item.authorId === userId)
+    .flatMap((item) => {
+      const shared = sanitizedSharedPayment(item)
+      return shared ? [shared] : []
+    })
   const ownSharedReimbursements = data.reimbursements.filter((item) => item.authorId === userId)
   const ownSharedTransfers = data.transfers.filter((item) => item.authorId === userId && (familyAccountIds.has(item.fromAccountId) || familyAccountIds.has(item.toAccountId)))
   const familyMovementIds = new Set(ownSharedMovements.map((item) => item.id))

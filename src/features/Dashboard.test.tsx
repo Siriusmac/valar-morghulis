@@ -48,6 +48,19 @@ describe('Dashboard workspace selector', () => {
     expect(screen.getByText('Sono escluse le spese pagate direttamente con un conto condiviso.')).toBeTruthy()
   })
 
+  it('changes the month used by both shared-expense chart views', () => {
+    const data = structuredClone(defaultData)
+    data.movements = [
+      { ...data.movements[0], id: 'june', amount: 42, date: '2026-06-05', accountId: 'simone-bank', memberId: 'simone', authorId: 'simone', shared: true },
+    ]
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Mese del grafico condiviso'), { target: { value: '2026-06' } })
+    expect(screen.getByRole('img', { name: /05 giugno: 42,00/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Per persona' }))
+    expect(screen.getByRole('img', { name: /Simone: 42,00/ })).toBeTruthy()
+  })
+
   it('lets the counterparty choose their account and confirm a pending reimbursement', async () => {
     const data = structuredClone(defaultData)
     data.reimbursements = [{

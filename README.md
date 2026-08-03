@@ -13,7 +13,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - iscrizione e accesso tramite email e password;
 - entrate e spese personali private, oppure condivise con la famiglia;
 - grafici mensili per categoria su spese, entrate e movimenti condivisi;
-- grafico giornaliero della bacheca calcolato sulle spese condivise del mese corrente;
+- grafico della bacheca navigabile per mese, alternabile tra spese condivise per giorno e per persona;
 - confronto mensile in bacheca degli importi anticipati da ciascun membro per le spese condivise, escludendo i pagamenti effettuati direttamente da un conto condiviso;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
@@ -28,13 +28,13 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
-- suddivisione facoltativa di uno scontrino in più categorie, con parziali personali o condivisi indipendenti e residuo automatico sulla categoria principale;
+- suddivisione facoltativa di uno scontrino in più categorie, con categoria e beneficiario ricercabili o creabili per ogni parziale, quote personali o condivise indipendenti e residuo automatico sulla categoria principale;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
-- spese in 3 o 5 rate con prima rata immediata e pagamenti successivi programmati;
+- spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata e pagamenti successivi programmati;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;

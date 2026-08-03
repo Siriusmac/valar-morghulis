@@ -59,6 +59,21 @@ describe('family cloud persistence', () => {
     expect(payload.familyPrivateData.movements[0]).toEqual(movement)
   })
 
+  it('publishes only shared partials of a future installment', () => {
+    const data = structuredClone(defaultData)
+    data.scheduledPayments = [{
+      ...data.scheduledPayments[0],
+      amount: 30,
+      shared: false,
+      splits: [{ id: 'future-shared', amount: 10, categoryId: 'accessori-casa', beneficiaryId: 'eurospar', shared: true }],
+    }]
+
+    const payload = buildCloudPersistence(data, 'simone')
+    const payment = payload.sharedRecords.find((item) => item.type === 'scheduled_payment')?.data as { amount: number; categoryId: string; beneficiaryId?: string }
+
+    expect(payment).toMatchObject({ amount: 10, categoryId: 'accessori-casa', beneficiaryId: 'eurospar' })
+  })
+
   it('keeps the author full copy when private and shared records have the same id', () => {
     const data = structuredClone(defaultData)
     const payload = buildCloudPersistence(data, 'simone')

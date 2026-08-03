@@ -58,6 +58,7 @@ export interface MovementSplit {
   id: string
   amount: number
   categoryId: string
+  beneficiaryId?: string
   shared: boolean
 }
 
@@ -100,6 +101,7 @@ export interface ScheduledPayment {
   tagId?: string
   comments?: string
   shared: boolean
+  splits?: MovementSplit[]
   provider?: string
   installmentNumber: number
   installmentCount: number

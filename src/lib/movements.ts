@@ -2,7 +2,9 @@ import type { AppData, Beneficiary, Category, Movement, ScheduledPayment, Sender
 
 export interface MovementAdditions {
   category?: Category
+  categories?: Category[]
   beneficiary?: Beneficiary
+  beneficiaries?: Beneficiary[]
   sender?: Sender
   tag?: Tag
   scheduledPayments?: ScheduledPayment[]
@@ -31,14 +33,20 @@ export function saveMovementData(current: AppData, movement: Movement, additions
           tagId: movement.tagId,
           comments: movement.comments,
           shared: movement.shared,
+          splits: movement.splits ? payment.splits?.map((split, index) => ({
+            ...split,
+            categoryId: movement.splits?.[index]?.categoryId ?? split.categoryId,
+            beneficiaryId: movement.splits?.[index]?.beneficiaryId,
+            shared: movement.splits?.[index]?.shared ?? split.shared,
+          })) : undefined,
         }
       : payment)
   }
 
   return {
     ...current,
-    categories: additions.category ? [...current.categories, additions.category] : current.categories,
-    beneficiaries: additions.beneficiary ? [...current.beneficiaries, additions.beneficiary] : current.beneficiaries,
+    categories: appendUnique(current.categories, [additions.category, ...(additions.categories ?? [])]),
+    beneficiaries: appendUnique(current.beneficiaries, [additions.beneficiary, ...(additions.beneficiaries ?? [])]),
     senders: additions.sender ? [...current.senders, additions.sender] : current.senders,
     tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
     scheduledPayments,
@@ -46,6 +54,12 @@ export function saveMovementData(current: AppData, movement: Movement, additions
       ? replaceMovementAndRemoveDuplicates(current.movements, movement, matchesMovement)
       : [movement, ...current.movements],
   }
+}
+
+function appendUnique<T extends { id: string }>(current: T[], additions: Array<T | undefined>) {
+  const existing = new Set(current.map((item) => item.id))
+  const defined = additions.filter((item): item is T => item !== undefined)
+  return [...current, ...defined.filter((item) => !existing.has(item.id))]
 }
 
 export function deleteMovementData(current: AppData, movementId: string): AppData {

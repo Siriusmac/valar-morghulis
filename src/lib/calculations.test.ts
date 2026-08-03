@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
 import { accountBalance, movementAllocations, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
-import { addMonthsISO, splitAmount } from './format'
+import { addMonthsISO, splitAllocationsAcrossInstallments, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
 
@@ -132,8 +132,8 @@ describe('movement category splits', () => {
       splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: false }],
     }
     expect(movementAllocations(movement)).toEqual([
-      { categoryId: 'alimentari', amount: 70, shared: true },
-      { categoryId: 'accessori-casa', amount: 30, shared: false },
+      { categoryId: 'alimentari', beneficiaryId: 'lidl', amount: 70, shared: true },
+      { categoryId: 'accessori-casa', beneficiaryId: undefined, amount: 30, shared: false },
     ])
     expect(totalsByCategory(data, [movement]).map((item) => [item.category?.id, item.total])).toEqual([
       ['alimentari', 70],
@@ -151,6 +151,23 @@ describe('movement category splits', () => {
     expect(totalsByCategory(data, [movement], true).map((item) => [item.category?.id, item.total])).toEqual([
       ['accessori-casa', 30],
     ])
+  })
+
+  it('distributes every category across installments without losing cents', () => {
+    const rows = splitAllocationsAcrossInstallments([70, 30], splitAmount(100, 3))
+    expect(rows.map((row) => Math.round(row.reduce((sum, amount) => sum + amount, 0) * 100) / 100)).toEqual([33.33, 33.33, 33.34])
+    expect(rows[0][0] + rows[1][0] + rows[2][0]).toBe(70)
+    expect(rows[0][1] + rows[1][1] + rows[2][1]).toBe(30)
+  })
+
+  it('does not retain an installment settlement after every shared flag is removed', () => {
+    const movement = {
+      ...expense('private-installment', 'simone', 30, 'simone-bank'),
+      shared: false,
+      sharedSettlementAmount: 90,
+      splits: [{ id: 'private', amount: 10, categoryId: 'accessori-casa', shared: false }],
+    }
+    expect(sharedBalance({ ...cleanData(), movements: [movement] }, 'simone')).toBe(0)
   })
 })
 

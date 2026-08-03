@@ -285,7 +285,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
     fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'accessori-casa' } })
+    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
     fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -296,6 +296,53 @@ describe('MovementForm', () => {
       categoryId: 'alimentari',
       splits: [{ amount: 30, categoryId: 'accessori-casa', shared: true }],
     })
+  })
+
+  it('creates missing category and beneficiary from a partial row', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '20' } })
+    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Prodotti animali' } })
+    expect(screen.getByRole('option', { name: 'Crea “Prodotti animali”' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Beneficiario parziale 1'), { target: { value: 'Negozio animali' } })
+    expect(screen.getByRole('option', { name: 'Crea “Negozio animali”' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(additions.categories[0].name).toBe('Prodotti animali')
+    expect(additions.beneficiaries[0].name).toBe('Negozio animali')
+    expect(movement.splits[0]).toMatchObject({
+      categoryId: additions.categories[0].id,
+      beneficiaryId: additions.beneficiaries[0].id,
+    })
+  })
+
+  it('keeps category splits when an expense is paid in installments', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Suddivisione per categorie'), { target: { value: 'split' } })
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
+    fireEvent.change(screen.getByLabelText('Contabilità parziale 1'), { target: { value: 'family' } })
+    fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
+
+    expect(screen.getByLabelText('Importo parziale 1')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(movement.amount).toBe(33.33)
+    expect(movement.splits[0]).toMatchObject({ categoryId: 'accessori-casa', amount: 10 })
+    expect(additions.scheduledPayments.map((payment: { splits?: Array<{ amount: number }> }) => payment.splits?.[0].amount)).toEqual([10, 10])
+    expect(movement.sharedSettlementAmount).toBe(100)
   })
 
   it('keeps split partials editable on an existing movement', () => {

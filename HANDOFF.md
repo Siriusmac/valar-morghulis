@@ -14,8 +14,7 @@ Funzioni disponibili:
 - entrate e spese personali o condivise;
 - ripartizione in quote uguali in base al numero di membri e saldo debito/credito;
 - esclusione dal saldo dei movimenti effettuati con un conto condiviso;
-- grafico giornaliero della bacheca derivato dalle spese condivise del mese corrente;
-- grafico mensile alternabile “Per giorno / Per persona”, con confronto in euro delle spese condivise anticipate da ciascun membro e conti condivisi esclusi dall’attribuzione personale;
+- grafico mensile della bacheca navigabile con selettore del mese e alternabile “Per giorno / Per persona”, con confronto in euro delle spese condivise anticipate da ciascun membro e conti condivisi esclusi dall’attribuzione personale;
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
@@ -23,7 +22,7 @@ Funzioni disponibili:
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
-- suddivisione facoltativa di un movimento in parziali per categoria, ciascuno personale o condiviso, interamente modificabile a posteriori;
+- suddivisione facoltativa di un movimento in parziali con categoria e beneficiario ricercabili o creabili, ciascuno personale o condiviso, interamente modificabile a posteriori;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
@@ -65,7 +64,7 @@ Funzioni disponibili:
 - I movimenti personali sono visibili soltanto al proprietario; quelli condivisi sono visibili alla famiglia.
 - Un movimento su conto condiviso è visibile a tutta la famiglia ma non genera debito o credito.
 - Nei movimenti suddivisi, i parziali vengono sottratti dalla categoria principale; soltanto i parziali marcati come condivisi partecipano al saldo familiare. Il conto registra comunque una sola operazione per l’importo totale.
-- Suddivisione per categorie e rateizzazione sono alternative nello stesso movimento, per evitare di attribuire in modo ambiguo i parziali alle singole scadenze.
+- Suddivisione per categorie e rateizzazione possono convivere: ogni parziale viene ripartito proporzionalmente sulle rate, preservando i centesimi, la categoria, il beneficiario e la scelta personale/condivisa.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
@@ -114,20 +113,19 @@ pnpm run build
 pnpm dev
 ```
 
-Ultima verifica completata il 30 luglio 2026: lint, 80 test automatici e build
+Ultima verifica completata il 3 agosto 2026: lint, 116 test automatici e build
 di produzione. I test coprono anche l’indice e i capitoli della guida, i parziali
-per categoria e la loro quota condivisa, ricerca e creazione contestuale di
-beneficiari e mittenti, cancellazione con riassegnazione o anagrafica vuota,
+per categoria e beneficiario, la combinazione con le rate e la loro quota
+condivisa, ricerca e creazione contestuale di beneficiari e mittenti,
+cancellazione con riassegnazione o anagrafica vuota,
 propagazione familiare delle cancellazioni, dipendenze dei pagamenti rateali e
 importazione dei dati locali nello snapshot cloud. Coprono inoltre il confronto
 mensile delle spese condivise anticipate da ciascun membro, incluse le quote
 condivise dei movimenti suddivisi e l’esclusione dei conti familiari. La verifica
-interattiva locale ha confermato il passaggio “Per giorno / Per persona”, le
-barre proporzionali, l’assenza di errori in console e nessun overflow orizzontale
-a 390 px.
-La cattura visuale del viewport mobile del browser integrato ha applicato una
-scala anomala, quindi la resa smartphone resta da ricontrollare su un dispositivo
-o browser esterno reale dopo l’applicazione della migrazione.
+interattiva locale ha confermato il selettore mensile, il passaggio “Per giorno /
+Per persona”, la presenza contemporanea di parziali e rate, i menu ricercabili e
+creabili nei parziali, l’assenza di errori in console e nessun overflow
+orizzontale a 390 px.
 
 ## Limiti dell’MVP e prossimi passi
 
