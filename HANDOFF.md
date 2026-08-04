@@ -15,6 +15,7 @@ Funzioni disponibili:
 - ripartizione in quote uguali in base al numero di membri e saldo debito/credito;
 - esclusione dal saldo dei movimenti effettuati con un conto condiviso;
 - grafico mensile della bacheca navigabile con menu dei mesi non editabile e alternabile “Per giorno / Per persona”, con confronto in euro delle spese condivise anticipate da ciascun membro e conti condivisi esclusi dall’attribuzione personale;
+- pagina “Spese ed Entrate” con lo stesso menu dei mesi non editabile nelle viste Spese, Entrate e Condivise;
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;

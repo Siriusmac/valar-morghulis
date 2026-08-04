@@ -4,6 +4,11 @@ export const formatMoney = (value: number) =>
 export const formatDate = (value: string) =>
   new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`))
 
+const monthYearFormatter = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+
+export const formatMonthYear = (month: string) =>
+  monthYearFormatter.format(new Date(`${month}-01T12:00:00`))
+
 export const todayISO = () => {
   const today = new Date()
   const year = today.getFullYear()
@@ -23,6 +28,14 @@ export function addMonthsISO(value: string, months: number) {
   const targetMonth = String(target.getMonth() + 1).padStart(2, '0')
   const targetDay = String(target.getDate()).padStart(2, '0')
   return `${targetYear}-${targetMonth}-${targetDay}`
+}
+
+export function selectableMonths(dates: string[], selectedMonth: string, currentMonth = todayISO().slice(0, 7)) {
+  return [...new Set([
+    ...Array.from({ length: 37 }, (_, index) => addMonthsISO(`${currentMonth}-01`, index - 24).slice(0, 7)),
+    ...dates.map((date) => date.slice(0, 7)),
+    selectedMonth,
+  ])].toSorted((a, b) => b.localeCompare(a))
 }
 
 export function splitAmount(value: number, count: number) {

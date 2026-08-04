@@ -9,7 +9,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 function renderPage() {
   render(<MovementsPage data={structuredClone(defaultData)} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} />)
-  return screen.getByLabelText('Mese') as HTMLInputElement
+  return screen.getByLabelText('Mese') as HTMLSelectElement
 }
 
 describe('MovementsPage', () => {
@@ -23,10 +23,16 @@ describe('MovementsPage', () => {
     expect(renderPage().value).toBe('2027-01')
   })
 
-  it('consente di selezionare manualmente un mese diverso', () => {
+  it('usa un menu non editabile e mantiene il mese nelle tre sezioni', () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 6, 31))
-    const input = renderPage()
-    fireEvent.change(input, { target: { value: '2025-12' } })
-    expect(input.value).toBe('2025-12')
+    const select = renderPage()
+    expect(select.tagName).toBe('SELECT')
+    fireEvent.change(select, { target: { value: '2025-12' } })
+    expect(select.value).toBe('2025-12')
+
+    for (const section of ['Entrate', 'Condivise', 'Spese']) {
+      fireEvent.click(screen.getByRole('button', { name: section }))
+      expect((screen.getByLabelText('Mese') as HTMLSelectElement).value).toBe('2025-12')
+    }
   })
 })
