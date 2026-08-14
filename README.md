@@ -139,6 +139,19 @@ Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HAND
 
 ## Nota tecnica
 
+La versione nativa Apple `sKey` è in sviluppo nel progetto
+[`apple/SKey/SKey.xcodeproj`](apple/SKey/SKey.xcodeproj). Usa SwiftUI e i
+controlli di sistema per iPhone, iPad e macOS, mantenendo Supabase e AppData v3
+compatibili con la web app. Sono già operativi accesso, ripristino della
+sessione, selezione dello spazio personale o familiare, lettura di profilo e
+conti e inserimento di spese ed entrate semplici personali o condivise.
+
+La configurazione pubblica Supabase viene letta da file `.xcconfig`; il file
+locale `apple/SKey/Configuration/Secrets.xcconfig` è ignorato da Git. Per
+configurazione, architettura, parità funzionale e roadmap consulta
+[`docs/xcode/`](docs/xcode/README.md).
+
+
 Questa versione è un MVP con onboarding e persistenza cloud attivi. Lo snapshot
 privato evita la perdita dei dati personali, mentre i record familiari
 normalizzati mantengono allineati in tempo reale saldi e movimenti condivisi tra

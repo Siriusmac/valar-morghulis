@@ -1,0 +1,3 @@
+// Release build settings.
+
+#include "Base.xcconfig"

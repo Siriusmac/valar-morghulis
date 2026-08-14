@@ -1,0 +1,7 @@
+// Supabase public configuration.
+// Secrets.xcconfig is local-only and intentionally optional.
+
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+
+#include? "Secrets.xcconfig"

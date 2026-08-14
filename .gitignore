@@ -8,3 +8,13 @@ vite.config.js
 vite.config.d.ts
 sources/
 supabase/.temp/
+.codex/
+
+# Xcode: stato locale dell'editor e artefatti di compilazione
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+*.xccheckout
+*.xcscmblueprint
+apple/SKey/Configuration/Secrets.xcconfig

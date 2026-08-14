@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 30 luglio 2026.
+Aggiornato il 13 agosto 2026.
 
 ## Stato del prodotto
 
@@ -104,6 +104,9 @@ Funzioni disponibili:
 - `supabase/functions/invite-family-member/`: invio degli inviti email.
 - `src/types.ts`: modello dati condiviso.
 - `public/`: logo, icone e manifest della web app.
+- `docs/xcode/`: specifiche per architettura, parità funzionale, modello dati,
+  contratto Supabase, privacy, UX, avvio Xcode e collaudo della futura app
+  SwiftUI multipiattaforma.
 - `scripts/verify-cloud-build.mjs`: blocca il deploy se la build non include
   la configurazione pubblica Supabase.
 
@@ -188,6 +191,27 @@ con parziali misti viene pubblicata soltanto la quota marcata come condivisa.
 
 Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 `main`.
+
+## App Apple nativa — avanzamento 14 agosto 2026
+
+Il progetto `apple/SKey/SKey.xcodeproj` dispone ora del primo flusso di
+scrittura operativo. `MovementComposerView` registra spese ed entrate semplici
+con `Form`, `Picker`, `DatePicker`, ricerca/creazione nativa delle anagrafiche,
+commenti e scelta dell’impatto sul saldo per date antecedenti al saldo iniziale.
+
+`SupabaseLedgerRepository` conserva i campi AppData v3 non ancora conosciuti
+dal client Swift e separa correttamente gli snapshot personali da quelli
+familiari. Prima di chiamare `sync_family_shared_records` unisce le chiavi
+transazionali del server e dello snapshot privato: non sostituire questa logica
+con un payload contenente soltanto il nuovo movimento, perché la funzione
+interpreta `owned_keys` come elenco completo e cancellerebbe gli altri record
+dell’autore.
+
+Verifiche concluse: build macOS riuscita, build iOS Simulator universale
+riuscita e 10 test unitari superati. Il gate complessivo ha confermato anche i
+117 test web, lint e build Vite. Per evitare blocchi nella finalizzazione dei
+log Xcode, la suite unitaria viene eseguita separatamente dai test UI e senza
+raccolta della coverage.
 
 ## Hosting Cloudflare
 
