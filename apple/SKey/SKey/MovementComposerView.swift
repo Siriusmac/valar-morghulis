@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MovementComposerView: View {
     let appModel: AppModel
+    let movement: LedgerMovement?
 
     @Environment(\.dismiss) private var dismiss
     @State private var options: MovementOptions?
@@ -22,6 +23,24 @@ struct MovementComposerView: View {
     @State private var draftID = UUID().uuidString.lowercased()
     @FocusState private var focusedField: FocusField?
 
+    init(appModel: AppModel, movement: LedgerMovement? = nil) {
+        self.appModel = appModel
+        self.movement = movement
+        _type = State(initialValue: movement?.type ?? .expense)
+        _amountText = State(initialValue: movement.map {
+            NSDecimalNumber(decimal: $0.amount.decimal).stringValue.replacingOccurrences(of: ".", with: ",")
+        } ?? "")
+        _date = State(initialValue: movement.flatMap { Self.dayFormatter.date(from: $0.date) } ?? Date())
+        _descriptionText = State(initialValue: movement?.description ?? "")
+        _comments = State(initialValue: movement?.comments ?? "")
+        _accountID = State(initialValue: movement?.accountID ?? "")
+        _isShared = State(initialValue: movement.map {
+            $0.shared || ($0.splits?.contains { $0.shared } ?? false)
+        } ?? false)
+        _affectsAccountBalance = State(initialValue: movement?.affectsAccountBalance ?? false)
+        _draftID = State(initialValue: movement?.id ?? UUID().uuidString.lowercased())
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -38,7 +57,7 @@ struct MovementComposerView: View {
                     )
                 }
             }
-            .navigationTitle("Nuovo movimento")
+            .navigationTitle(movement == nil ? "Nuovo movimento" : "Modifica movimento")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -114,7 +133,7 @@ struct MovementComposerView: View {
 
                 Picker("Conto", selection: $accountID) {
                     Text("Seleziona un conto").tag("")
-                    ForEach(options.accounts) { account in
+                    ForEach(usableAccounts(in: options)) { account in
                         Text(accountLabel(account)).tag(account.id)
                     }
                 }
@@ -156,7 +175,7 @@ struct MovementComposerView: View {
             if appModel.selectedFamilyID != nil {
                 Section {
                     Toggle(type == .income ? "Entrata della famiglia" : "Movimento condiviso", isOn: $isShared)
-                        .disabled(selectedAccount?.familyID != nil)
+                        .disabled(selectedAccount?.familyID != nil || movement != nil)
                         .onChange(of: isShared) { _, newValue in
                             if type == .income {
                                 updateIncomeAccount(forSharedState: newValue, options: options)
@@ -293,9 +312,19 @@ struct MovementComposerView: View {
         do {
             let loaded = try await appModel.loadMovementOptions()
             options = loaded
-            accountID = loaded.accounts.first(where: { $0.familyID == nil })?.id
-                ?? loaded.accounts.first?.id
-                ?? ""
+            if let movement {
+                accountID = usableAccounts(in: loaded).contains { $0.id == movement.accountID }
+                    ? movement.accountID
+                    : usableAccounts(in: loaded).first?.id ?? ""
+                category = loaded.categories.first { $0.id == movement.categoryID }
+                let counterpartyID = movement.type == .expense ? movement.beneficiaryID : movement.senderID
+                let candidates = movement.type == .expense ? loaded.beneficiaries : loaded.senders
+                counterparty = candidates.first { $0.id == counterpartyID }
+            } else {
+                accountID = loaded.accounts.first(where: { $0.familyID == nil })?.id
+                    ?? loaded.accounts.first?.id
+                    ?? ""
+            }
             updateBalanceImpact()
             focusedField = .amount
         } catch is CancellationError {
@@ -338,7 +367,11 @@ struct MovementComposerView: View {
 
         Task {
             do {
-                try await appModel.createMovement(draft)
+                if movement == nil {
+                    try await appModel.createMovement(draft)
+                } else {
+                    try await appModel.updateMovement(draft)
+                }
                 dismiss()
             } catch is CancellationError {
                 isSaving = false
@@ -371,6 +404,12 @@ struct MovementComposerView: View {
 
     private func accountLabel(_ account: AccountSummary) -> String {
         account.familyID == nil ? account.name : "\(account.name) · Famiglia"
+    }
+
+    private func usableAccounts(in options: MovementOptions) -> [AccountSummary] {
+        guard let movement else { return options.accounts }
+        let originalIsShared = movement.shared || (movement.splits?.contains { $0.shared } ?? false)
+        return originalIsShared ? options.accounts : options.accounts.filter { $0.familyID == nil }
     }
 
     private enum FocusField: Hashable {

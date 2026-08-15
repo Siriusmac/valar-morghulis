@@ -122,6 +122,7 @@ export interface Transfer {
 
 export interface Reimbursement {
   id: string
+  groupId?: string
   fromId: UserId
   toId: UserId
   amount: number

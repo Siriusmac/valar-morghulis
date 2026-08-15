@@ -95,6 +95,31 @@ struct SKeyTests {
     }
 
     @Test
+    func decodesFamilyInvitationLifecycle() throws {
+        let data = Data(
+            #"{"id":"44444444-4444-4444-4444-444444444444","family_id":"11111111-1111-1111-1111-111111111111","email":"anna@example.com","expires_at":"2026-08-22T10:00:00Z","accepted_at":null,"declined_at":null}"#.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let invitation = try decoder.decode(FamilyInvitationRow.self, from: data)
+
+        #expect(invitation.email == "anna@example.com")
+        #expect(invitation.acceptedAt == nil)
+        #expect(invitation.declinedAt == nil)
+    }
+
+    @Test
+    func decodesPrivateReimbursementAccountReference() throws {
+        let data = Data(
+            #"{"family_id":"11111111-1111-1111-1111-111111111111","owner_id":"22222222-2222-2222-2222-222222222222","account_id":"cash","display_name":"Contanti"}"#.utf8
+        )
+        let row = try JSONDecoder().decode(ReimbursementAccountRow.self, from: data)
+
+        #expect(row.accountID == "cash")
+        #expect(row.displayName == "Contanti")
+    }
+
+    @Test
     func exposesEveryNativeDestinationInOneSidebarGroup() {
         let groupedDestinations = AppDestination.Group.allCases.flatMap {
             AppDestination.destinations(in: $0)
@@ -160,5 +185,376 @@ struct SKeyTests {
         )
 
         #expect(draft.id == "movement-retry")
+    }
+
+    @Test
+    func encodesAPNsDeviceTokenAsLowercaseHexadecimal() {
+        let token = PushNotificationCoordinator.hexadecimalToken(from: Data([0x00, 0x0f, 0xa5, 0xff]))
+
+        #expect(token == "000fa5ff")
+    }
+
+    @Test
+    func routesReimbursementPushToItsConfirmation() {
+        let familyID = "11111111-1111-1111-1111-111111111111"
+        let route = PushNotificationCoordinator.reimbursementRoute(from: [
+            "type": "reimbursement",
+            "familyId": familyID,
+            "reimbursementId": "reimbursement-1",
+        ])
+
+        #expect(route?.familyID.uuidString.lowercased() == familyID)
+        #expect(route?.reimbursementID == "reimbursement-1")
+    }
+
+    @Test
+    func moneyRoundsAndFormatsUsingIntegerCents() {
+        #expect(Money(decimal: Decimal(string: "12.345")!).cents == 1_235)
+        #expect(Money(cents: -450).decimal == Decimal(string: "-4.5"))
+    }
+
+    @Test
+    func decodesMovementFromAppDataVersionThree() throws {
+        let data = Data(
+            #"{"id":"movement-1","type":"expense","authorId":"user","memberId":"user","amount":30.25,"date":"2026-08-14","description":"Spesa","categoryId":"food","beneficiaryId":"market","accountId":"cash","shared":true,"createdAt":"2026-08-14T10:00:00Z"}"#.utf8
+        )
+
+        let movement = try JSONDecoder().decode(LedgerMovement.self, from: data)
+
+        #expect(movement.amount == Money(cents: 3_025))
+        #expect(movement.categoryID == "food")
+        #expect(movement.shared)
+    }
+
+    @Test
+    func calculatesAccountBalanceWithMovementsTransfersAndConfirmedReimbursements() {
+        let account = ledgerAccount(id: "bank", openingBalance: 100)
+        let snapshot = ledgerSnapshot(
+            accounts: [account, ledgerAccount(id: "cash", openingBalance: 0)],
+            movements: [
+                ledgerMovement(id: "expense", amount: 30, accountID: account.id),
+                ledgerMovement(id: "income", type: .income, amount: 50, accountID: account.id),
+                ledgerMovement(
+                    id: "statistics",
+                    amount: 90,
+                    accountID: account.id,
+                    affectsAccountBalance: false
+                )
+            ],
+            transfers: [
+                LedgerTransfer(
+                    id: "transfer",
+                    authorID: "user",
+                    fromAccountID: account.id,
+                    toAccountID: "cash",
+                    amount: Money(cents: 1_000),
+                    date: "2026-08-14",
+                    description: "Prelievo"
+                )
+            ],
+            reimbursements: [
+                LedgerReimbursement(
+                    id: "confirmed",
+                    fromID: "other",
+                    toID: "user",
+                    amount: Money(cents: 500),
+                    date: "2026-08-14",
+                    authorID: "other",
+                    fromAccountID: nil,
+                    toAccountID: account.id,
+                    status: .confirmed
+                ),
+                LedgerReimbursement(
+                    id: "pending",
+                    fromID: "user",
+                    toID: "other",
+                    amount: Money(cents: 900),
+                    date: "2026-08-14",
+                    authorID: "user",
+                    fromAccountID: account.id,
+                    toAccountID: nil,
+                    status: .pending
+                )
+            ]
+        )
+
+        #expect(LedgerCalculations.accountBalance(account, in: snapshot) == Money(cents: 11_500))
+    }
+
+    @Test
+    func calculatesTwoMemberSharedBalanceAndExcludesFamilyAccount() {
+        let personal = ledgerAccount(id: "personal", openingBalance: 0)
+        let family = AccountSummary(
+            id: "family",
+            familyID: UUID(uuidString: "11111111-1111-1111-1111-111111111111"),
+            name: "Famiglia",
+            institution: "",
+            kind: .bank,
+            openingBalance: 0,
+            openingBalanceDate: nil
+        )
+        let snapshot = ledgerSnapshot(
+            memberCount: 2,
+            accounts: [personal, family],
+            movements: [
+                ledgerMovement(id: "mine", amount: 30, accountID: personal.id, memberID: "user"),
+                ledgerMovement(id: "other", amount: 50, accountID: "other-private", memberID: "other"),
+                ledgerMovement(id: "family-paid", amount: 100, accountID: family.id, memberID: "user")
+            ]
+        )
+
+        #expect(LedgerCalculations.sharedBalance(in: snapshot) == Money(cents: -1_000))
+    }
+
+    @Test
+    func plansMultiMemberReimbursementsAcrossCurrentCreditors() {
+        let base = ledgerSnapshot(
+            memberCount: 3,
+            accounts: [ledgerAccount(id: "personal", openingBalance: 0)],
+            movements: [
+                ledgerMovement(id: "simone", amount: 90, accountID: "simone-bank", memberID: "simone"),
+                ledgerMovement(id: "anna", amount: 60, accountID: "anna-bank", memberID: "anna")
+            ]
+        )
+        let snapshot = LedgerSnapshot(
+            currentUserID: "third",
+            memberCount: base.memberCount,
+            accounts: base.accounts,
+            categories: base.categories,
+            beneficiaries: base.beneficiaries,
+            senders: base.senders,
+            movements: base.movements,
+            transfers: [],
+            reimbursements: []
+        )
+
+        let plan = LedgerCalculations.reimbursementPlan(
+            in: snapshot,
+            memberIDs: ["simone", "anna", "third"]
+        )
+
+        #expect(plan.map(\.memberID) == ["simone", "anna"])
+        #expect(plan.map(\.availableCredit) == [Money(cents: 4_000), Money(cents: 1_000)])
+        #expect(plan.map(\.suggestedAmount) == [Money(cents: 4_000), Money(cents: 1_000)])
+    }
+
+    @Test
+    func calculatesOnlySharedSplitAmount() {
+        let movement = ledgerMovement(
+            id: "split",
+            amount: 100,
+            accountID: "personal",
+            shared: false,
+            splits: [
+                LedgerMovementSplit(
+                    id: "shared",
+                    amount: Money(cents: 3_000),
+                    categoryID: "home",
+                    beneficiaryID: nil,
+                    shared: true
+                )
+            ]
+        )
+
+        #expect(LedgerCalculations.sharedAmount(of: movement) == Money(cents: 3_000))
+    }
+
+    @Test
+    func aggregatesMonthlyPercentagesByCategoryUsingSplitRemainder() {
+        let food = LedgerDirectoryItem(
+            id: "food",
+            name: "Alimentari",
+            scope: .personal,
+            ownerID: "user",
+            movementType: .expense,
+            color: "#c64e2f"
+        )
+        let home = LedgerDirectoryItem(
+            id: "home",
+            name: "Casa",
+            scope: .personal,
+            ownerID: "user",
+            movementType: .expense,
+            color: "#3f7650"
+        )
+        let movement = ledgerMovement(
+            id: "split-categories",
+            amount: 100,
+            accountID: "personal",
+            splits: [
+                LedgerMovementSplit(
+                    id: "home-split",
+                    amount: Money(cents: 3_000),
+                    categoryID: home.id,
+                    beneficiaryID: nil,
+                    shared: false
+                )
+            ]
+        )
+        let base = ledgerSnapshot(
+            accounts: [ledgerAccount(id: "personal", openingBalance: 0)],
+            movements: [movement]
+        )
+        let snapshot = LedgerSnapshot(
+            currentUserID: base.currentUserID,
+            memberCount: base.memberCount,
+            accounts: base.accounts,
+            categories: [food, home],
+            beneficiaries: [],
+            senders: [],
+            movements: [
+                LedgerMovement(
+                    id: movement.id,
+                    type: movement.type,
+                    authorID: movement.authorID,
+                    memberID: movement.memberID,
+                    amount: movement.amount,
+                    date: movement.date,
+                    description: movement.description,
+                    categoryID: food.id,
+                    beneficiaryID: movement.beneficiaryID,
+                    senderID: movement.senderID,
+                    accountID: movement.accountID,
+                    tagID: movement.tagID,
+                    comments: movement.comments,
+                    shared: movement.shared,
+                    splits: movement.splits,
+                    sharedSettlementAmount: movement.sharedSettlementAmount,
+                    affectsAccountBalance: movement.affectsAccountBalance,
+                    createdAt: movement.createdAt
+                )
+            ],
+            transfers: [],
+            reimbursements: []
+        )
+
+        let totals = LedgerCalculations.categoryTotals(
+            in: snapshot,
+            movements: snapshot.movements,
+            sharedOnly: false
+        )
+
+        #expect(totals.map(\.name) == ["Alimentari", "Casa"])
+        #expect(totals.map(\.amount) == [Money(cents: 7_000), Money(cents: 3_000)])
+    }
+
+    @Test
+    func aggregatesSharedExpensesByDayAndMemberLikeWebDashboard() {
+        let personal = ledgerAccount(id: "personal", openingBalance: 0)
+        let family = AccountSummary(
+            id: "family",
+            familyID: UUID(uuidString: "11111111-1111-1111-1111-111111111111"),
+            name: "Famiglia",
+            institution: "",
+            kind: .bank,
+            openingBalance: 0,
+            openingBalanceDate: nil
+        )
+        let partial = ledgerMovement(
+            id: "partial",
+            amount: 100,
+            accountID: personal.id,
+            memberID: "user",
+            shared: false,
+            splits: [
+                LedgerMovementSplit(
+                    id: "shared",
+                    amount: Money(cents: 2_000),
+                    categoryID: "category",
+                    beneficiaryID: nil,
+                    shared: true
+                )
+            ]
+        )
+        let familyPaid = ledgerMovement(
+            id: "family-paid",
+            amount: 90,
+            accountID: family.id,
+            memberID: "other",
+            shared: true
+        )
+        let snapshot = ledgerSnapshot(
+            memberCount: 2,
+            accounts: [personal, family],
+            movements: [partial, familyPaid]
+        )
+
+        let daily = LedgerCalculations.dailySharedExpenseTotals(
+            in: snapshot,
+            month: "2026-08",
+            days: 31
+        )
+        let members = LedgerCalculations.sharedExpensesByMember(
+            in: snapshot,
+            memberIDs: ["user", "other"],
+            month: "2026-08"
+        )
+
+        #expect(daily[13].amount == Money(cents: 11_000))
+        #expect(members.map(\.amount) == [Money(cents: 2_000), .zero])
+    }
+
+    private func ledgerAccount(id: String, openingBalance: Decimal) -> AccountSummary {
+        AccountSummary(
+            id: id,
+            familyID: nil,
+            name: id,
+            institution: "",
+            kind: .bank,
+            openingBalance: openingBalance,
+            openingBalanceDate: nil
+        )
+    }
+
+    private func ledgerMovement(
+        id: String,
+        type: MovementKind = .expense,
+        amount: Decimal,
+        accountID: String,
+        memberID: String = "user",
+        shared: Bool = true,
+        splits: [LedgerMovementSplit]? = nil,
+        affectsAccountBalance: Bool? = nil
+    ) -> LedgerMovement {
+        LedgerMovement(
+            id: id,
+            type: type,
+            authorID: memberID,
+            memberID: memberID,
+            amount: Money(decimal: amount),
+            date: "2026-08-14",
+            description: id,
+            categoryID: "category",
+            beneficiaryID: "beneficiary",
+            senderID: nil,
+            accountID: accountID,
+            tagID: nil,
+            comments: nil,
+            shared: shared,
+            splits: splits,
+            sharedSettlementAmount: nil,
+            affectsAccountBalance: affectsAccountBalance,
+            createdAt: "2026-08-14T10:00:00Z"
+        )
+    }
+
+    private func ledgerSnapshot(
+        memberCount: Int = 1,
+        accounts: [AccountSummary],
+        movements: [LedgerMovement],
+        transfers: [LedgerTransfer] = [],
+        reimbursements: [LedgerReimbursement] = []
+    ) -> LedgerSnapshot {
+        LedgerSnapshot(
+            currentUserID: "user",
+            memberCount: memberCount,
+            accounts: accounts,
+            categories: [],
+            beneficiaries: [],
+            senders: [],
+            movements: movements,
+            transfers: transfers,
+            reimbursements: reimbursements
+        )
     }
 }

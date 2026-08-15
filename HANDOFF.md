@@ -171,8 +171,8 @@ stato `pending`, impedisce all’autore di alterarne lo stato e aggiunge la
 procedura protetta con cui soltanto la controparte può confermare o rifiutare,
 completando il proprio conto quando necessario.
 La migrazione è stata applicata al progetto Supabase remoto il 27 luglio 2026.
-Il successivo `db push --dry-run` conferma che database locale e remoto sono
-allineati.
+Il successivo `db push --dry-run` conferma che database locale e remoto erano
+allineati prima delle migration push ancora locali del 15 agosto.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
@@ -183,6 +183,31 @@ La migrazione `20260803120000_registered_user_count.sql` espone agli utenti
 autenticati soltanto il totale dei profili registrati. La funzione usa privilegi
 minimi e non rende consultabile l’elenco globale degli utenti.
 
+La migrazione `20260815143000_push_notifications.sql` aggiunge token APNs
+privati, registrazione/rimozione tramite RPC legate a `auth.uid()` e consegne
+idempotenti per rimborso e dispositivo. La Edge Function
+`notify-family-reimbursement` autentica l'autore, verifica il record condiviso e
+invia soltanto alla controparte del singolo rimborso un testo privo di importi o
+riferimenti ai conti. I client Apple registrano il token a ogni sessione e lo
+rimuovono al logout; anche la web app richiama l'invio dopo la sincronizzazione
+del record. Il payload identifica famiglia e rimborso, così il client Apple apre
+direttamente la relativa conferma quando l'utente tocca la notifica.
+
+La migration `20260815160000_multi_member_reimbursements.sql` protegge il nuovo
+flusso per famiglie con più di due membri: ogni record deve essere creato dal
+pagatore e ha una sola controparte. Web e Apple calcolano il debito residuo,
+tolgono gli importi già in attesa e propongono una ripartizione deterministica
+fra i creditori correnti; l'utente può selezionarne più di uno e modificare gli
+importi entro i rispettivi crediti disponibili. Vengono creati rimborsi
+separati, collegati da un identificativo di gruppo, e ciascun destinatario
+conferma soltanto il proprio. Il flusso a due membri resta invariato.
+
+Queste migration e la nuova funzione non sono state applicate né distribuite.
+Per attivarle servono la capability Apple Push Notifications per il bundle
+`it.valarmorghulis.skey`, profili di firma aggiornati e i segreti Supabase
+`APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. Un errore APNs non annulla né
+duplica il rimborso: il client segnala separatamente il mancato avviso.
+
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita
 Realtime. Una funzione transazionale sincronizza soltanto i record creati
@@ -192,12 +217,42 @@ con parziali misti viene pubblicata soltanto la quota marcata come condivisa.
 Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 `main`.
 
-## App Apple nativa — avanzamento 14 agosto 2026
+## App Apple nativa — avanzamento 15 agosto 2026
 
 Il progetto `apple/SKey/SKey.xcodeproj` dispone ora del primo flusso di
 scrittura operativo. `MovementComposerView` registra spese ed entrate semplici
 con `Form`, `Picker`, `DatePicker`, ricerca/creazione nativa delle anagrafiche,
-commenti e scelta dell’impatto sul saldo per date antecedenti al saldo iniziale.
+commenti e scelta dell'impatto sul saldo per date antecedenti al saldo iniziale.
+
+La sezione “Spese ed Entrate” legge e unisce lo snapshot personale, la copia
+privata della famiglia attiva e i record familiari normalizzati. Offre sezioni
+Spese/Entrate/Condivise, menu mensile non editabile, ricerca nativa, gruppi per
+giorno, riepiloghi ed esplicita i movimenti conservati solo per le statistiche.
+I saldi dei conti includono movimenti, girofondi e rimborsi confermati; la
+bacheca mostra anche il credito/debito familiare, con importi di dominio
+calcolati in centesimi e conti condivisi esclusi dall'attribuzione personale.
+La bacheca include inoltre il grafico Swift Charts delle spese condivise del
+mese, commutabile fra andamento giornaliero e importi anticipati da ciascun
+membro. La sezione Movimenti mostra donut mensili con importi e percentuali per
+categoria nelle viste Spese, Entrate e Condivise; oltre cinque categorie le
+restanti vengono aggregate in “Altro” per preservare la leggibilità.
+
+La finestra Account replica ora i settaggi cloud della web app: dati personali,
+email e password, selezione e creazione famiglie con conto condiviso
+facoltativo, elenco membri, rinomina, inviti e relativo ciclo di reinvio/rimozione,
+export JSON/CSV/XML e cancellazioni protette di famiglia o account. La bacheca è stata
+alleggerita: lo spazio attivo espone membri e ruolo, resta in evidenza il solo
+saldo familiare e compaiono gli ultimi quattro movimenti condivisi prima dei
+conti. Dal saldo si registra un rimborso in stato `pending`; nelle famiglie
+numerose il debitore sceglie uno o più creditori, importi e conti di
+destinazione, mentre ogni controparte può completare il proprio conto,
+confermare o rifiutare direttamente in bacheca o dalla notifica push.
+
+Ogni movimento creato dall'utente corrente espone le azioni native di modifica
+ed eliminazione con swipe da destra verso sinistra. Gli altri membri restano in
+sola lettura. L'aggiornamento conserva i campi AppData v3 non ancora esposti
+dal form nativo (parziali, tag e metadati futuri) e mantiene l'ID originale,
+evitando duplicazioni.
 
 `SupabaseLedgerRepository` conserva i campi AppData v3 non ancora conosciuti
 dal client Swift e separa correttamente gli snapshot personali da quelli
@@ -207,11 +262,10 @@ con un payload contenente soltanto il nuovo movimento, perché la funzione
 interpreta `owned_keys` come elenco completo e cancellerebbe gli altri record
 dell’autore.
 
-Verifiche concluse: build macOS riuscita, build iOS Simulator universale
-riuscita e 10 test unitari superati. Il gate complessivo ha confermato anche i
-117 test web, lint e build Vite. Per evitare blocchi nella finalizzazione dei
-log Xcode, la suite unitaria viene eseguita separatamente dai test UI e senza
-raccolta della coverage.
+Verifiche concluse: build macOS riuscita, build generica iOS riuscita e 22 test
+unitari nativi superati. Il gate web ha confermato 119 test, lint e build Vite.
+La suite unitaria Xcode separata è terminata regolarmente; la consegna APNs reale
+resta da collaudare su dispositivi firmati dopo l'attivazione server.
 
 ## Hosting Cloudflare
 

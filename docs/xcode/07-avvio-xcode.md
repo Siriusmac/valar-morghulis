@@ -24,6 +24,18 @@ Copiare `Secrets.example.xcconfig` in `Secrets.xcconfig` e valorizzare soltanto
 `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`. Il file reale è ignorato da Git;
 non inserire mai SMTP, password o chiavi server.
 
+Per provare le push su dispositivo reale:
+
+1. abilitare Push Notifications per l'App ID `it.valarmorghulis.skey` nel
+   portale Apple e aggiornare i profili di firma;
+2. applicare `20260815143000_push_notifications.sql`;
+3. configurare in Supabase `APNS_KEY_ID`, `APNS_TEAM_ID` e
+   `APNS_PRIVATE_KEY`, quindi distribuire `notify-family-reimbursement`;
+4. accedere con due membri su dispositivi distinti e autorizzare le notifiche.
+
+Debug usa APNs sandbox, Release usa APNs produzione. La chiave `.p8` non deve
+mai essere copiata in Xcode o nel bundle.
+
 `Debug.xcconfig` e `Release.xcconfig` sono già impostati come Base Configuration
 del target app. Prima dei test distruttivi dovrà essere creato un ambiente
 staging separato: fino ad allora non usare account di produzione per prove che
@@ -37,9 +49,13 @@ creano o cancellano grandi quantità di dati.
 4. Spesa o entrata semplice personale.
 5. Spesa o entrata semplice condivisa, con sincronizzazione AppData v3.
 6. Ricerca o creazione di categoria, beneficiario e mittente.
+7. Elenco mensile Spese/Entrate/Condivise con ricerca e raggruppamento per data.
+8. Saldi conto e credito/debito familiare calcolati dal dominio nativo.
+9. Grafico condiviso mensile per giorno/persona e donut percentuali per
+   categoria in Spese, Entrate e Condivise.
+10. Notifica push agli altri membri dopo la registrazione di un rimborso.
 
-Prossimi blocchi: elenco movimenti e saldi calcolati, tag, parziali, rate,
-rimborsi, export e amministrazione.
+Prossimi blocchi: tag, parziali, rate, cache offline e riallineamento Realtime.
 
 ## Definition of done
 

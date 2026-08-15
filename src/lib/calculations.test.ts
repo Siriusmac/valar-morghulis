@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, movementAllocations, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
+import { accountBalance, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAllocationsAcrossInstallments, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -121,6 +121,38 @@ describe('sharedBalance', () => {
     }]
     expect(sharedBalance(data, 'simone')).toBe(35)
     expect(sharedBalance(data, 'anna')).toBe(-35)
+  })
+})
+
+describe('reimbursementPlan', () => {
+  it('splits a multi-member debt across current creditors', () => {
+    const data = cleanData()
+    data.movements = [
+      expense('paid-by-simone', 'simone', 90, 'simone-bank'),
+      expense('paid-by-anna', 'anna', 60, 'anna-bank'),
+    ]
+
+    expect(reimbursementPlan(data, 'terzo-membro', ['simone', 'anna', 'terzo-membro'])).toEqual([
+      { memberId: 'simone', availableCredit: 40, suggestedAmount: 40 },
+      { memberId: 'anna', availableCredit: 10, suggestedAmount: 10 },
+    ])
+  })
+
+  it('reserves credit and debt already covered by pending reimbursements', () => {
+    const data = cleanData()
+    data.movements = [
+      expense('paid-by-simone', 'simone', 90, 'simone-bank'),
+      expense('paid-by-anna', 'anna', 60, 'anna-bank'),
+    ]
+    data.reimbursements = [{
+      id: 'pending-third-simone', fromId: 'terzo-membro', toId: 'simone', amount: 15,
+      date: '2026-08-15', authorId: 'terzo-membro', status: 'pending',
+    }]
+
+    expect(reimbursementPlan(data, 'terzo-membro', ['simone', 'anna', 'terzo-membro'])).toEqual([
+      { memberId: 'simone', availableCredit: 25, suggestedAmount: 25 },
+      { memberId: 'anna', availableCredit: 10, suggestedAmount: 10 },
+    ])
   })
 })
 

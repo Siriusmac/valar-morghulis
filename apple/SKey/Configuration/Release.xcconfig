@@ -1,3 +1,5 @@
 // Release build settings.
 
 #include "Base.xcconfig"
+
+APS_ENVIRONMENT = production

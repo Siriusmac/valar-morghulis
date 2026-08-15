@@ -28,7 +28,7 @@ struct AppShellView: View {
             case .newMovement:
                 MovementComposerView(appModel: appModel)
             case .account:
-                NativeAccountView(email: email, appModel: appModel)
+                NativeAccountView(appModel: appModel)
             }
         }
         .alert(
@@ -41,6 +41,11 @@ struct AppShellView: View {
             Button("OK", role: .cancel) { signOutError = nil }
         } message: {
             Text(signOutError ?? "Riprova tra poco.")
+        }
+        .onChange(of: appModel.pendingReimbursementRoute) { _, route in
+            guard route != nil else { return }
+            sidebarSelection = .dashboard
+            compactTab = .dashboard
         }
     }
 
@@ -118,17 +123,14 @@ struct AppShellView: View {
         case .dashboard:
             DashboardView(appModel: appModel)
         case .movements:
-            FeaturePlaceholderView(
-                destination: destination,
-                message: "Qui troverai movimenti personali e condivisi, filtri e grafici mensili."
-            )
+            MovementsView(appModel: appModel)
         case .scheduledPayments:
             FeaturePlaceholderView(
                 destination: destination,
                 message: "Qui verranno raggruppate rate future e pagamenti ricorrenti."
             )
         case .accounts:
-            AccountsPlaceholderView(appModel: appModel)
+            AccountsView(appModel: appModel)
         case .categories:
             FeaturePlaceholderView(
                 destination: destination,
@@ -265,17 +267,26 @@ private struct FeaturePlaceholderView: View {
     }
 }
 
-private struct AccountsPlaceholderView: View {
+private struct AccountsView: View {
     let appModel: AppModel
 
     var body: some View {
         Group {
-            if case .loaded(let workspace) = appModel.workspaceState {
-                let accounts = workspace.accounts(for: appModel.selectedFamilyID)
-
-                List(accounts) { account in
+            switch appModel.ledgerState {
+            case .idle, .loading:
+                ProgressView("Calcolo saldi…")
+            case .failed(let message):
+                ContentUnavailableView {
+                    Label("Saldi non disponibili", systemImage: "wifi.exclamationmark")
+                } description: {
+                    Text(message)
+                } actions: {
+                    Button("Riprova") { Task { await appModel.reloadLedger() } }
+                }
+            case .loaded(let snapshot):
+                List(snapshot.accounts) { account in
                     LabeledContent {
-                        Text(account.openingBalance.formatted(.currency(code: "EUR")))
+                        Text(LedgerCalculations.accountBalance(account, in: snapshot).euroFormatted)
                             .monospacedDigit()
                     } label: {
                         Label {
@@ -291,7 +302,7 @@ private struct AccountsPlaceholderView: View {
                     }
                 }
                 .overlay {
-                    if accounts.isEmpty {
+                    if snapshot.accounts.isEmpty {
                         ContentUnavailableView(
                             "Nessun conto",
                             systemImage: "creditcard",
@@ -299,33 +310,21 @@ private struct AccountsPlaceholderView: View {
                         )
                     }
                 }
-            } else {
-                ProgressView("Caricamento conti…")
+                .refreshable { await appModel.reloadLedger() }
             }
         }
     }
 }
 
 struct NativeAccountView: View {
-    let email: String?
     let appModel: AppModel
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Account") {
-                    LabeledContent("Email", value: email ?? "—")
-                }
-
-                Section {
-                    Text("Nome, email, password, famiglie ed esportazione dati verranno aggiunti qui usando controlli di sistema.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .formStyle(.grouped)
-            .navigationTitle("Account")
+            AccountSettingsView(appModel: appModel)
+                .navigationTitle("Account e famiglie")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fine") { dismiss() }

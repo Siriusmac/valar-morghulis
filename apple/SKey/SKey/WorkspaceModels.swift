@@ -47,6 +47,9 @@ nonisolated struct FamilySummary: Identifiable, Equatable, Sendable {
 nonisolated struct FamilyWorkspace: Equatable, Sendable {
     let profile: UserProfile
     let families: [FamilySummary]
+    let members: [FamilyMemberSummary]
+    let invitations: [FamilyInvitationSummary]
+    let reimbursementAccounts: [ReimbursementAccountReference]
     let personalAccounts: [AccountSummary]
     let sharedAccounts: [AccountSummary]
 
@@ -54,6 +57,67 @@ nonisolated struct FamilyWorkspace: Equatable, Sendable {
         guard let familyID else { return personalAccounts }
         return sharedAccounts.filter { $0.familyID == familyID }
     }
+
+    func members(for familyID: UUID?) -> [FamilyMemberSummary] {
+        guard let familyID else {
+            return [
+                FamilyMemberSummary(
+                    id: profile.id,
+                    familyID: nil,
+                    displayName: profile.displayName
+                )
+            ]
+        }
+        return members.filter { $0.familyID == familyID }
+    }
+}
+
+nonisolated struct FamilyMemberSummary: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let familyID: UUID?
+    let displayName: String
+    let email: String?
+
+    init(id: UUID, familyID: UUID?, displayName: String, email: String? = nil) {
+        self.id = id
+        self.familyID = familyID
+        self.displayName = displayName
+        self.email = email
+    }
+
+    var initials: String {
+        let words = displayName.split(separator: " ")
+        return words.prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
+    }
+}
+
+nonisolated struct FamilyInvitationSummary: Identifiable, Equatable, Sendable {
+    enum Status: Equatable, Sendable {
+        case pending, expired, declined
+
+        var label: String {
+            switch self {
+            case .pending: "In attesa"
+            case .expired: "Scaduto"
+            case .declined: "Rifiutato"
+            }
+        }
+    }
+
+    let id: UUID
+    let familyID: UUID
+    let email: String
+    let expiresAt: Date
+    let status: Status
+}
+
+nonisolated struct ReimbursementAccountReference: Identifiable, Equatable, Sendable {
+    let familyID: UUID
+    let ownerID: UUID
+    let accountID: String
+    let name: String
+
+    var id: String { "\(familyID.uuidString):\(ownerID.uuidString):\(accountID)" }
 }
 
 nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
@@ -106,6 +170,38 @@ nonisolated struct FamilyMembershipRow: Codable, Sendable {
 nonisolated struct FamilyRow: Codable, Sendable {
     let id: UUID
     let name: String
+}
+
+nonisolated struct FamilyInvitationRow: Codable, Sendable {
+    let id: UUID
+    let familyID: UUID
+    let email: String
+    let expiresAt: Date
+    let acceptedAt: Date?
+    let declinedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case familyID = "family_id"
+        case email
+        case expiresAt = "expires_at"
+        case acceptedAt = "accepted_at"
+        case declinedAt = "declined_at"
+    }
+}
+
+nonisolated struct ReimbursementAccountRow: Codable, Sendable {
+    let familyID: UUID
+    let ownerID: UUID
+    let accountID: String
+    let displayName: String
+
+    enum CodingKeys: String, CodingKey {
+        case familyID = "family_id"
+        case ownerID = "owner_id"
+        case accountID = "account_id"
+        case displayName = "display_name"
+    }
 }
 
 nonisolated struct PersonalAppDataRow: Codable, Sendable {

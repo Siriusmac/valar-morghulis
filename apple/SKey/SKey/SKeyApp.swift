@@ -9,6 +9,12 @@ import SwiftUI
 
 @main
 struct SKeyApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(SKeyAppDelegate.self) private var appDelegate
+    #elseif os(macOS)
+    @NSApplicationDelegateAdaptor(SKeyAppDelegate.self) private var appDelegate
+    #endif
+
     @State private var appModel = AppModel()
 
     var body: some Scene {
@@ -18,13 +24,9 @@ struct SKeyApp: App {
 
         #if os(macOS)
         Settings {
-            NativeSettingsView(email: currentEmail)
+            NativeSettingsView(appModel: appModel)
         }
         #endif
     }
 
-    private var currentEmail: String? {
-        guard case .signedIn(let email) = appModel.sessionState else { return nil }
-        return email
-    }
 }

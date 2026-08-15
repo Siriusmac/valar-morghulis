@@ -87,6 +87,45 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
   return Math.round(net * 100) / 100
 }
 
+export interface ReimbursementPlanItem {
+  memberId: UserId
+  availableCredit: number
+  suggestedAmount: number
+}
+
+export function reimbursementPlan(data: AppData, userId: UserId, memberIds: UserId[]): ReimbursementPlanItem[] {
+  const memberCount = memberIds.length
+  if (memberCount < 2) return []
+  const ownDebt = Math.max(0, -sharedBalance(data, userId, memberCount))
+  const pendingPersonal = data.reimbursements.filter((item) => {
+    if (item.status !== 'pending') return false
+    const destination = data.accounts.find((account) => account.id === item.toAccountId)
+    return destination?.scope !== 'family'
+  })
+  const pendingOutbound = pendingPersonal
+    .filter((item) => item.fromId === userId)
+    .reduce((sum, item) => sum + item.amount, 0)
+  let remainingDebt = roundMoney(Math.max(0, ownDebt - pendingOutbound))
+
+  return memberIds
+    .filter((memberId) => memberId !== userId)
+    .map((memberId) => {
+      const credit = Math.max(0, sharedBalance(data, memberId, memberCount))
+      const pendingIncoming = pendingPersonal
+        .filter((item) => item.toId === memberId)
+        .reduce((sum, item) => sum + item.amount, 0)
+      return { memberId, availableCredit: roundMoney(Math.max(0, credit - pendingIncoming)) }
+    })
+    .filter((item) => item.availableCredit > 0)
+    .toSorted((a, b) => b.availableCredit - a.availableCredit || a.memberId.localeCompare(b.memberId))
+    .map((item) => {
+      const suggestedAmount = roundMoney(Math.min(remainingDebt, item.availableCredit))
+      remainingDebt = roundMoney(remainingDebt - suggestedAmount)
+      return { ...item, suggestedAmount }
+    })
+    .filter((item) => item.suggestedAmount > 0)
+}
+
 export function accountBalance(data: AppData, accountId: string) {
   const account = data.accounts.find((item) => item.id === accountId)
   if (!account) return 0

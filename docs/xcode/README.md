@@ -30,6 +30,7 @@ sono ancora state portate o coperte da test equivalenti in Swift.
 - Integrazione cloud: `src/features/CloudAccess.tsx`
 - Schema, RLS e RPC: `supabase/migrations/`
 - Inviti: `supabase/functions/invite-family-member/index.ts`
+- Push rimborsi: `supabase/functions/notify-family-reimbursement/index.ts`
 
 ## Decisioni già prese
 
@@ -46,7 +47,11 @@ sono ancora state portate o coperte da test equivalenti in Swift.
 - UI SwiftUI nativa con target iPhone, iPad e macOS; Mac Catalyst è disattivato.
 - Supabase Swift 2.55.1 come client del backend esistente.
 - Configurazioni Debug e Release collegate ai rispettivi `.xcconfig`.
-- Login, selezione famiglia, conti e nuovo movimento semplice già operativi.
+- Login, Account e famiglie, conti, CRUD dei movimenti semplici, rimborsi con
+  conferma, elenco mensile, saldi calcolati e grafici mensili
+  condivisi/per categoria già operativi.
+- Registrazione APNs iOS/macOS e richiesta push agli altri membri dopo un
+  rimborso implementate; attivazione remota ancora da eseguire.
 
 Restano da definire App Group, Universal Links, domini associati, diagnostica,
 cache offline persistente e strategia definitiva di distribuzione Mac.

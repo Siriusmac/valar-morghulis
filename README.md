@@ -70,8 +70,11 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260727150000_invitation_lifecycle.sql` e
    `supabase/migrations/20260727170000_movement_senders.sql`,
    `supabase/migrations/20260727233000_private_reimbursement_accounts.sql` e
-   `supabase/migrations/20260803120000_registered_user_count.sql`;
-3. pubblica la funzione `invite-family-member`;
+   `supabase/migrations/20260803120000_registered_user_count.sql`,
+   `supabase/migrations/20260815143000_push_notifications.sql` e
+   `supabase/migrations/20260815160000_multi_member_reimbursements.sql`;
+3. pubblica le funzioni `invite-family-member` e
+   `notify-family-reimbursement`;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;
 5. copia `.env.example` in `.env.local` e inserisci URL e chiave pubblica del
@@ -85,8 +88,15 @@ Con Supabase CLI già configurata, i passaggi centrali sono:
 supabase link --project-ref ID_PROGETTO
 supabase db push
 supabase functions deploy invite-family-member
+supabase functions deploy notify-family-reimbursement
 supabase secrets set APP_URL=https://www.valarmorghulis.it
 ```
+
+Per le notifiche push Apple occorre inoltre abilitare la capability Push
+Notifications per l'App ID `it.valarmorghulis.skey` e impostare come segreti
+della funzione `APNS_KEY_ID`, `APNS_TEAM_ID` e `APNS_PRIVATE_KEY` (contenuto
+della chiave APNs `.p8`). Non inserire questi valori nel client o nei file
+`.xcconfig`.
 
 La chiave `service_role` rimane esclusivamente nella funzione Supabase e non deve
 mai essere inserita in file `VITE_*` o commessa nella repository.
@@ -144,7 +154,16 @@ La versione nativa Apple `sKey` è in sviluppo nel progetto
 controlli di sistema per iPhone, iPad e macOS, mantenendo Supabase e AppData v3
 compatibili con la web app. Sono già operativi accesso, ripristino della
 sessione, selezione dello spazio personale o familiare, lettura di profilo e
-conti e inserimento di spese ed entrate semplici personali o condivise.
+conti, configurazione di account e famiglie, inserimento e modifica di spese ed
+entrate semplici personali o condivise, eliminazione con swipe, elenco mensile
+dei movimenti, rimborsi con conferma, saldi calcolati di conti e famiglia e
+grafici mensili condivisi/per categoria tramite Swift Charts. Nelle famiglie con
+più di due persone il debitore può ripartire il totale fra uno o più creditori,
+con importi e conti di destinazione distinti; ogni rimborso viene confermato
+separatamente. iOS e macOS registrano il token APNs dell'utente autenticato;
+quando viene creato un rimborso, app Apple e web richiedono un avviso push
+generico soltanto alla controparte interessata, senza esporre importi o conti
+nella schermata bloccata. Toccando l'avviso si apre direttamente la conferma.
 
 La configurazione pubblica Supabase viene letta da file `.xcconfig`; il file
 locale `apple/SKey/Configuration/Secrets.xcconfig` è ignorato da Git. Per

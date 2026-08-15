@@ -4,4 +4,8 @@
 SUPABASE_URL =
 SUPABASE_PUBLISHABLE_KEY =
 
+CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = SKey/SKey-iOS.entitlements
+CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*] = SKey/SKey-iOS.entitlements
+CODE_SIGN_ENTITLEMENTS[sdk=macosx*] = SKey/SKey-macOS.entitlements
+
 #include? "Secrets.xcconfig"

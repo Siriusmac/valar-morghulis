@@ -1,3 +1,5 @@
 // Debug build settings.
 
 #include "Base.xcconfig"
+
+APS_ENVIRONMENT = development

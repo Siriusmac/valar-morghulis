@@ -76,7 +76,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
             <strong className={balance > 0 ? 'positive-text' : ''}>{formatMoney(Math.abs(balance))}</strong>
             <small>Il saldo si aggiorna automaticamente</small>
           </div>
-          {balance !== 0 ? <button className="text-button" onClick={onReimburse}>Registra rimborso <ArrowRight /></button> : null}
+          {balance !== 0 && (members.length <= 2 || balance < 0) ? <button className="text-button" onClick={onReimburse}>Registra rimborso <ArrowRight /></button> : null}
         </div>
         <div className="monthly-chart">
           <div className="monthly-chart__heading">

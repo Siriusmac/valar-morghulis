@@ -486,6 +486,14 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         ]).then(([familyPrivate, shared]) => ({ error: familyPrivate.error ?? shared.error })) : Promise.resolve({ error: null }),
       ])
       if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
+      if (activeFamilyId) {
+        const pendingAuthoredReimbursements = appData.reimbursements.filter((reimbursement) =>
+          reimbursement.authorId === snapshot.profile.id && reimbursement.status === 'pending')
+        await Promise.allSettled(pendingAuthoredReimbursements.map((reimbursement) =>
+          supabase.functions.invoke('notify-family-reimbursement', {
+            body: { familyId: activeFamilyId, reimbursementId: reimbursement.id },
+          })))
+      }
     },
     deleteSharedDirectory: async (recordType, recordId, replacementId) => {
       if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')

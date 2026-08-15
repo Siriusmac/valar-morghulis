@@ -2,27 +2,16 @@ import SwiftUI
 
 #if os(macOS)
 struct NativeSettingsView: View {
-    let email: String?
+    let appModel: AppModel
 
     var body: some View {
         TabView {
-            Form {
-                Section("Account") {
-                    LabeledContent("Email", value: email ?? "Non disponibile")
-                }
-
-                Section("Applicazione") {
-                    LabeledContent("Nome", value: "sKey")
-                    LabeledContent("Valuta", value: "Euro")
-                    LabeledContent("Formato date", value: "Italiano")
-                }
-            }
-            .formStyle(.grouped)
+            AccountSettingsView(appModel: appModel)
             .tabItem {
-                Label("Generali", systemImage: "gearshape")
+                Label("Account", systemImage: "person.crop.circle")
             }
         }
-        .frame(width: 480, height: 300)
+        .frame(width: 620, height: 720)
     }
 }
 #endif

@@ -3,16 +3,162 @@ import Supabase
 
 protocol LedgerRepository: Sendable {
     func loadMovementOptions(userID: UUID, familyID: UUID?) async throws -> MovementOptions
+    func loadLedgerSnapshot(
+        userID: UUID,
+        familyID: UUID?,
+        memberCount: Int
+    ) async throws -> LedgerSnapshot
     func createMovement(
         _ draft: MovementDraft,
         userID: UUID,
         userDisplayName: String,
         familyID: UUID?
     ) async throws
+    func deleteMovement(id: String, shared: Bool, userID: UUID, familyID: UUID?) async throws
+    func createReimbursement(_ draft: ReimbursementDraft, userID: UUID, familyID: UUID) async throws -> String
+    func respondToReimbursement(id: String, accepted: Bool, accountID: String?, familyID: UUID) async throws
 }
 
 struct SupabaseLedgerRepository: LedgerRepository {
     let client: SupabaseClient
+
+    func loadLedgerSnapshot(
+        userID: UUID,
+        familyID: UUID?,
+        memberCount: Int
+    ) async throws -> LedgerSnapshot {
+        async let personalRowRequest: RawAppDataRow? = client
+            .from("user_app_data")
+            .select("data")
+            .eq("user_id", value: userID)
+            .maybeSingle()
+            .execute()
+            .value
+
+        let familyRow: RawAppDataRow?
+        let sharedAccounts: [SharedAccountRow]
+        let sharedRecords: [SharedRecordRow]
+
+        if let familyID {
+            async let familyRowRequest: RawAppDataRow? = client
+                .from("family_user_app_data")
+                .select("data")
+                .eq("family_id", value: familyID)
+                .eq("user_id", value: userID)
+                .maybeSingle()
+                .execute()
+                .value
+
+            async let accountsRequest: [SharedAccountRow] = client
+                .from("accounts")
+                .select("id, family_id, name, institution, account_type, opening_balance, opening_balance_date")
+                .eq("family_id", value: familyID)
+                .eq("scope", value: "family")
+                .execute()
+                .value
+
+            async let recordsRequest: [SharedRecordRow] = client
+                .from("family_shared_records")
+                .select("record_type, record_id, data, created_by")
+                .eq("family_id", value: familyID)
+                .execute()
+                .value
+
+            (familyRow, sharedAccounts, sharedRecords) = try await (
+                familyRowRequest,
+                accountsRequest,
+                recordsRequest
+            )
+        } else {
+            familyRow = nil
+            sharedAccounts = []
+            sharedRecords = []
+        }
+
+        let personalRoot = try await personalRowRequest?.data?.objectValue ?? [:]
+        let familyRoot = familyRow?.data?.objectValue ?? [:]
+        let personalAccounts = decodeArray(PersonalAccountRow.self, key: "accounts", from: personalRoot)
+            .filter { $0.scope == "personal" }
+            .map {
+                AccountSummary(
+                    id: $0.id,
+                    familyID: nil,
+                    name: $0.name,
+                    institution: $0.institution,
+                    kind: $0.type,
+                    openingBalance: $0.openingBalance,
+                    openingBalanceDate: $0.openingBalanceDate
+                )
+            }
+        let familyAccounts = sharedAccounts.map {
+            AccountSummary(
+                id: $0.id.uuidString,
+                familyID: $0.familyID,
+                name: $0.name,
+                institution: $0.institution,
+                kind: $0.accountType,
+                openingBalance: $0.openingBalance,
+                openingBalanceDate: $0.openingBalanceDate
+            )
+        }
+
+        let privateCategories = mergedByID(
+            preferred: decodeArray(LedgerDirectoryItem.self, key: "categories", from: familyRoot),
+            additional: decodeArray(LedgerDirectoryItem.self, key: "categories", from: personalRoot)
+        )
+        let privateBeneficiaries = mergedByID(
+            preferred: decodeArray(LedgerDirectoryItem.self, key: "beneficiaries", from: familyRoot),
+            additional: decodeArray(LedgerDirectoryItem.self, key: "beneficiaries", from: personalRoot)
+        )
+        let privateSenders = mergedByID(
+            preferred: decodeArray(LedgerDirectoryItem.self, key: "senders", from: familyRoot),
+            additional: decodeArray(LedgerDirectoryItem.self, key: "senders", from: personalRoot)
+        )
+        let privateMovements = mergedByID(
+            preferred: decodeArray(LedgerMovement.self, key: "movements", from: familyRoot),
+            additional: decodeArray(LedgerMovement.self, key: "movements", from: personalRoot)
+        )
+        let privateTransfers = mergedByID(
+            preferred: decodeArray(LedgerTransfer.self, key: "transfers", from: familyRoot),
+            additional: decodeArray(LedgerTransfer.self, key: "transfers", from: personalRoot)
+        )
+        let privateReimbursements = mergedByID(
+            preferred: decodeArray(LedgerReimbursement.self, key: "reimbursements", from: familyRoot),
+            additional: decodeArray(LedgerReimbursement.self, key: "reimbursements", from: personalRoot)
+        )
+
+        let sharedCategories = decodeShared(LedgerDirectoryItem.self, type: "category", from: sharedRecords)
+        let sharedBeneficiaries = decodeShared(LedgerDirectoryItem.self, type: "beneficiary", from: sharedRecords)
+        let sharedSenders = decodeShared(LedgerDirectoryItem.self, type: "sender", from: sharedRecords)
+        let sharedMovements = decodeShared(LedgerMovement.self, type: "movement", from: sharedRecords)
+        let sharedTransfers = decodeShared(LedgerTransfer.self, type: "transfer", from: sharedRecords)
+        let sharedReimbursements = decodeShared(
+            LedgerReimbursement.self,
+            type: "reimbursement",
+            from: sharedRecords
+        )
+
+        return LedgerSnapshot(
+            currentUserID: userID.uuidString.lowercased(),
+            memberCount: max(1, memberCount),
+            accounts: (personalAccounts + familyAccounts).sorted(by: sortByName),
+            categories: mergedByID(preferred: privateCategories, additional: sharedCategories)
+                .sorted(by: sortByName),
+            beneficiaries: mergedByID(preferred: privateBeneficiaries, additional: sharedBeneficiaries)
+                .sorted(by: sortByName),
+            senders: mergedByID(preferred: privateSenders, additional: sharedSenders)
+                .sorted(by: sortByName),
+            movements: mergedByID(preferred: privateMovements, additional: sharedMovements)
+                .sorted(by: Self.sortMovements),
+            transfers: mergedByID(preferred: privateTransfers, additional: sharedTransfers),
+            // The family record carries a confirmed/rejected status that must
+            // override an older private pending copy.
+            reimbursements: mergedByID(
+                preferred: sharedReimbursements,
+                additional: privateReimbursements
+            )
+        )
+    }
 
     func loadMovementOptions(userID: UUID, familyID: UUID?) async throws -> MovementOptions {
         async let personalRowRequest: RawAppDataRow? = client
@@ -160,7 +306,8 @@ struct SupabaseLedgerRepository: LedgerRepository {
             category: category,
             beneficiary: beneficiary,
             sender: sender,
-            shared: false
+            shared: false,
+            preserving: existingJSON(id: draft.id, in: "movements", root: root)
         )
         upsertJSON(movement, id: draft.id, in: "movements", root: &root)
 
@@ -215,7 +362,8 @@ struct SupabaseLedgerRepository: LedgerRepository {
             category: category,
             beneficiary: beneficiary,
             sender: sender,
-            shared: true
+            shared: true,
+            preserving: existingJSON(id: draft.id, in: "movements", root: familyRoot)
         )
         upsertJSON(movement, id: draft.id, in: "movements", root: &familyRoot)
 
@@ -273,9 +421,11 @@ struct SupabaseLedgerRepository: LedgerRepository {
         category: LedgerDirectoryItem,
         beneficiary: LedgerDirectoryItem?,
         sender: LedgerDirectoryItem?,
-        shared: Bool
+        shared: Bool,
+        preserving existing: JSONValue? = nil
     ) -> JSONValue {
-        var object: [String: JSONValue] = [
+        var object = existing?.objectValue ?? [:]
+        object.merge([
             "id": .string(draft.id),
             "type": .string(draft.type.rawValue),
             "authorId": .string(userID.uuidString.lowercased()),
@@ -285,17 +435,136 @@ struct SupabaseLedgerRepository: LedgerRepository {
             "description": .string(draft.description),
             "categoryId": .string(category.id),
             "accountId": .string(draft.account.id),
-            "shared": .bool(shared),
-            "createdAt": .string(Self.timestampFormatter.string(from: Date()))
-        ]
+            "shared": .bool(shared)
+        ]) { _, new in new }
+        if object["createdAt"] == nil {
+            object["createdAt"] = .string(Self.timestampFormatter.string(from: Date()))
+        }
 
-        if let beneficiary { object["beneficiaryId"] = .string(beneficiary.id) }
-        if let sender { object["senderId"] = .string(sender.id) }
-        if let comments = draft.comments { object["comments"] = .string(comments) }
+        if let beneficiary { object["beneficiaryId"] = .string(beneficiary.id) } else { object.removeValue(forKey: "beneficiaryId") }
+        if let sender { object["senderId"] = .string(sender.id) } else { object.removeValue(forKey: "senderId") }
+        if let comments = draft.comments { object["comments"] = .string(comments) } else { object.removeValue(forKey: "comments") }
         if let affectsAccountBalance = draft.affectsAccountBalance {
             object["affectsAccountBalance"] = .bool(affectsAccountBalance)
+        } else {
+            object.removeValue(forKey: "affectsAccountBalance")
         }
         return .object(object)
+    }
+
+    func deleteMovement(id: String, shared: Bool, userID: UUID, familyID: UUID?) async throws {
+        if shared {
+            guard let familyID else { throw LedgerRepositoryError.familyRequired }
+            async let privateRowRequest: RawAppDataRow? = client
+                .from("family_user_app_data")
+                .select("data")
+                .eq("family_id", value: familyID)
+                .eq("user_id", value: userID)
+                .maybeSingle()
+                .execute()
+                .value
+            async let existingKeysRequest: [OwnedSharedRecordRow] = client
+                .from("family_shared_records")
+                .select("record_type, record_id")
+                .eq("family_id", value: familyID)
+                .eq("created_by", value: userID)
+                .in("record_type", values: Self.transactionRecordTypes)
+                .execute()
+                .value
+            let (privateRow, existingKeys) = try await (privateRowRequest, existingKeysRequest)
+            var root = appDataRoot(from: privateRow?.data)
+            removeJSON(id: id, from: "movements", root: &root)
+            var ownedKeys = Set(existingKeys.map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
+            ownedKeys.formUnion(transactionKeys(in: root))
+            ownedKeys.remove(SharedRecordKey(type: "movement", id: id))
+
+            try await client.from("family_user_app_data")
+                .upsert(FamilyAppDataUpsert(familyID: familyID, userID: userID, data: .object(root)), onConflict: "family_id,user_id")
+                .execute()
+            try await client.rpc(
+                "sync_family_shared_records",
+                params: SyncSharedRecordsParameters(
+                    familyID: familyID,
+                    records: [],
+                    ownedKeys: ownedKeys.sorted { $0.type == $1.type ? $0.id < $1.id : $0.type < $1.type }
+                )
+            ).execute()
+        } else {
+            let existingRow: RawAppDataRow? = try await client.from("user_app_data")
+                .select("data")
+                .eq("user_id", value: userID)
+                .maybeSingle()
+                .execute()
+                .value
+            var root = appDataRoot(from: existingRow?.data)
+            removeJSON(id: id, from: "movements", root: &root)
+            try await client.from("user_app_data")
+                .upsert(UserAppDataUpsert(userID: userID, data: .object(root)), onConflict: "user_id")
+                .execute()
+        }
+    }
+
+    func createReimbursement(_ draft: ReimbursementDraft, userID: UUID, familyID: UUID) async throws -> String {
+        async let privateRowRequest: RawAppDataRow? = client.from("family_user_app_data")
+            .select("data")
+            .eq("family_id", value: familyID)
+            .eq("user_id", value: userID)
+            .maybeSingle()
+            .execute()
+            .value
+        async let existingKeysRequest: [OwnedSharedRecordRow] = client.from("family_shared_records")
+            .select("record_type, record_id")
+            .eq("family_id", value: familyID)
+            .eq("created_by", value: userID)
+            .in("record_type", values: Self.transactionRecordTypes)
+            .execute()
+            .value
+
+        let (privateRow, existingKeys) = try await (privateRowRequest, existingKeysRequest)
+        var root = appDataRoot(from: privateRow?.data)
+        let id = draft.id
+        var object: [String: JSONValue] = [
+            "id": .string(id),
+            "fromId": .string(draft.fromID.uuidString.lowercased()),
+            "toId": .string(draft.toID.uuidString.lowercased()),
+            "amount": .number(draft.amount),
+            "date": .string(Self.dayFormatter.string(from: draft.date)),
+            "authorId": .string(userID.uuidString.lowercased()),
+            "status": .string("pending")
+        ]
+        if let groupID = draft.groupID { object["groupId"] = .string(groupID) }
+        if let fromAccountID = draft.fromAccountID { object["fromAccountId"] = .string(fromAccountID) }
+        if let toAccountID = draft.toAccountID { object["toAccountId"] = .string(toAccountID) }
+        let reimbursement = JSONValue.object(object)
+        upsertJSON(reimbursement, id: id, in: "reimbursements", root: &root)
+
+        var ownedKeys = Set(existingKeys.map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
+        ownedKeys.formUnion(transactionKeys(in: root))
+        ownedKeys.insert(SharedRecordKey(type: "reimbursement", id: id))
+        try await client.from("family_user_app_data")
+            .upsert(FamilyAppDataUpsert(familyID: familyID, userID: userID, data: .object(root)), onConflict: "family_id,user_id")
+            .execute()
+        try await client.rpc(
+            "sync_family_shared_records",
+            params: SyncSharedRecordsParameters(
+                familyID: familyID,
+                records: [SharedRecordPayload(type: "reimbursement", id: id, data: reimbursement)],
+                ownedKeys: ownedKeys.sorted { $0.type == $1.type ? $0.id < $1.id : $0.type < $1.type }
+            )
+        ).execute()
+        return id
+    }
+
+    func respondToReimbursement(id: String, accepted: Bool, accountID: String?, familyID: UUID) async throws {
+        try await client.rpc(
+            "respond_to_family_reimbursement",
+            params: ReimbursementResponseParameters(
+                familyID: familyID,
+                reimbursementID: id,
+                accepted: accepted,
+                accountID: accountID
+            )
+        ).execute()
     }
 
     private func appDataRoot(from value: JSONValue?) -> [String: JSONValue] {
@@ -329,6 +598,16 @@ struct SupabaseLedgerRepository: LedgerRepository {
             values.append(value)
         }
         root[key] = .array(values)
+    }
+
+    private func existingJSON(id: String, in key: String, root: [String: JSONValue]) -> JSONValue? {
+        root[key]?.arrayValue?.first { $0.objectValue?["id"]?.stringValue == id }
+    }
+
+    private func removeJSON(id: String, from key: String, root: inout [String: JSONValue]) {
+        root[key] = .array((root[key]?.arrayValue ?? []).filter {
+            $0.objectValue?["id"]?.stringValue != id
+        })
     }
 
     private func transactionKeys(in root: [String: JSONValue]) -> Set<SharedRecordKey> {
@@ -396,6 +675,22 @@ struct SupabaseLedgerRepository: LedgerRepository {
             .sorted(by: sortByName)
     }
 
+    private func decodeShared<T: Decodable>(
+        _ type: T.Type,
+        type recordType: String,
+        from records: [SharedRecordRow]
+    ) -> [T] {
+        records
+            .filter { $0.recordType == recordType }
+            .compactMap { try? $0.data.decode(T.self) }
+    }
+
+    private func mergedByID<T: Identifiable>(preferred: [T], additional: [T]) -> [T]
+    where T.ID == String {
+        let preferredIDs = Set(preferred.map(\.id))
+        return preferred + additional.filter { !preferredIDs.contains($0.id) }
+    }
+
     private func sortByName<T>(_ lhs: T, _ rhs: T) -> Bool where T: NamedValue {
         lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
     }
@@ -424,6 +719,12 @@ struct SupabaseLedgerRepository: LedgerRepository {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    private static func sortMovements(_ lhs: LedgerMovement, _ rhs: LedgerMovement) -> Bool {
+        if lhs.date != rhs.date { return lhs.date > rhs.date }
+        if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
+        return lhs.id < rhs.id
+    }
 }
 
 private protocol NamedValue {
@@ -516,6 +817,20 @@ private struct SyncSharedRecordsParameters: Encodable, Sendable {
         case familyID = "target_family_id"
         case records
         case ownedKeys = "owned_keys"
+    }
+}
+
+private struct ReimbursementResponseParameters: Encodable, Sendable {
+    let familyID: UUID
+    let reimbursementID: String
+    let accepted: Bool
+    let accountID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case familyID = "target_family_id"
+        case reimbursementID = "target_reimbursement_id"
+        case accepted = "accept_reimbursement"
+        case accountID = "selected_account_id"
     }
 }
 

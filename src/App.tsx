@@ -4,7 +4,7 @@ import { AppShell } from './components/AppShell'
 import { Login } from './components/Login'
 import { Modal } from './components/Modal'
 import { CloudAccess, type FamilySession } from './features/CloudAccess'
-import { sharedBalance, visibleMovements } from './lib/calculations'
+import { reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
 import { formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
@@ -32,6 +32,13 @@ type ModalState =
   | { type: 'transfer' }
   | { type: 'details'; title: string; filter: (movement: Movement) => boolean }
   | null
+
+interface ReimbursementSubmission {
+  amount: number
+  fromAccountId?: string
+  toAccountId?: string
+  counterpartId: string
+}
 
 export default function App() {
   if (cloudAuthEnabled) return <CloudAccess>{(context) => <FinanceApp key={`${context.familyId}:${context.user.id}`} cloud={context} />}</CloudAccess>
@@ -148,12 +155,25 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     setToast(`${kind === 'beneficiary' ? 'Beneficiario' : 'Mittente'} eliminato`)
   }
-  const registerReimbursement = (amount: number, fromAccountId: string | undefined, toAccountId: string | undefined, counterpartId: string) => {
-    const balance = sharedBalance(data, user.id, appUsers.length); const otherId = counterpartId
-    if (!otherId) return
-    const fromId = balance < 0 ? user.id : otherId; const toId = balance < 0 ? otherId : user.id
-    setData((current) => ({ ...current, reimbursements: [...current.reimbursements, { id: makeId('reimbursement'), fromId, toId, amount, date: todayISO(), authorId: user.id, fromAccountId, toAccountId, status: cloud ? 'pending' : 'confirmed' }] }))
-    setModal(null); setToast(cloud ? 'Rimborso inviato per conferma' : 'Rimborso registrato')
+  const registerReimbursement = (submissions: ReimbursementSubmission[]) => {
+    const balance = sharedBalance(data, user.id, appUsers.length)
+    if (!submissions.length) return
+    const groupId = submissions.length > 1 ? makeId('reimbursement-group') : undefined
+    const reimbursements = submissions.map((submission) => {
+      const fromId = balance < 0 ? user.id : submission.counterpartId
+      const toId = balance < 0 ? submission.counterpartId : user.id
+      return {
+        id: makeId('reimbursement'), groupId, fromId, toId,
+        amount: submission.amount, date: todayISO(), authorId: user.id,
+        fromAccountId: submission.fromAccountId, toAccountId: submission.toAccountId,
+        status: cloud ? 'pending' as const : 'confirmed' as const,
+      }
+    })
+    setData((current) => ({ ...current, reimbursements: [...current.reimbursements, ...reimbursements] }))
+    setModal(null)
+    setToast(cloud
+      ? `${submissions.length === 1 ? 'Rimborso inviato' : `${submissions.length} rimborsi inviati`} per conferma`
+      : submissions.length === 1 ? 'Rimborso registrato' : `${submissions.length} rimborsi registrati`)
   }
   const respondToReimbursement = async (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => {
     if (!cloud) return
@@ -230,13 +250,96 @@ function cloudImportKey(familyId: string, userId: string) {
   return `valar-morghulis:cloud-imported:${familyId}:${userId}:v1`
 }
 
-function ReimbursementForm({ data, userId, members, accountReferences, requireConfirmation, onSubmit, onCancel }: {
+function ReimbursementForm(props: {
   data: AppData
   userId: UserId
   members: User[]
   accountReferences: ReimbursementAccountReference[]
   requireConfirmation: boolean
-  onSubmit: (amount: number, fromAccountId: string | undefined, toAccountId: string | undefined, counterpartId: string) => void
+  onSubmit: (submissions: ReimbursementSubmission[]) => void
+  onCancel: () => void
+}) {
+  const balance = sharedBalance(props.data, props.userId, props.members.length)
+  if (props.members.length > 2 && balance < 0) return <MultiMemberReimbursementForm {...props} />
+  if (props.members.length > 2) return <div className="reimbursement-form"><span className="reimbursement-form__icon"><CheckCircle2 /></span><p>Rimborso non necessario</p><small>Nelle famiglie con più membri il rimborso viene avviato dalla persona che deve saldare il proprio debito.</small><div className="form-actions"><button className="button button--primary" type="button" onClick={props.onCancel}>Chiudi</button></div></div>
+  return <TwoMemberReimbursementForm {...props} />
+}
+
+function MultiMemberReimbursementForm({ data, userId, members, accountReferences, requireConfirmation, onSubmit, onCancel }: {
+  data: AppData
+  userId: UserId
+  members: User[]
+  accountReferences: ReimbursementAccountReference[]
+  requireConfirmation: boolean
+  onSubmit: (submissions: ReimbursementSubmission[]) => void
+  onCancel: () => void
+}) {
+  const plan = reimbursementPlan(data, userId, members.map((member) => member.id))
+  const ownAccounts = data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === userId)
+  const [fromAccountId, setFromAccountId] = useState(ownAccounts[0]?.id ?? '')
+  const [selections, setSelections] = useState(() => Object.fromEntries(plan.map((item) => [item.memberId, {
+    selected: true,
+    amount: item.suggestedAmount.toFixed(2).replace('.', ','),
+    toAccountId: accountReferences.find((account) => account.ownerId === item.memberId)?.accountId ?? '',
+  }])))
+  const parsed = plan.map((item) => {
+    const selection = selections[item.memberId]
+    const amount = Number((selection?.amount ?? '').replace(',', '.'))
+    return { ...item, ...selection, amount: Number.isFinite(amount) ? amount : 0 }
+  })
+  const selected = parsed.filter((item) => item.selected && item.amount > 0)
+  const total = selected.reduce((sum, item) => sum + item.amount, 0)
+  const maximumTotal = plan.reduce((sum, item) => sum + item.suggestedAmount, 0)
+  const valid = selected.length > 0
+    && total <= maximumTotal + 0.001
+    && selected.every((item) => item.amount <= item.availableCredit + 0.001)
+  const update = (memberId: string, value: Partial<{ selected: boolean; amount: string; toAccountId: string }>) => {
+    setSelections((current) => ({ ...current, [memberId]: { ...current[memberId], ...value } }))
+  }
+
+  return <form className="reimbursement-form reimbursement-form--multi" onSubmit={(event) => {
+    event.preventDefault()
+    if (!valid) return
+    onSubmit(selected.map((item) => ({
+      amount: item.amount,
+      fromAccountId: fromAccountId || undefined,
+      toAccountId: item.toAccountId || undefined,
+      counterpartId: item.memberId,
+    })))
+  }}>
+    <span className="reimbursement-form__icon"><Scale /></span>
+    <p>Ripartisci il rimborso</p>
+    <strong>Da rimborsare: {formatMoney(maximumTotal)}</strong>
+    <small>Scegli uno o più membri creditori. Ogni persona confermerà soltanto il rimborso che la riguarda.</small>
+    <label>Il tuo conto di origine<select value={fromAccountId} onChange={(event) => setFromAccountId(event.target.value)}><option value="">Nessun conto selezionato</option>{ownAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.institution}</option>)}</select></label>
+    <div className="reimbursement-recipients">
+      {plan.map((item) => {
+        const member = members.find((candidate) => candidate.id === item.memberId)
+        const accounts = accountReferences.filter((account) => account.ownerId === item.memberId)
+        const selection = selections[item.memberId]
+        return <fieldset key={item.memberId} className={selection?.selected ? 'reimbursement-recipient reimbursement-recipient--selected' : 'reimbursement-recipient'}>
+          <label className="reimbursement-recipient__toggle"><input type="checkbox" checked={selection?.selected ?? false} onChange={(event) => update(item.memberId, { selected: event.target.checked })} /><span><strong>{member?.name ?? 'Membro'}</strong><small>Credito disponibile: {formatMoney(item.availableCredit)}</small></span></label>
+          {selection?.selected ? <div className="reimbursement-recipient__fields">
+            <label>Importo<div className="money-input"><span>€</span><input value={selection.amount} inputMode="decimal" onChange={(event) => update(item.memberId, { amount: event.target.value })} /></div></label>
+            <label>Conto di destinazione<select value={selection.toAccountId} onChange={(event) => update(item.memberId, { toAccountId: event.target.value })}><option value="">Lo specifica il destinatario</option>{accounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.name}</option>)}</select></label>
+          </div> : null}
+        </fieldset>
+      })}
+    </div>
+    {!plan.length ? <p className="privacy-note">Non risultano crediti disponibili da rimborsare oppure sono già presenti rimborsi in attesa.</p> : null}
+    {!valid && selected.length ? <p className="form-error">Gli importi non possono superare il debito totale o il credito disponibile del destinatario.</p> : null}
+    <p className="privacy-note">I rimborsi sono separati e aggiornano i saldi soltanto dopo le rispettive conferme.</p>
+    <div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit" disabled={!valid}>{requireConfirmation ? 'Invia per conferma' : 'Registra rimborsi'} <ArrowRight /></button></div>
+  </form>
+}
+
+function TwoMemberReimbursementForm({ data, userId, members, accountReferences, requireConfirmation, onSubmit, onCancel }: {
+  data: AppData
+  userId: UserId
+  members: User[]
+  accountReferences: ReimbursementAccountReference[]
+  requireConfirmation: boolean
+  onSubmit: (submissions: ReimbursementSubmission[]) => void
   onCancel: () => void
 }) {
   const balance = sharedBalance(data, userId, members.length)
@@ -270,7 +373,7 @@ function ReimbursementForm({ data, userId, members, accountReferences, requireCo
   return <form className="reimbursement-form" onSubmit={(event) => {
     event.preventDefault()
     const value = Number(amount.replace(',', '.'))
-    if (value > 0 && canSubmit) onSubmit(value, fromAccountId, toAccountId, counterpartId)
+    if (value > 0 && canSubmit) onSubmit([{ amount: value, fromAccountId, toAccountId, counterpartId }])
   }}>
     <span className="reimbursement-form__icon"><Scale /></span>
     <p>{label}</p>
