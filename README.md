@@ -22,7 +22,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; il conto personale mancante può essere completato da chi lo possiede;
 - scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
-- conti personali e condivisi, contanti e giro fondi tra conti; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
+- conti personali e condivisi, contanti e giro fondi tra conti dalla terza scelta di “Nuovo movimento”; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
 - categorie, beneficiari e mittenti ricercabili mentre si scrive e creati automaticamente quando il nome non esiste; tag creabili durante l'uso;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;

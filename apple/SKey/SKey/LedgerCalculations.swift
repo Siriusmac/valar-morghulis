@@ -254,6 +254,18 @@ nonisolated enum LedgerCalculations {
             }
         }
 
+        for transfer in snapshot.transfers {
+            let sourceIsFamily = snapshot.account(named: transfer.fromAccountID)?.familyID != nil
+            let destinationIsFamily = snapshot.account(named: transfer.toAccountID)?.familyID != nil
+            guard sourceIsFamily, !destinationIsFamily else { continue }
+
+            if transfer.authorID.caseInsensitiveCompare(userID) == .orderedSame {
+                net -= transfer.amount.decimal * otherMembers / memberCount
+            } else {
+                net += transfer.amount.decimal / memberCount
+            }
+        }
+
         return Money(decimal: net)
     }
 

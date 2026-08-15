@@ -359,6 +359,38 @@ struct SKeyTests {
     }
 
     @Test
+    func calculatesFamilyToPersonalTransferEvenWhenDestinationAccountIsPrivate() {
+        let family = AccountSummary(
+            id: "family",
+            familyID: UUID(uuidString: "11111111-1111-1111-1111-111111111111"),
+            name: "Famiglia",
+            institution: "",
+            kind: .bank,
+            openingBalance: 0,
+            openingBalanceDate: nil
+        )
+        let snapshot = ledgerSnapshot(
+            memberCount: 2,
+            accounts: [family],
+            movements: [],
+            transfers: [
+                LedgerTransfer(
+                    id: "family-to-private",
+                    authorID: "other",
+                    fromAccountID: family.id,
+                    toAccountID: "other-private",
+                    amount: Money(cents: 10_000),
+                    date: "2026-08-16",
+                    description: "Prelievo dal conto famiglia"
+                )
+            ]
+        )
+
+        #expect(LedgerCalculations.sharedBalance(in: snapshot) == Money(cents: 5_000))
+        #expect(LedgerCalculations.sharedBalance(in: snapshot, userID: "other") == Money(cents: -5_000))
+    }
+
+    @Test
     func plansMultiMemberReimbursementsAcrossCurrentCreditors() {
         let base = ledgerSnapshot(
             memberCount: 3,

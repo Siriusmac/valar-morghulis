@@ -14,6 +14,19 @@ afterEach(() => {
 })
 
 describe('MovementForm', () => {
+  it('offers fund transfer as the third choice only for a new movement', () => {
+    const onSelectTransfer = vi.fn()
+    const data = structuredClone(defaultData)
+    const { rerender } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Giro fondi' }))
+    expect(onSelectTransfer).toHaveBeenCalledOnce()
+
+    const existing = data.movements[0]
+    rerender(<MovementForm data={data} user={users[0]} initial={existing} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+    expect(screen.queryByRole('button', { name: 'Giro fondi' })).toBeNull()
+  })
+
   it('asks how a movement before the opening balance date affects the account', () => {
     const data = structuredClone(defaultData)
     data.accounts = data.accounts.map((account) => account.id === 'simone-bank'

@@ -27,7 +27,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 ### Conti e regolazioni
 
 - Conti bancari, carte, contanti e PayPal; personali o condivisi.
-- Saldo iniziale e data modificabili; giro fondi.
+- Saldo iniziale e data modificabili; giro fondi come terza scelta nella creazione di un nuovo movimento.
 - Rimborsi con approvazione e scelta dei conti di origine/destinazione.
 - Agli altri membri è pubblicabile solo il nome dei conti abilitati ai rimborsi, mai il saldo.
 

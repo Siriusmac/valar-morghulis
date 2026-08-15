@@ -92,6 +92,13 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'terzo-membro', 3)).toBe(30)
   })
 
+  it('uses the transfer author when another member cannot load the personal destination account', () => {
+    const data = cleanData()
+    data.accounts = data.accounts.filter((account) => account.id !== 'simone-bank')
+    data.transfers = [{ id: 'family-to-hidden-personal', authorId: 'simone', fromAccountId: 'family-bank', toAccountId: 'simone-bank', amount: 100, date: '2026-07-18', description: 'Prelievo dal conto famiglia' }]
+    expect(sharedBalance(data, 'anna')).toBe(50)
+  })
+
   it('settles a shared installment purchase immediately, without counting later installments twice', () => {
     const data = cleanData()
     data.movements = [

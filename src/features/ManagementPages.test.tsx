@@ -153,7 +153,7 @@ describe('AccountsPage', () => {
 
   it('asks explicitly which family owns a new shared account', async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined)
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onTransfer={vi.fn()} onShowMovements={vi.fn()} />)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
     fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Vacanze' } })
@@ -169,7 +169,7 @@ describe('AccountsPage', () => {
 
   it('updates reimbursement visibility independently for multiple families', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined)
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onTransfer={vi.fn()} onShowMovements={vi.fn()} reimbursementSharing={{
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={vi.fn()} reimbursementSharing={{
       references: [{ familyId: 'family-one', ownerId: users[0].id, accountId: 'simone-bank', name: 'Conto corrente' }],
       onChange,
     }} />)

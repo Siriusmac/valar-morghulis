@@ -1,6 +1,7 @@
 import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
+import { MovementTypeSelector } from '../components/MovementTypeSelector'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
@@ -14,6 +15,8 @@ interface Props {
   onDelete?: (id: string) => void
   initial?: Movement
   personalOnly?: boolean
+  initialType?: MovementType
+  onSelectTransfer?: () => void
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
@@ -28,8 +31,8 @@ function findByName<T extends { name: string }>(items: T[], value: string) {
   return items.find((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
 }
 
-export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false }: Props) {
-  const [type, setType] = useState<MovementType>(initial?.type ?? 'expense')
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false, initialType = 'expense', onSelectTransfer }: Props) {
+  const [type, setType] = useState<MovementType>(initial?.type ?? initialType)
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [comments, setComments] = useState(initial?.comments ?? '')
@@ -318,10 +321,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   }
 
   return <form className="expense-form movement-form" onSubmit={submit}>
-    <div className="movement-type" aria-label="Tipo di movimento">
-      <button type="button" className={type === 'expense' ? 'active' : ''} onClick={() => changeType('expense')}>Spesa</button>
-      <button type="button" className={type === 'income' ? 'active movement-type__income' : 'movement-type__income'} onClick={() => changeType('income')}>Entrata</button>
-    </div>
+    <MovementTypeSelector value={type} includeTransfer={!initial && Boolean(onSelectTransfer)} onChange={(nextType) => nextType === 'transfer' ? onSelectTransfer?.() : changeType(nextType)} />
     <div className={`amount-field ${type === 'income' ? 'amount-field--income' : ''}`}>
       <label htmlFor="amount">Importo {installmentsEnabled ? 'totale' : ''}</label><div><span>€</span><input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
       {submitted && (!Number(amount.replace(',', '.')) || Number(amount.replace(',', '.')) <= 0) ? <small>Inserisci un importo valido.</small> : null}

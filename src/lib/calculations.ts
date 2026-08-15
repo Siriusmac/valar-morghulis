@@ -79,8 +79,9 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
   for (const transfer of data.transfers) {
     const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
     const destination = data.accounts.find((account) => account.id === transfer.toAccountId)
-    if (source?.scope !== 'family' || destination?.scope !== 'personal' || !destination.ownerId) continue
-    net += destination.ownerId === userId
+    if (source?.scope !== 'family' || destination?.scope === 'family') continue
+    const destinationOwnerId = destination?.ownerId ?? transfer.authorId
+    net += destinationOwnerId === userId
       ? -transfer.amount * otherMembersShare
       : transfer.amount * personalShare
   }

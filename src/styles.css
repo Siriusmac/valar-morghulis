@@ -396,10 +396,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .movement-list--compact .movement-row { grid-template-columns: 38px minmax(145px, 1fr) 105px 105px 90px; }
 .movement-list--compact .scope-label, .movement-list--compact .movement-row time, .movement-list--compact .row-actions { display: none; }
 .movement-type { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.movement-type--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .movement-type button { height: 44px; border: 0; background: white; cursor: pointer; font-weight: 600; font-size: 12px; }
 .movement-type button + button { border-left: 1px solid var(--line); }
 .movement-type button.active { color: var(--accent); background: var(--accent-soft); }
 .movement-type button.movement-type__income.active { color: var(--positive); background: var(--positive-soft); }
+.movement-type button.movement-type__transfer.active { color: #3b5f8a; background: #eaf2fb; }
 .amount-field--income span, .amount-field--income input { color: var(--positive); }
 .family-account-note { border: 1px solid #b9c9b7; background: var(--positive-soft); border-radius: 7px; padding: 13px 15px; display: flex; align-items: center; gap: 13px; color: var(--positive); }
 .family-account-note > svg { width: 21px; }

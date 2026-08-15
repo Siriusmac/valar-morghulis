@@ -6,12 +6,14 @@ struct MovementComposerView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var options: MovementOptions?
+    @State private var composerMode = ComposerMode.expense
     @State private var type = MovementKind.expense
     @State private var amountText = ""
     @State private var date = Date()
     @State private var descriptionText = ""
     @State private var comments = ""
     @State private var accountID = ""
+    @State private var toAccountID = ""
     @State private var category: LedgerDirectoryItem?
     @State private var counterparty: LedgerDirectoryItem?
     @State private var tag: LedgerDirectoryItem?
@@ -38,6 +40,7 @@ struct MovementComposerView: View {
     init(appModel: AppModel, movement: LedgerMovement? = nil) {
         self.appModel = appModel
         self.movement = movement
+        _composerMode = State(initialValue: movement?.type == .income ? .income : .expense)
         _type = State(initialValue: movement?.type ?? .expense)
         _amountText = State(initialValue: movement.map {
             NSDecimalNumber(decimal: $0.amount.decimal).stringValue.replacingOccurrences(of: ".", with: ",")
@@ -108,24 +111,26 @@ struct MovementComposerView: View {
         #endif
     }
 
+    @ViewBuilder
     private func movementForm(_ options: MovementOptions) -> some View {
+        if composerMode == .transfer, movement == nil {
+            transferForm(options)
+        } else {
+            standardMovementForm(options)
+        }
+    }
+
+    private func standardMovementForm(_ options: MovementOptions) -> some View {
         Form {
             Section {
-                Picker("Tipo", selection: $type) {
-                    ForEach(MovementKind.allCases, id: \.self) { kind in
-                        Text(kind.label).tag(kind)
+                Picker("Tipo", selection: $composerMode) {
+                    ForEach(availableComposerModes, id: \.self) { mode in
+                        Text(mode.label).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: type) { _, newType in
-                    category = nil
-                    counterparty = nil
-                    if newType == .income {
-                        installmentsEnabled = false
-                        splitsEnabled = false
-                        splitDrafts = []
-                        updateIncomeAccount(forSharedState: isShared, options: options)
-                    }
+                .onChange(of: composerMode) { _, newMode in
+                    changeComposerMode(newMode, options: options)
                 }
 
                 amountField
@@ -307,6 +312,85 @@ struct MovementComposerView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
+    private func transferForm(_ options: MovementOptions) -> some View {
+        Form {
+            Section {
+                Picker("Tipo", selection: $composerMode) {
+                    ForEach(availableComposerModes, id: \.self) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: composerMode) { _, newMode in
+                    changeComposerMode(newMode, options: options)
+                }
+
+                amountField
+
+                DatePicker("Data", selection: $date, displayedComponents: .date)
+                    .environment(\.locale, Locale(identifier: "it_IT"))
+            } header: {
+                Text("Movimento")
+            } footer: {
+                if submitted, parsedAmount == nil {
+                    Text("Inserisci un importo maggiore di zero.")
+                        .foregroundStyle(.red)
+                }
+            }
+
+            Section {
+                Picker("Dal conto", selection: $accountID) {
+                    Text("Seleziona un conto").tag("")
+                    ForEach(options.accounts) { account in
+                        Text(accountLabel(account)).tag(account.id)
+                    }
+                }
+                .onChange(of: accountID) { _, newValue in
+                    if toAccountID == newValue {
+                        toAccountID = options.accounts.first(where: { $0.id != newValue })?.id ?? ""
+                    }
+                }
+
+                Picker("Al conto", selection: $toAccountID) {
+                    Text("Seleziona un conto").tag("")
+                    ForEach(options.accounts.filter { $0.id != accountID }) { account in
+                        Text(accountLabel(account)).tag(account.id)
+                    }
+                }
+
+                TextField("Descrizione facoltativa", text: $descriptionText)
+                    .focused($focusedField, equals: .description)
+            } header: {
+                Text("Trasferimento")
+            } footer: {
+                if selectedAccount?.familyID != nil, selectedDestinationAccount?.familyID == nil {
+                    Text(transferFamilyNote)
+                } else {
+                    Text("Il giro fondi aggiorna il saldo di entrambi i conti senza creare una spesa o un’entrata.")
+                }
+            }
+
+            if submitted, !isTransferValid {
+                Section {
+                    Label(transferValidationMessage, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+
+            if isSaving {
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView("Salvataggio…")
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDismissesKeyboard(.interactively)
+    }
+
     @ViewBuilder
     private var amountField: some View {
         #if os(iOS)
@@ -321,6 +405,14 @@ struct MovementComposerView: View {
 
     private var selectedAccount: AccountSummary? {
         options?.accounts.first { $0.id == accountID }
+    }
+
+    private var selectedDestinationAccount: AccountSummary? {
+        options?.accounts.first { $0.id == toAccountID }
+    }
+
+    private var availableComposerModes: [ComposerMode] {
+        movement == nil ? ComposerMode.allCases : [.expense, .income]
     }
 
     private var effectivelyShared: Bool {
@@ -399,6 +491,41 @@ struct MovementComposerView: View {
         return "Controlla l’importo inserito."
     }
 
+    private var isTransferValid: Bool {
+        parsedAmount != nil
+            && selectedAccount != nil
+            && selectedDestinationAccount != nil
+            && accountID != toAccountID
+            && (options?.accounts.count ?? 0) >= 2
+    }
+
+    private var transferValidationMessage: String {
+        if (options?.accounts.count ?? 0) < 2 { return "Crea almeno due conti per effettuare un giro fondi." }
+        if selectedAccount == nil { return "Seleziona il conto di origine." }
+        if selectedDestinationAccount == nil { return "Seleziona il conto di destinazione." }
+        if accountID == toAccountID { return "Scegli due conti diversi." }
+        return "Inserisci un importo maggiore di zero."
+    }
+
+    private var transferFamilyNote: String {
+        let members = max(1, appModel.activeFamily?.memberCount ?? 1)
+        guard members > 1 else {
+            return "Il trasferimento dal conto familiare al conto personale aggiorna il saldo familiare."
+        }
+        let personalShare = Decimal(members - 1) / Decimal(members) * 100
+        let percentage = NSDecimalNumber(decimal: personalShare).rounding(
+            accordingToBehavior: NSDecimalNumberHandler(
+                roundingMode: .plain,
+                scale: 0,
+                raiseOnExactness: false,
+                raiseOnOverflow: false,
+                raiseOnUnderflow: false,
+                raiseOnDivideByZero: false
+            )
+        ).stringValue
+        return "Il trasferimento verso un conto personale genera un debito verso la famiglia pari al \(percentage)% dell’importo."
+    }
+
     private func loadOptions() async {
         guard options == nil else { return }
         isLoading = true
@@ -430,6 +557,7 @@ struct MovementComposerView: View {
                 accountID = loaded.accounts.first(where: { $0.familyID == nil })?.id
                     ?? loaded.accounts.first?.id
                     ?? ""
+                toAccountID = loaded.accounts.first(where: { $0.id != accountID })?.id ?? ""
             }
             updateBalanceImpact()
             focusedField = .amount
@@ -443,6 +571,10 @@ struct MovementComposerView: View {
 
     private func save() {
         submitted = true
+        if composerMode == .transfer, movement == nil {
+            saveTransfer()
+            return
+        }
         guard
             !isSaving,
             let amount = parsedAmount,
@@ -487,6 +619,69 @@ struct MovementComposerView: View {
             } catch {
                 errorMessage = error.localizedDescription
                 isSaving = false
+            }
+        }
+    }
+
+    private func saveTransfer() {
+        guard
+            !isSaving,
+            isTransferValid,
+            let amount = parsedAmount,
+            let fromAccount = selectedAccount,
+            let toAccount = selectedDestinationAccount
+        else {
+            return
+        }
+
+        isSaving = true
+        focusedField = nil
+        let draft = TransferDraft(
+            fromAccount: fromAccount,
+            toAccount: toAccount,
+            amount: amount,
+            date: date,
+            description: descriptionText
+        )
+
+        Task {
+            do {
+                try await appModel.createTransfer(draft)
+                dismiss()
+            } catch is CancellationError {
+                isSaving = false
+            } catch {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
+    }
+
+    private func changeComposerMode(_ mode: ComposerMode, options: MovementOptions) {
+        guard movement == nil else {
+            type = mode.movementKind ?? type
+            return
+        }
+
+        if let movementKind = mode.movementKind {
+            type = movementKind
+            category = nil
+            counterparty = nil
+            if movementKind == .income {
+                installmentsEnabled = false
+                splitsEnabled = false
+                splitDrafts = []
+                updateIncomeAccount(forSharedState: isShared, options: options)
+            }
+        } else {
+            installmentsEnabled = false
+            splitsEnabled = false
+            splitDrafts = []
+            if accountID.isEmpty {
+                accountID = options.accounts.first?.id ?? ""
+            }
+            if toAccountID.isEmpty || toAccountID == accountID {
+                toAccountID = options.accounts.first(where: { $0.id != accountID })?.id ?? ""
             }
         }
     }
@@ -793,6 +988,28 @@ struct MovementComposerView: View {
         case amount
         case description
         case comments
+    }
+
+    private enum ComposerMode: String, CaseIterable {
+        case expense
+        case income
+        case transfer
+
+        var label: String {
+            switch self {
+            case .expense: "Spesa"
+            case .income: "Entrata"
+            case .transfer: "Giro fondi"
+            }
+        }
+
+        var movementKind: MovementKind? {
+            switch self {
+            case .expense: .expense
+            case .income: .income
+            case .transfer: nil
+            }
+        }
     }
 
     private static let dayFormatter: DateFormatter = {

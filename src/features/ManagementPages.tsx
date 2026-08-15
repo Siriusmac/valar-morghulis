@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Send, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
+import { Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Send, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
 import { accountBalance, movementAllocations, totalsByCategory, visibleMovements } from '../lib/calculations'
@@ -7,10 +7,9 @@ import type { Account, AppData, Beneficiary, Category, MovementType, Reimburseme
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number) => void }
 
-export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMovements, families = [], activeFamilyId, reimbursementSharing }: BaseProps & {
+export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, families = [], activeFamilyId, reimbursementSharing }: BaseProps & {
   onAdd: (account: Account, familyId?: string) => void | Promise<void>
   onUpdate: (account: Account) => void
-  onTransfer: () => void
   families?: Array<{ id: string; name: string }>
   activeFamilyId?: string
   reimbursementSharing?: {
@@ -59,7 +58,7 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onTransfer, onShowMo
     onUpdate({ ...account, openingBalance: numericBalance, openingBalanceDate: editingBalanceDate })
     setEditingAccountId('')
   }
-  return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--ghost" onClick={onTransfer}><ArrowLeftRight />Giro fondi</button><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
+  return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
     {showForm ? <InlineForm title="Nuovo conto" submitLabel={formBusy ? 'Creazione…' : 'Crea conto'} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>Istituto o dettaglio<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => setType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option></select></label><label>Visibilità<select value={scope} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option>{families.length ? <option value="family">Condiviso con una famiglia</option> : null}</select></label>{scope === 'family' ? <label>Famiglia<select aria-label="Famiglia del conto" value={targetFamilyId} onChange={(event) => setTargetFamilyId(event.target.value)} required>{families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}</select></label> : null}<label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label>{formError ? <p className="form-message form-message--error" role="alert">{formError}</p> : null}</InlineForm> : null}
     {editingAccountId ? <InlineForm title="Correggi saldo iniziale" submitLabel="Salva saldo" onSubmit={updateOpeningBalance} onCancel={() => setEditingAccountId('')}><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} autoFocus required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
     {reimbursementSharing ? <p className="field-explanation reimbursement-privacy-note"><LockKeyhole /> Per ogni conto personale scegli in quali famiglie renderne visibile soltanto il nome. Saldo, istituto e movimenti restano privati.</p> : null}

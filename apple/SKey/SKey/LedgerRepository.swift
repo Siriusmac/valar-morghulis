@@ -14,6 +14,7 @@ protocol LedgerRepository: Sendable {
         userDisplayName: String,
         familyID: UUID?
     ) async throws
+    func createTransfer(_ draft: TransferDraft, userID: UUID, familyID: UUID?) async throws
     func deleteMovement(id: String, shared: Bool, userID: UUID, familyID: UUID?) async throws
     func saveAccount(_ draft: AccountDraft, userID: UUID, familyID: UUID?) async throws
     func deleteAccount(_ account: AccountSummary, userID: UUID, familyID: UUID?) async throws
@@ -340,6 +341,86 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 userDisplayName: userDisplayName
             )
         }
+    }
+
+    func createTransfer(_ draft: TransferDraft, userID: UUID, familyID: UUID?) async throws {
+        guard draft.amount > 0 else { throw LedgerRepositoryError.invalidTransferAmount }
+        guard draft.fromAccount.id != draft.toAccount.id else {
+            throw LedgerRepositoryError.invalidTransferAccounts
+        }
+
+        let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let transfer = LedgerTransfer(
+            id: draft.id,
+            authorID: userID.uuidString.lowercased(),
+            fromAccountID: draft.fromAccount.id,
+            toAccountID: draft.toAccount.id,
+            amount: Money(decimal: draft.amount),
+            date: Self.dayFormatter.string(from: draft.date),
+            description: description.isEmpty ? "Giro fondi" : description
+        )
+        let data = try JSONValue.encode(transfer)
+        let isShared = draft.fromAccount.familyID != nil || draft.toAccount.familyID != nil
+
+        guard isShared else {
+            let row: RawAppDataRow? = try await client.from("user_app_data")
+                .select("data")
+                .eq("user_id", value: userID)
+                .maybeSingle()
+                .execute()
+                .value
+            var root = appDataRoot(from: row?.data)
+            upsertJSON(data, id: draft.id, in: "transfers", root: &root)
+            try await client.from("user_app_data")
+                .upsert(UserAppDataUpsert(userID: userID, data: .object(root)), onConflict: "user_id")
+                .execute()
+            return
+        }
+
+        guard let familyID else { throw LedgerRepositoryError.familyRequired }
+        let familyAccounts = [draft.fromAccount, draft.toAccount].compactMap(\.familyID)
+        guard familyAccounts.allSatisfy({ $0 == familyID }) else {
+            throw LedgerRepositoryError.transferFamilyMismatch
+        }
+
+        async let privateRowRequest: RawAppDataRow? = client.from("family_user_app_data")
+            .select("data")
+            .eq("family_id", value: familyID)
+            .eq("user_id", value: userID)
+            .maybeSingle()
+            .execute()
+            .value
+        async let existingKeysRequest: [OwnedSharedRecordRow] = client.from("family_shared_records")
+            .select("record_type, record_id")
+            .eq("family_id", value: familyID)
+            .eq("created_by", value: userID)
+            .in("record_type", values: Self.transactionRecordTypes)
+            .execute()
+            .value
+
+        let (privateRow, existingKeys) = try await (privateRowRequest, existingKeysRequest)
+        var root = appDataRoot(from: privateRow?.data)
+        upsertJSON(data, id: draft.id, in: "transfers", root: &root)
+        var ownedKeys = Set(existingKeys.map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
+        ownedKeys.formUnion(transactionKeys(in: root))
+        ownedKeys.insert(SharedRecordKey(type: "transfer", id: draft.id))
+
+        try await client.from("family_user_app_data")
+            .upsert(
+                FamilyAppDataUpsert(familyID: familyID, userID: userID, data: .object(root)),
+                onConflict: "family_id,user_id"
+            )
+            .execute()
+        try await client.rpc(
+            "sync_family_shared_records",
+            params: SyncSharedRecordsParameters(
+                familyID: familyID,
+                records: [SharedRecordPayload(type: "transfer", id: draft.id, data: data)],
+                ownedKeys: ownedKeys.sorted {
+                    $0.type == $1.type ? $0.id < $1.id : $0.type < $1.type
+                }
+            )
+        ).execute()
     }
 
     func saveAccount(_ draft: AccountDraft, userID: UUID, familyID: UUID?) async throws {
@@ -1792,6 +1873,9 @@ enum LedgerRepositoryError: LocalizedError {
     case accountNameRequired
     case invalidAccountID
     case directoryNameRequired
+    case invalidTransferAmount
+    case invalidTransferAccounts
+    case transferFamilyMismatch
 
     var errorDescription: String? {
         switch self {
@@ -1803,6 +1887,12 @@ enum LedgerRepositoryError: LocalizedError {
             "Il conto condiviso non ha un identificativo valido."
         case .directoryNameRequired:
             "Inserisci il nome dell’elemento."
+        case .invalidTransferAmount:
+            "Inserisci un importo maggiore di zero."
+        case .invalidTransferAccounts:
+            "Scegli due conti diversi."
+        case .transferFamilyMismatch:
+            "I conti familiari devono appartenere allo spazio attivo."
         }
     }
 }

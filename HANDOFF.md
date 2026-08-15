@@ -269,6 +269,12 @@ selezione distinta per ogni appartenenza stabilisce a quali famiglie pubblicare
 esclusivamente nome e identificativo opaco; un'icona occhio contrassegna i conti
 pubblicati ad almeno una famiglia.
 
+Il comando “Giro fondi” non è più nella sezione Conti: web app e client Apple
+lo espongono nella finestra “Nuovo movimento” come terza scelta dopo Spesa ed
+Entrata. Il trasferimento mantiene il record `transfer` esistente, aggiorna i
+saldi dei due conti e, dal conto familiare verso un conto personale, regola il
+saldo familiare in modo proporzionale al numero dei membri.
+
 Ogni movimento creato dall'utente corrente espone le azioni native di modifica
 ed eliminazione con swipe da destra verso sinistra su touch e icone permanenti
 su Mac. Gli altri membri restano in sola lettura. Il form espone ora anche i

@@ -268,6 +268,18 @@ final class AppModel {
         await reloadWorkspace()
     }
 
+    func createTransfer(_ draft: TransferDraft) async throws {
+        guard let currentUserID, let ledgerRepository else {
+            throw AppModelError.clientUnavailable
+        }
+        try await ledgerRepository.createTransfer(
+            draft,
+            userID: currentUserID,
+            familyID: selectedFamilyID
+        )
+        await reloadWorkspace()
+    }
+
     func canModify(_ movement: LedgerMovement) -> Bool {
         guard let currentUserID else { return false }
         return movement.authorID.caseInsensitiveCompare(currentUserID.uuidString) == .orderedSame

@@ -397,6 +397,31 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
     }
 }
 
+nonisolated struct TransferDraft: Identifiable, Equatable, Sendable {
+    let id: String
+    let fromAccount: AccountSummary
+    let toAccount: AccountSummary
+    let amount: Decimal
+    let date: Date
+    let description: String
+
+    init(
+        id: String = "transfer-\(UUID().uuidString.lowercased())",
+        fromAccount: AccountSummary,
+        toAccount: AccountSummary,
+        amount: Decimal,
+        date: Date,
+        description: String
+    ) {
+        self.id = id
+        self.fromAccount = fromAccount
+        self.toAccount = toAccount
+        self.amount = amount
+        self.date = date
+        self.description = description
+    }
+}
+
 nonisolated struct InstallmentPurchaseDraft: Equatable, Sendable {
     let planID: String
     let provider: String

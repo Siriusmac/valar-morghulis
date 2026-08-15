@@ -22,13 +22,18 @@ la barra inferiore rappresenta destinazioni, non comandi.
 
 Form progressivo:
 
-1. Entrata/spesa, importo, data e conto.
-2. Categoria con ricerca e creazione contestuale.
-3. Beneficiario per spesa o mittente per entrata.
-4. Tag e commenti.
-5. Condivisione.
-6. Parziali opzionali.
-7. Rateizzazione delle spese, compatibile con parziali.
+1. Spesa, Entrata o Giro fondi, con il trasferimento come terza scelta solo in creazione.
+2. Per spese ed entrate: importo, data e conto.
+3. Categoria con ricerca e creazione contestuale.
+4. Beneficiario per spesa o mittente per entrata.
+5. Tag e commenti.
+6. Condivisione.
+7. Parziali opzionali.
+8. Rateizzazione delle spese, compatibile con parziali.
+
+Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
+crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
+personale aggiorna il debito verso la famiglia in base al numero dei membri.
 
 Per autocomplete usare campo testuale, risultati filtrati e azione “Crea …”, non un picker statico. Mostrare sempre il residuo dei parziali. In modifica, “Salva” conserva l'ID; “Elimina movimento” è separato e distruttivo.
 
@@ -38,7 +43,7 @@ Usare controlli nativi, focus state e scrolling automatico: l'intero controllo a
 
 - Elenco con saldo e ambito, senza esporre saldi personali ad altri.
 - Dettaglio con movimenti, saldo/data iniziali e pubblicazione nome per rimborsi.
-- “Giro fondi” solo nella sezione Conti.
+- La sezione gestisce soltanto i conti; “Giro fondi” si trova in “Nuovo movimento”.
 - Conti familiari chiaramente contrassegnati.
 - “Crea conto” è un comando testuale esplicito; la modifica usa swipe trailing
   su iPhone e iPad verticale, mentre macOS e iPad orizzontale mostrano icone
