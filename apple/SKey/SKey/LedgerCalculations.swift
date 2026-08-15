@@ -1,22 +1,79 @@
 import Foundation
 
 nonisolated enum LedgerCalculations {
-    static func allocations(of movement: LedgerMovement) -> [LedgerAllocation] {
-        let splits = (movement.splits ?? []).filter {
-            $0.amount > .zero && !$0.categoryID.isEmpty
+    static func installmentAmounts(total: Decimal, count: Int) -> [Money] {
+        guard count > 1 else { return [Money(decimal: total)] }
+        let totalCents = Money(decimal: total).cents
+        let base = totalCents / Int64(count)
+        let remainder = totalCents - base * Int64(count)
+        return (0..<count).map { index in
+            Money(cents: base + (index == count - 1 ? remainder : 0))
         }
+    }
+
+    static func splitAllocationsAcrossInstallments(
+        allocations: [Money],
+        installments: [Money]
+    ) -> [[Money]] {
+        var remaining = allocations.map(\.cents)
+        return installments.enumerated().map { installmentIndex, installment in
+            if installmentIndex == installments.count - 1 {
+                return remaining.map(Money.init(cents:))
+            }
+
+            let remainingTotal = remaining.reduce(0, +)
+            guard remainingTotal > 0 else { return remaining.map { _ in .zero } }
+
+            let products = remaining.map { $0 * installment.cents }
+            var row = products.enumerated().map { index, product in
+                min(remaining[index], product / remainingTotal)
+            }
+            var centsToAssign = installment.cents - row.reduce(0, +)
+            let priority = products.enumerated().sorted { lhs, rhs in
+                let lhsRemainder = lhs.element % remainingTotal
+                let rhsRemainder = rhs.element % remainingTotal
+                return lhsRemainder == rhsRemainder ? lhs.offset < rhs.offset : lhsRemainder > rhsRemainder
+            }
+            for item in priority where centsToAssign > 0 {
+                guard row[item.offset] < remaining[item.offset] else { continue }
+                row[item.offset] += 1
+                centsToAssign -= 1
+            }
+            for index in row.indices { remaining[index] -= row[index] }
+            return row.map(Money.init(cents:))
+        }
+    }
+
+    static func date(byAddingMonths months: Int, to date: Date, calendar: Calendar = .current) -> Date {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let firstOfTarget = calendar.date(
+            from: DateComponents(year: components.year, month: (components.month ?? 1) + months, day: 1)
+        ) ?? date
+        let range = calendar.range(of: .day, in: .month, for: firstOfTarget)
+        let day = min(components.day ?? 1, range?.count ?? 28)
+        return calendar.date(bySetting: .day, value: day, of: firstOfTarget) ?? firstOfTarget
+    }
+
+    static func allocations(of movement: LedgerMovement) -> [LedgerAllocation] {
+        let splits = (movement.splits ?? []).filter { $0.amount > .zero }
         let splitTotal = splits.reduce(Money.zero) { $0 + $1.amount }
         let remainder = Money(cents: max(0, movement.amount.cents - splitTotal.cents))
 
         return (remainder > .zero
             ? [LedgerAllocation(
                 categoryID: movement.categoryID,
+                beneficiaryID: movement.beneficiaryID,
                 amount: remainder,
                 shared: movement.shared
             )]
             : [])
             + splits.map {
-                LedgerAllocation(categoryID: $0.categoryID, amount: $0.amount, shared: $0.shared)
+                LedgerAllocation(
+                    categoryID: $0.categoryID,
+                    beneficiaryID: $0.beneficiaryID,
+                    amount: $0.amount,
+                    shared: $0.shared
+                )
             }
     }
 

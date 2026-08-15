@@ -30,6 +30,7 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 - `delete_family(target_family_id, preserve_authored_data)`
 - `delete_my_account()`
 - `sync_family_shared_records(target_family_id, records, owned_keys)`
+- `set_reimbursement_account_families(account_id, account_name, target_family_ids)`
 - `delete_family_directory_record(target_family_id, record_type, record_id, replacement_id)`
 - `respond_to_family_reimbursement(target_family_id, target_reimbursement_id, accept_reimbursement, selected_account_id)`
 
@@ -58,6 +59,9 @@ Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `c
 - Privato per famiglia: upsert `family_user_app_data`.
 - Condiviso: RPC `sync_family_shared_records`.
 - Conti: tabella `accounts` con RLS.
+- Visibilità dei conti personali per i rimborsi: la RPC atomica
+  `set_reimbursement_account_families` sostituisce l'insieme completo delle
+  famiglie selezionate dopo aver verificato proprietà del conto e membership.
 - Dopo approvazioni, inviti o eliminazioni: rilettura autorevole.
 
 `AppData.version` è 3. Ogni nuova versione richiede decoder retrocompatibile, migrazione locale testata, backend compatibile con il client precedente e divieto di sovrascrivere snapshot di versione sconosciuta.

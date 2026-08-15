@@ -54,8 +54,11 @@ creano o cancellano grandi quantità di dati.
 9. Grafico condiviso mensile per giorno/persona e donut percentuali per
    categoria in Spese, Entrate e Condivise.
 10. Notifica push agli altri membri dopo la registrazione di un rimborso.
+11. Creazione e modifica di conti personali o familiari.
+12. Nuova spesa in 3 o 5 rate, elenco delle scadenze e materializzazione delle
+    rate dovute.
 
-Prossimi blocchi: tag, parziali, rate, cache offline e riallineamento Realtime.
+Prossimi blocchi: tag, parziali, cache offline e riallineamento Realtime.
 
 ## Definition of done
 

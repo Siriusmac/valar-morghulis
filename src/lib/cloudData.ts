@@ -1,5 +1,5 @@
 import { movementAllocations, movementHasSharedPortion } from './calculations'
-import { deleteCounterpartyData, type CounterpartyKind } from './directories'
+import { deleteDirectoryData, type DirectoryDeletionKind } from './directories'
 import { hydrateData } from './storage'
 import type {
   AppData, Beneficiary, Category, Movement, ScheduledPayment, Sender, Tag, UserId,
@@ -235,15 +235,15 @@ export function mergeCloudPersistence(
     scheduledPayments: [] as ScheduledPayment[],
     transfers: [] as AppData['transfers'],
     reimbursements: [] as AppData['reimbursements'],
-    redirects: [] as Array<{ kind: CounterpartyKind; oldId: string; replacementId?: string }>,
+    redirects: [] as Array<{ kind: DirectoryDeletionKind; oldId: string; replacementId?: string }>,
   }
   for (const record of records) {
     if (record.record_type === 'category') shared.categories.push(record.data as Category)
     if (record.record_type === 'beneficiary') shared.beneficiaries.push(record.data as Beneficiary)
     if (record.record_type === 'sender') shared.senders.push(record.data as Sender)
     if (record.record_type === 'directory_redirect') {
-      const redirect = record.data as { kind?: CounterpartyKind; oldId?: string; replacementId?: string }
-      if ((redirect.kind === 'beneficiary' || redirect.kind === 'sender') && redirect.oldId) {
+      const redirect = record.data as { kind?: DirectoryDeletionKind; oldId?: string; replacementId?: string }
+      if ((redirect.kind === 'category' || redirect.kind === 'beneficiary' || redirect.kind === 'sender') && redirect.oldId) {
         shared.redirects.push({ kind: redirect.kind, oldId: redirect.oldId, replacementId: redirect.replacementId })
       }
     }
@@ -281,7 +281,7 @@ export function mergeCloudPersistence(
     return replacementId
   }
   return shared.redirects.reduce(
-    (current, redirect) => deleteCounterpartyData(current, redirect.kind, redirect.oldId, finalReplacement(redirect)),
+    (current, redirect) => deleteDirectoryData(current, redirect.kind, redirect.oldId, finalReplacement(redirect)),
     merged,
   )
 }

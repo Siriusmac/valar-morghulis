@@ -153,6 +153,20 @@ nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
     let kind: Kind
     let openingBalance: Decimal
     let openingBalanceDate: String?
+
+    var scope: DirectoryScope { familyID == nil ? .personal : .family }
+}
+
+nonisolated struct AccountDraft: Identifiable, Equatable, Sendable {
+    let id: String
+    let isNew: Bool
+    let familyID: UUID?
+    let name: String
+    let institution: String
+    let kind: AccountSummary.Kind
+    let openingBalance: Decimal
+    let openingBalanceDate: Date
+    let reimbursementFamilyIDs: Set<UUID>?
 }
 
 nonisolated struct FamilyMembershipRow: Codable, Sendable {
@@ -259,6 +273,22 @@ nonisolated enum DirectoryScope: String, Codable, Equatable, Sendable {
     case family
 }
 
+nonisolated enum LedgerDirectoryKind: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
+    case category
+    case beneficiary
+    case sender
+    case tag
+
+    var arrayKey: String {
+        switch self {
+        case .category: "categories"
+        case .beneficiary: "beneficiaries"
+        case .sender: "senders"
+        case .tag: "tags"
+        }
+    }
+}
+
 nonisolated struct LedgerDirectoryItem: Identifiable, Codable, Equatable, Sendable {
     let id: String
     let name: String
@@ -293,6 +323,29 @@ nonisolated struct MovementOptions: Equatable, Sendable {
     let categories: [LedgerDirectoryItem]
     let beneficiaries: [LedgerDirectoryItem]
     let senders: [LedgerDirectoryItem]
+    let tags: [LedgerDirectoryItem]
+
+    init(
+        accounts: [AccountSummary],
+        categories: [LedgerDirectoryItem],
+        beneficiaries: [LedgerDirectoryItem],
+        senders: [LedgerDirectoryItem],
+        tags: [LedgerDirectoryItem] = []
+    ) {
+        self.accounts = accounts
+        self.categories = categories
+        self.beneficiaries = beneficiaries
+        self.senders = senders
+        self.tags = tags
+    }
+}
+
+nonisolated struct MovementSplitDraft: Identifiable, Equatable, Sendable {
+    let id: String
+    let amount: Decimal
+    let category: LedgerDirectoryItem
+    let beneficiary: LedgerDirectoryItem?
+    let isShared: Bool
 }
 
 nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
@@ -305,8 +358,11 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
     let account: AccountSummary
     let category: LedgerDirectoryItem
     let counterparty: LedgerDirectoryItem
+    let tag: LedgerDirectoryItem?
     let isShared: Bool
+    let splits: [MovementSplitDraft]?
     let affectsAccountBalance: Bool?
+    let installment: InstallmentPurchaseDraft?
 
     init(
         id: String = UUID().uuidString.lowercased(),
@@ -318,8 +374,11 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         account: AccountSummary,
         category: LedgerDirectoryItem,
         counterparty: LedgerDirectoryItem,
+        tag: LedgerDirectoryItem? = nil,
         isShared: Bool,
-        affectsAccountBalance: Bool?
+        splits: [MovementSplitDraft]? = nil,
+        affectsAccountBalance: Bool?,
+        installment: InstallmentPurchaseDraft? = nil
     ) {
         self.id = id
         self.type = type
@@ -330,7 +389,29 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         self.account = account
         self.category = category
         self.counterparty = counterparty
+        self.tag = tag
         self.isShared = isShared
+        self.splits = splits
         self.affectsAccountBalance = affectsAccountBalance
+        self.installment = installment
+    }
+}
+
+nonisolated struct InstallmentPurchaseDraft: Equatable, Sendable {
+    let planID: String
+    let provider: String
+    let count: Int
+    let scheduledPaymentIDs: [String]
+
+    init(
+        planID: String = "installment-plan-\(UUID().uuidString.lowercased())",
+        provider: String,
+        count: Int,
+        scheduledPaymentIDs: [String]
+    ) {
+        self.planID = planID
+        self.provider = provider
+        self.count = count
+        self.scheduledPaymentIDs = scheduledPaymentIDs
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { deleteCounterpartyData } from './directories'
+import { deleteCounterpartyData, deleteDirectoryData } from './directories'
 import { hydrateData } from './storage'
 
 describe('counterparty deletion', () => {
@@ -46,5 +46,30 @@ describe('counterparty deletion', () => {
     expect(reassigned.movements.find((item) => item.id === 'seed-4')?.senderId).toBe('inps')
     expect(cleared.movements.find((item) => item.id === 'seed-4')?.senderId).toBeUndefined()
     expect(reassigned.movements.find((item) => item.id === 'seed-1')?.beneficiaryId).toBe('lidl')
+  })
+})
+
+describe('category deletion', () => {
+  it('reassigns the main category and partials in movements and future installments', () => {
+    const data = structuredClone(defaultData)
+    data.movements[0].splits = [{ id: 'partial', amount: 10, categoryId: 'alimentari', shared: true }]
+    data.scheduledPayments[0].categoryId = 'alimentari'
+    data.scheduledPayments[0].splits = [{ id: 'future-partial', amount: 5, categoryId: 'alimentari', shared: true }]
+
+    const updated = deleteDirectoryData(data, 'category', 'alimentari', 'casa')
+
+    expect(updated.categories.some((item) => item.id === 'alimentari')).toBe(false)
+    expect(updated.movements[0].categoryId).toBe('casa')
+    expect(updated.movements[0].splits?.[0].categoryId).toBe('casa')
+    expect(updated.scheduledPayments[0].categoryId).toBe('casa')
+    expect(updated.scheduledPayments[0].splits?.[0].categoryId).toBe('casa')
+  })
+
+  it('keeps deleted categories unassigned after hydration', () => {
+    const updated = deleteDirectoryData(structuredClone(defaultData), 'category', 'alimentari')
+    const hydrated = hydrateData(updated, structuredClone(defaultData))
+
+    expect(hydrated.categories.some((item) => item.id === 'alimentari')).toBe(false)
+    expect(hydrated.movements.find((item) => item.id === 'seed-1')?.categoryId).toBe('')
   })
 })

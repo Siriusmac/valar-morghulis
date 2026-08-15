@@ -1,13 +1,35 @@
 import type { AppData } from '../types'
 
-export type CounterpartyKind = 'beneficiary' | 'sender'
+export type DirectoryDeletionKind = 'category' | 'beneficiary' | 'sender'
+export type CounterpartyKind = Exclude<DirectoryDeletionKind, 'category'>
 
-export function deleteCounterpartyData(
+export function deleteDirectoryData(
   data: AppData,
-  kind: CounterpartyKind,
+  kind: DirectoryDeletionKind,
   itemId: string,
   replacementId?: string,
 ): AppData {
+  if (kind === 'category') {
+    return {
+      ...data,
+      categories: data.categories.filter((item) => item.id !== itemId),
+      deletedCategoryIds: [...new Set([...(data.deletedCategoryIds ?? []), itemId])],
+      movements: data.movements.map((movement) => ({
+        ...movement,
+        categoryId: movement.categoryId === itemId ? replacementId ?? '' : movement.categoryId,
+        splits: movement.splits?.map((split) => split.categoryId === itemId
+          ? { ...split, categoryId: replacementId ?? '' }
+          : split),
+      })),
+      scheduledPayments: data.scheduledPayments.map((payment) => ({
+        ...payment,
+        categoryId: payment.categoryId === itemId ? replacementId ?? '' : payment.categoryId,
+        splits: payment.splits?.map((split) => split.categoryId === itemId
+          ? { ...split, categoryId: replacementId ?? '' }
+          : split),
+      })),
+    }
+  }
   if (kind === 'sender') {
     return {
       ...data,
@@ -35,3 +57,5 @@ export function deleteCounterpartyData(
     })),
   }
 }
+
+export const deleteCounterpartyData = deleteDirectoryData

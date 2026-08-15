@@ -20,7 +20,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - saldo iniziale dei conti modificabile con data di riferimento;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; il conto personale mancante può essere completato da chi lo possiede;
-- condivisione facoltativa, per ogni famiglia, del solo nome dei conti personali utilizzabili nei rimborsi; saldo, istituto e movimenti restano privati;
+- scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
 - conti personali e condivisi, contanti e giro fondi tra conti; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
@@ -71,8 +71,11 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260727170000_movement_senders.sql`,
    `supabase/migrations/20260727233000_private_reimbursement_accounts.sql` e
    `supabase/migrations/20260803120000_registered_user_count.sql`,
-   `supabase/migrations/20260815143000_push_notifications.sql` e
-   `supabase/migrations/20260815160000_multi_member_reimbursements.sql`;
+   `supabase/migrations/20260815143000_push_notifications.sql`,
+   `supabase/migrations/20260815160000_multi_member_reimbursements.sql`,
+   `supabase/migrations/20260816010000_category_directory_deletion.sql`,
+   `supabase/migrations/20260816020000_tag_and_account_deletion.sql` e
+   `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`;
 4. configura il segreto della funzione con
@@ -154,10 +157,22 @@ La versione nativa Apple `sKey` è in sviluppo nel progetto
 controlli di sistema per iPhone, iPad e macOS, mantenendo Supabase e AppData v3
 compatibili con la web app. Sono già operativi accesso, ripristino della
 sessione, selezione dello spazio personale o familiare, lettura di profilo e
-conti, configurazione di account e famiglie, inserimento e modifica di spese ed
-entrate semplici personali o condivise, eliminazione con swipe, elenco mensile
-dei movimenti, rimborsi con conferma, saldi calcolati di conti e famiglia e
-grafici mensili condivisi/per categoria tramite Swift Charts. Nelle famiglie con
+conti con creazione e modifica, configurazione di account e famiglie, inserimento
+e modifica di spese ed entrate personali o condivise, suddivisione per categorie
+con visibilità indipendente di ogni parziale, acquisti in 3 o 5 rate,
+azioni contestuali touch o Mac, anagrafiche di categorie, beneficiari, mittenti
+e tag modificabili con accesso ai relativi movimenti, elenco mensile dei
+movimenti, rimborsi con conferma, saldi calcolati di conti e famiglia e
+grafici mensili condivisi/per categoria tramite Swift Charts. Le rate future
+sono raggruppate per acquisto in “Pagamenti programmati” e vengono materializzate
+alla scadenza.
+I conti possono anche essere eliminati con azioni adattive al dispositivo. Alla
+creazione di un conto familiare si sceglie esplicitamente la famiglia
+proprietaria; per ogni conto personale si possono invece selezionare una o più
+famiglie alle quali pubblicare soltanto il nome come destinazione di un
+rimborso. L'interfaccia identifica i conti pubblicati con una piccola icona,
+senza esporre saldo o movimenti.
+Nelle famiglie con
 più di due persone il debitore può ripartire il totale fra uno o più creditori,
 con importi e conti di destinazione distinti; ogni rimborso viene confermato
 separatamente. iOS e macOS registrano il token APNs dell'utente autenticato;

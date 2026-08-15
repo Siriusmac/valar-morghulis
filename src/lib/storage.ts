@@ -61,6 +61,7 @@ export function hydrateData(data: Partial<AppData>, fallbackData: AppData = defa
 function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
   const base = structuredClone(fallbackData)
   const accounts = mergeMissingById(data.accounts, base.accounts)
+  const deletedCategoryIds = data.deletedCategoryIds ?? []
   const deletedBeneficiaryIds = data.deletedBeneficiaryIds ?? []
   const deletedSenderIds = data.deletedSenderIds ?? []
   const fallbackAccount = (userId: UserId) => accounts.find((item) => item.scope === 'personal' && item.ownerId === userId)?.id ?? ''
@@ -68,7 +69,8 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
     ...data,
     version: 3,
     accounts,
-    categories: mergeMissingById(data.categories, base.categories),
+    categories: mergeMissingById(data.categories, base.categories).filter((item) => !deletedCategoryIds.includes(item.id)),
+    deletedCategoryIds,
     beneficiaries: mergeMissingById(data.beneficiaries, base.beneficiaries).filter((item) => !deletedBeneficiaryIds.includes(item.id)),
     senders: mergeMissingById(data.senders, base.senders).filter((item) => !deletedSenderIds.includes(item.id)),
     deletedBeneficiaryIds,
@@ -104,6 +106,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     ...remoteData,
     accounts: mergePreferredById(local.accounts, remoteData.accounts),
     categories: mergePreferredById(local.categories, remoteData.categories),
+    deletedCategoryIds: [...new Set([...(local.deletedCategoryIds ?? []), ...(remoteData.deletedCategoryIds ?? [])])],
     beneficiaries: mergePreferredById(local.beneficiaries, remoteData.beneficiaries),
     senders: mergePreferredById(local.senders, remoteData.senders),
     deletedBeneficiaryIds: [...new Set([...(local.deletedBeneficiaryIds ?? []), ...(remoteData.deletedBeneficiaryIds ?? [])])],

@@ -38,10 +38,11 @@ export interface FamilySession {
   deleteAccount: () => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData) => Promise<void>
-  deleteSharedDirectory?: (recordType: 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
+  deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void) => () => void
+  createSharedAccount: (account: Account, familyId: string) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
-  setReimbursementAccountVisibility: (account: Account, visible: boolean) => Promise<void>
+  setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
   respondToReimbursement: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -201,11 +202,16 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     const registeredUserCount = !registeredUserCountResult.error && Number.isSafeInteger(parsedRegisteredUserCount) && parsedRegisteredUserCount >= 0
       ? parsedRegisteredUserCount
       : undefined
-    const familiesResult = familyIds.length ? await supabase
-      .from('families')
-      .select('id, name, onboarding_completed')
-      .in('id', familyIds) : { data: [], error: null }
-    if (familiesResult.error) { setError(familiesResult.error.message); setLoading(false); return }
+    const [familiesResult, reimbursementAccountsResult] = familyIds.length ? await Promise.all([
+      supabase.from('families').select('id, name, onboarding_completed').in('id', familyIds),
+      supabase.from('family_reimbursement_accounts')
+        .select('family_id, owner_id, account_id, display_name')
+        .in('family_id', familyIds),
+    ]) : [{ data: [], error: null }, { data: [], error: null }]
+    if (familiesResult.error || reimbursementAccountsResult.error) {
+      setError(familiesResult.error?.message ?? reimbursementAccountsResult.error?.message ?? 'Errore di caricamento')
+      setLoading(false); return
+    }
     const familyRows = familiesResult.data ?? []
     const familyById = new Map(familyRows.map((family) => [family.id, family]))
     const families: FamilyOption[] = memberships.flatMap((membership) => {
@@ -228,7 +234,12 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         members: [toUser(profile)],
         invitations: [],
         accounts: [],
-        reimbursementAccountReferences: [],
+        reimbursementAccountReferences: reimbursementAccountsResult.data.map((account) => ({
+          familyId: account.family_id,
+          ownerId: account.owner_id,
+          accountId: account.account_id,
+          name: account.display_name,
+        })),
         registeredUserCount,
       })
       setLoading(false); return
@@ -237,18 +248,15 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     const activeFamily = familyById.get(activeFamilyId)!
     localStorage.setItem(activeFamilyKey(session.user.id), activeFamilyId)
 
-    const [membershipsResult, accountsResult, invitationsResult, reimbursementAccountsResult] = await Promise.all([
+    const [membershipsResult, accountsResult, invitationsResult] = await Promise.all([
       supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
       supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
       membership.role === 'admin'
         ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at').eq('family_id', activeFamilyId)
         : Promise.resolve({ data: [], error: null }),
-      supabase.from('family_reimbursement_accounts')
-        .select('family_id, owner_id, account_id, display_name')
-        .eq('family_id', activeFamilyId),
     ])
-    if (membershipsResult.error || accountsResult.error || invitationsResult.error || reimbursementAccountsResult.error) {
-      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? invitationsResult.error?.message ?? reimbursementAccountsResult.error?.message ?? 'Errore di caricamento')
+    if (membershipsResult.error || accountsResult.error || invitationsResult.error) {
+      setError(membershipsResult.error?.message ?? accountsResult.error?.message ?? invitationsResult.error?.message ?? 'Errore di caricamento')
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
@@ -517,6 +525,25 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         .subscribe()
       return () => { void supabase.removeChannel(channel) }
     } : undefined,
+    createSharedAccount: async (account, familyId) => {
+      if (!snapshot.families.some((family) => family.id === familyId)) {
+        throw new Error('La famiglia selezionata non è disponibile.')
+      }
+      const { error: insertError } = await supabase.from('accounts').insert({
+        id: account.id,
+        family_id: familyId,
+        owner_id: null,
+        name: account.name,
+        institution: account.institution,
+        account_type: account.type,
+        scope: 'family',
+        opening_balance: account.openingBalance,
+        opening_balance_date: account.openingBalanceDate,
+        created_by: snapshot.profile.id,
+      })
+      if (insertError) throw insertError
+      if (familyId === activeFamilyId) await load(activeFamilyId)
+    },
     updateSharedAccount: async (account) => {
       if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
       const { error: updateError } = await supabase
@@ -530,31 +557,32 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         .eq('scope', 'family')
       if (updateError) throw updateError
     },
-    setReimbursementAccountVisibility: async (account, visible) => {
-      if (!activeFamilyId || account.scope !== 'personal' || account.ownerId !== snapshot.profile.id) {
+    setReimbursementAccountFamilies: async (account, requestedFamilyIds) => {
+      if (account.scope !== 'personal' || account.ownerId !== snapshot.profile.id) {
         throw new Error('Il conto personale non appartiene all’utente corrente.')
       }
-      const result = visible
-        ? await supabase.from('family_reimbursement_accounts').upsert({
-          family_id: activeFamilyId,
-          owner_id: snapshot.profile.id,
-          account_id: account.id,
-          display_name: account.name,
-        }, { onConflict: 'family_id,owner_id,account_id' })
-        : await supabase.from('family_reimbursement_accounts')
-          .delete()
-          .eq('family_id', activeFamilyId)
-          .eq('owner_id', snapshot.profile.id)
-          .eq('account_id', account.id)
-      if (result.error) throw result.error
+      const allowedFamilyIds = new Set(snapshot.families.map((family) => family.id))
+      const selectedFamilyIds = [...new Set(requestedFamilyIds)]
+      if (selectedFamilyIds.some((familyId) => !allowedFamilyIds.has(familyId))) {
+        throw new Error('Una delle famiglie selezionate non è disponibile.')
+      }
+      const { error: updateError } = await supabase.rpc('set_reimbursement_account_families', {
+        target_account_id: account.id,
+        target_display_name: account.name,
+        target_family_ids: selectedFamilyIds,
+      })
+      if (updateError) throw updateError
       setSnapshot((current) => current ? {
         ...current,
-        reimbursementAccountReferences: visible
-          ? [
-            ...current.reimbursementAccountReferences.filter((item) => item.accountId !== account.id || item.ownerId !== snapshot.profile.id),
-            { familyId: activeFamilyId, ownerId: snapshot.profile.id, accountId: account.id, name: account.name },
-          ]
-          : current.reimbursementAccountReferences.filter((item) => item.accountId !== account.id || item.ownerId !== snapshot.profile.id),
+        reimbursementAccountReferences: [
+          ...current.reimbursementAccountReferences.filter((item) => item.accountId !== account.id || item.ownerId !== snapshot.profile.id),
+          ...selectedFamilyIds.map((familyId) => ({
+            familyId,
+            ownerId: snapshot.profile.id,
+            accountId: account.id,
+            name: account.name,
+          })),
+        ],
       } : current)
     },
     respondToReimbursement: async (reimbursementId, accepted, selectedAccountId) => {

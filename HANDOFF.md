@@ -74,7 +74,7 @@ Funzioni disponibili:
 - Un nuovo utente parte soltanto con `Contanti` e l’eventuale conto condiviso della famiglia.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Un rimborso nuovo non modifica il saldo familiare né i conti finché la controparte non lo conferma. L’autore non può auto-confermarlo.
-- I conti personali restano privati. Il proprietario può pubblicare, per la singola famiglia attiva, soltanto nome e identificatore opaco di quelli selezionabili nei rimborsi.
+- I conti personali restano privati. Il proprietario sceglie separatamente per quali famiglie pubblicare soltanto nome e identificatore opaco dei conti selezionabili nei rimborsi.
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
 - La famiglia attiva è una preferenza locale per utente; lo snapshot personale è unico per account, mentre i record familiari sono comuni ai membri della sola famiglia selezionata.
@@ -223,9 +223,15 @@ Verificare sempre build, test e stato del deploy Cloudflare dopo un push su
 ## App Apple nativa — avanzamento 15 agosto 2026
 
 Il progetto `apple/SKey/SKey.xcodeproj` dispone ora del primo flusso di
-scrittura operativo. `MovementComposerView` registra spese ed entrate semplici
+scrittura operativo. `MovementComposerView` registra spese ed entrate
 con `Form`, `Picker`, `DatePicker`, ricerca/creazione nativa delle anagrafiche,
 commenti e scelta dell'impatto sul saldo per date antecedenti al saldo iniziale.
+Le nuove spese possono essere suddivise in 3 o 5 rate con PayPal, Klarna,
+Scalapay, Amazon o un provider libero: il resto in centesimi va all'ultima rata,
+le scadenze mensili rispettano la fine del mese e sono elencate in “Pagamenti
+programmati”. Le rate scadute vengono materializzate in modo idempotente; per
+gli acquisti condivisi il saldo familiare usa subito il totale e le rate future
+non lo conteggiano nuovamente.
 
 La sezione “Spese ed Entrate” legge e unisce lo snapshot personale, la copia
 privata della famiglia attiva e i record familiari normalizzati. Offre sezioni
@@ -250,12 +256,27 @@ conti. Dal saldo si registra un rimborso in stato `pending`; nelle famiglie
 numerose il debitore sceglie uno o più creditori, importi e conti di
 destinazione, mentre ogni controparte può completare il proprio conto,
 confermare o rifiutare direttamente in bacheca o dalla notifica push.
+La sezione Conti consente inoltre di creare, modificare ed eliminare conti
+personali o familiari, preservando i movimenti storici, e di modificarne nome,
+istituto, tipo, saldo iniziale e data di riferimento. I conti personali restano
+nello snapshot privato; quelli familiari usano la tabella Supabase condivisa,
+con eliminazione riservata agli amministratori. Su iPhone e iPad verticale le
+azioni si aprono con swipe da destra verso sinistra; macOS e iPad orizzontale
+mostrano invece icone permanenti di modifica ed eliminazione. La creazione usa
+il comando testuale “Crea conto” e, per un conto familiare, richiede di scegliere
+esplicitamente la famiglia proprietaria. Nell'editor di un conto personale una
+selezione distinta per ogni appartenenza stabilisce a quali famiglie pubblicare
+esclusivamente nome e identificativo opaco; un'icona occhio contrassegna i conti
+pubblicati ad almeno una famiglia.
 
 Ogni movimento creato dall'utente corrente espone le azioni native di modifica
-ed eliminazione con swipe da destra verso sinistra. Gli altri membri restano in
-sola lettura. L'aggiornamento conserva i campi AppData v3 non ancora esposti
-dal form nativo (parziali, tag e metadati futuri) e mantiene l'ID originale,
-evitando duplicazioni.
+ed eliminazione con swipe da destra verso sinistra su touch e icone permanenti
+su Mac. Gli altri membri restano in sola lettura. Il form espone ora anche i
+parziali per categoria: importo, categoria, beneficiario facoltativo e
+visibilità personale/familiare sono indipendenti per riga. I parziali restano
+editabili e, durante una rateizzazione, vengono distribuiti su ogni rata senza
+perdere centesimi. Il record familiare pubblicato contiene soltanto le quote
+condivise; il movimento completo resta nella copia privata dell'autore.
 
 `SupabaseLedgerRepository` conserva i campi AppData v3 non ancora conosciuti
 dal client Swift e separa correttamente gli snapshot personali da quelli
@@ -265,8 +286,29 @@ con un payload contenente soltanto il nuovo movimento, perché la funzione
 interpreta `owned_keys` come elenco completo e cancellerebbe gli altri record
 dell’autore.
 
-Verifiche concluse: build macOS riuscita, build generica iOS riuscita e 22 test
-unitari nativi superati. Il gate web ha confermato 119 test, lint e build Vite.
+Categorie, beneficiari, mittenti e tag sono ora creabili e rinominabili nel
+client nativo; uno swipe trailing espone le azioni su iPhone, mentre Mac e iPad
+orizzontale mostrano le icone permanenti. Selezionando una voce si apre lo
+storico dedicato con totale e data del movimento più vecchio. Le categorie si
+possono eliminare scegliendo una sostituzione compatibile oppure “Senza
+categoria”; i tag possono essere eliminati rimuovendone il riferimento dai
+movimenti. Le operazioni aggiornano anche parziali e rate future. La navigazione
+delle directory usa un unico stack nel dettaglio dello split view, così la
+selezione apre direttamente lo storico sia su iPhone sia su iPad. Le migration
+`20260816010000_category_directory_deletion.sql` e
+`20260816020000_tag_and_account_deletion.sql` estendono allo stesso caso la
+sincronizzazione familiare e le policy di cancellazione e devono essere
+applicate, in ordine, prima di usare le funzioni condivise in produzione.
+La migration `20260816030000_multi_family_reimbursement_accounts.sql` aggiunge
+la RPC atomica `set_reimbursement_account_families`: verifica proprietà del
+conto personale e appartenenza a tutte le famiglie richieste, quindi sostituisce
+in un'unica transazione l'intero insieme delle pubblicazioni del conto.
+
+“Pagamenti programmati” raggruppa le rate future per piano di acquisto come la
+web app e mostra totale residuo, conto, rate pagate e singole scadenze.
+
+Verifiche concluse: build macOS riuscita, build generica iOS riuscita e 26 test
+unitari nativi superati. Il gate web ha confermato 123 test, lint e build Vite.
 La suite unitaria Xcode separata è terminata regolarmente; la consegna APNs reale
 resta da collaudare su dispositivi firmati dopo l'attivazione server.
 

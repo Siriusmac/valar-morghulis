@@ -21,7 +21,7 @@ interface AllocationSource {
 
 export function movementAllocations(movement: AllocationSource): MovementAllocation[] {
   const splits = (movement.splits ?? [])
-    .filter((item) => Number.isFinite(item.amount) && item.amount > 0 && item.categoryId)
+    .filter((item) => Number.isFinite(item.amount) && item.amount > 0)
     .map((item) => ({ categoryId: item.categoryId, beneficiaryId: item.beneficiaryId, amount: roundMoney(item.amount), shared: item.shared }))
   const splitTotal = splits.reduce((sum, item) => sum + item.amount, 0)
   const remainder = roundMoney(Math.max(0, movement.amount - splitTotal))

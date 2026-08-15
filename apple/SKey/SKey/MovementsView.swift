@@ -387,7 +387,7 @@ private struct MovementDayGroup: Identifiable {
     }()
 }
 
-private struct MovementRow: View {
+struct MovementRow: View {
     let movement: LedgerMovement
     let snapshot: LedgerSnapshot
     let sharedAmountOnly: Bool

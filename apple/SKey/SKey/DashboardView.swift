@@ -84,12 +84,8 @@ struct DashboardView: View {
     }
 
     private func welcomeHeader(_ profile: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Ciao, \(profile.displayName)")
-                .font(.largeTitle.bold())
-            Text("Il tuo account è collegato ai dati esistenti di Valar Morghulis.")
-                .foregroundStyle(.secondary)
-        }
+        Text("Ciao, \(welcomeName(for: profile))")
+            .font(.largeTitle.bold())
     }
 
     private func workspacePicker(_ workspace: FamilyWorkspace) -> some View {
@@ -130,7 +126,16 @@ struct DashboardView: View {
             }
         }
         .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .liquidGlassSurface()
+    }
+
+    private func welcomeName(for profile: UserProfile) -> String {
+        let firstName = profile.firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !firstName.isEmpty { return firstName }
+
+        return profile.displayName.split(whereSeparator: \Character.isWhitespace).first.map(String.init)
+            ?? profile.displayName
     }
 
     private func headlineBalanceCard(_ workspace: FamilyWorkspace) -> some View {

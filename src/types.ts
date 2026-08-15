@@ -148,6 +148,7 @@ export interface AppData {
   version: 3
   accounts: Account[]
   categories: Category[]
+  deletedCategoryIds?: string[]
   beneficiaries: Beneficiary[]
   senders: Sender[]
   deletedBeneficiaryIds?: string[]

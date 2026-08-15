@@ -76,10 +76,31 @@ richiede inoltre una push generica soltanto alla controparte del record: i token
 sono privati e l'esito APNs resta separato dal salvataggio contabile. Il tap
 seleziona la famiglia corretta e presenta la conferma indicata nel payload.
 
+L'editor dei parziali è ora operativo anche nel client nativo: ogni riga ha
+importo, categoria, beneficiario facoltativo e condivisione indipendente. La
+combinazione con le rate usa la stessa ripartizione centesimale della web app e
+la sincronizzazione pubblica soltanto le allocazioni condivise.
+
+Le directory native di categorie, beneficiari, mittenti e tag supportano
+creazione, rinomina e apertura dello storico filtrato. La cancellazione di
+categorie e controparti riassegna oppure rimuove il riferimento anche da
+parziali e rate future; la cancellazione familiare delle categorie richiede la
+migration `20260816010000_category_directory_deletion.sql`. La migration
+successiva `20260816020000_tag_and_account_deletion.sql` abilita la cancellazione
+dei tag e applica ai conti policy coerenti: proprietario per i personali,
+amministratore per i familiari. Verificare anche l'apertura diretta dello storico
+su iPhone e iPad, lo swipe in verticale e le icone persistenti in landscape.
+
+La migration `20260816030000_multi_family_reimbursement_accounts.sql` rende
+atomica la selezione delle famiglie che possono vedere il nome di un conto
+personale. Collaudare un utente con almeno due famiglie: creare un conto
+familiare scegliendo una famiglia diversa da quella attiva, poi pubblicare un
+conto personale prima a una sola famiglia, quindi a entrambe e infine a nessuna.
+In ogni passaggio saldo, istituto e movimenti devono restare privati.
+
 La sincronizzazione familiare incrementale invia sempre l’elenco completo dei
 record già posseduti dall’autore, per evitare che la procedura Supabase elimini
-movimenti estranei al salvataggio corrente. Restano da aggiungere al modulo
-nativo l'editor completo di parziali, tag e rateizzazione, oltre a cache offline
+movimenti estranei al salvataggio corrente. Restano da aggiungere cache offline
 e riallineamento Realtime.
 
 Le migration push e rimborsi multiutente sono applicate sul progetto remoto.

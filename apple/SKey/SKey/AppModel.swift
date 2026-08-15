@@ -141,6 +141,11 @@ final class AppModel {
         return workspace.families.first { $0.id == selectedFamilyID }
     }
 
+    var availableFamilies: [FamilySummary] {
+        guard case .loaded(let workspace) = workspaceState else { return [] }
+        return workspace.families
+    }
+
     func signIn(email: String, password: String) async throws {
         guard let supabase else {
             throw AppModelError.clientUnavailable
@@ -280,6 +285,89 @@ final class AppModel {
         try await ledgerRepository.deleteMovement(
             id: movement.id,
             shared: isShared,
+            userID: currentUserID,
+            familyID: selectedFamilyID
+        )
+        await reloadWorkspace()
+    }
+
+    func saveAccount(_ draft: AccountDraft) async throws {
+        guard let currentUserID, let ledgerRepository else {
+            throw AppModelError.clientUnavailable
+        }
+        let availableFamilyIDs = Set(availableFamilies.map(\.id))
+        if let familyID = draft.familyID, !availableFamilyIDs.contains(familyID) {
+            throw AppModelError.familyRequired
+        }
+        if let reimbursementFamilyIDs = draft.reimbursementFamilyIDs,
+           !reimbursementFamilyIDs.isSubset(of: availableFamilyIDs) {
+            throw AppModelError.familyRequired
+        }
+        try await ledgerRepository.saveAccount(
+            draft,
+            userID: currentUserID,
+            familyID: selectedFamilyID
+        )
+        await reloadWorkspace()
+    }
+
+    func deleteLedgerAccount(_ account: AccountSummary) async throws {
+        guard let currentUserID, let ledgerRepository else {
+            throw AppModelError.clientUnavailable
+        }
+        try await ledgerRepository.deleteAccount(
+            account,
+            userID: currentUserID,
+            familyID: selectedFamilyID
+        )
+        await reloadWorkspace()
+    }
+
+    func isVisibleForReimbursements(_ account: AccountSummary) -> Bool {
+        !reimbursementFamilyIDs(for: account).isEmpty
+    }
+
+    func reimbursementFamilyIDs(for account: AccountSummary) -> Set<UUID> {
+        guard account.familyID == nil,
+              let currentUserID,
+              case .loaded(let workspace) = workspaceState
+        else { return [] }
+        return Set(workspace.reimbursementAccounts.compactMap {
+            $0.ownerID == currentUserID && $0.accountID == account.id ? $0.familyID : nil
+        })
+    }
+
+    func canDeleteLedgerAccount(_ account: AccountSummary) -> Bool {
+        guard account.familyID != nil else { return true }
+        return activeFamily?.role == .admin
+    }
+
+    func saveDirectory(_ item: LedgerDirectoryItem, kind: LedgerDirectoryKind) async throws {
+        guard let currentUserID, let ledgerRepository else {
+            throw AppModelError.clientUnavailable
+        }
+        try await ledgerRepository.saveDirectory(
+            item,
+            kind: kind,
+            userID: currentUserID,
+            familyID: selectedFamilyID
+        )
+        await reloadWorkspace()
+    }
+
+    func deleteDirectory(
+        _ item: LedgerDirectoryItem,
+        kind: LedgerDirectoryKind,
+        replacementID: String?
+    ) async throws {
+        guard let currentUserID, let ledgerRepository else {
+            throw AppModelError.clientUnavailable
+        }
+        try await ledgerRepository.deleteDirectory(
+            kind: kind,
+            id: item.id,
+            replacementID: replacementID,
+            scope: item.scope,
             userID: currentUserID,
             familyID: selectedFamilyID
         )

@@ -83,6 +83,10 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
     let comments: String?
     let shared: Bool
     let splits: [LedgerMovementSplit]?
+    let installmentPlanID: String?
+    let installmentProvider: String?
+    let installmentNumber: Int?
+    let installmentCount: Int?
     let sharedSettlementAmount: Money?
     let affectsAccountBalance: Bool?
     let createdAt: String
@@ -103,9 +107,103 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         case comments
         case shared
         case splits
+        case installmentPlanID = "installmentPlanId"
+        case installmentProvider
+        case installmentNumber
+        case installmentCount
         case sharedSettlementAmount
         case affectsAccountBalance
         case createdAt
+    }
+
+    init(
+        id: String,
+        type: MovementKind,
+        authorID: String,
+        memberID: String,
+        amount: Money,
+        date: String,
+        description: String,
+        categoryID: String,
+        beneficiaryID: String?,
+        senderID: String?,
+        accountID: String,
+        tagID: String?,
+        comments: String?,
+        shared: Bool,
+        splits: [LedgerMovementSplit]?,
+        installmentPlanID: String? = nil,
+        installmentProvider: String? = nil,
+        installmentNumber: Int? = nil,
+        installmentCount: Int? = nil,
+        sharedSettlementAmount: Money?,
+        affectsAccountBalance: Bool?,
+        createdAt: String
+    ) {
+        self.id = id
+        self.type = type
+        self.authorID = authorID
+        self.memberID = memberID
+        self.amount = amount
+        self.date = date
+        self.description = description
+        self.categoryID = categoryID
+        self.beneficiaryID = beneficiaryID
+        self.senderID = senderID
+        self.accountID = accountID
+        self.tagID = tagID
+        self.comments = comments
+        self.shared = shared
+        self.splits = splits
+        self.installmentPlanID = installmentPlanID
+        self.installmentProvider = installmentProvider
+        self.installmentNumber = installmentNumber
+        self.installmentCount = installmentCount
+        self.sharedSettlementAmount = sharedSettlementAmount
+        self.affectsAccountBalance = affectsAccountBalance
+        self.createdAt = createdAt
+    }
+}
+
+nonisolated struct LedgerScheduledPayment: Identifiable, Codable, Equatable, Sendable {
+    enum Status: String, Codable, Equatable, Sendable { case scheduled, paid }
+
+    let id: String
+    let planID: String
+    let authorID: String
+    let memberID: String
+    let amount: Money
+    let dueDate: String
+    let description: String
+    let categoryID: String
+    let beneficiaryID: String?
+    let accountID: String
+    let tagID: String?
+    let comments: String?
+    let shared: Bool
+    let splits: [LedgerMovementSplit]?
+    let provider: String?
+    let installmentNumber: Int
+    let installmentCount: Int
+    let status: Status
+    let paidMovementID: String?
+    let affectsAccountBalance: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case planID = "planId"
+        case authorID = "authorId"
+        case memberID = "memberId"
+        case amount
+        case dueDate
+        case description
+        case categoryID = "categoryId"
+        case beneficiaryID = "beneficiaryId"
+        case accountID = "accountId"
+        case tagID = "tagId"
+        case comments, shared, splits, provider, installmentNumber, installmentCount, status
+        case paidMovementID = "paidMovementId"
+        case affectsAccountBalance
     }
 }
 
@@ -212,9 +310,37 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
     let categories: [LedgerDirectoryItem]
     let beneficiaries: [LedgerDirectoryItem]
     let senders: [LedgerDirectoryItem]
+    let tags: [LedgerDirectoryItem]
     let movements: [LedgerMovement]
+    let scheduledPayments: [LedgerScheduledPayment]
     let transfers: [LedgerTransfer]
     let reimbursements: [LedgerReimbursement]
+
+    init(
+        currentUserID: String,
+        memberCount: Int,
+        accounts: [AccountSummary],
+        categories: [LedgerDirectoryItem],
+        beneficiaries: [LedgerDirectoryItem],
+        senders: [LedgerDirectoryItem],
+        tags: [LedgerDirectoryItem] = [],
+        movements: [LedgerMovement],
+        scheduledPayments: [LedgerScheduledPayment] = [],
+        transfers: [LedgerTransfer],
+        reimbursements: [LedgerReimbursement]
+    ) {
+        self.currentUserID = currentUserID
+        self.memberCount = memberCount
+        self.accounts = accounts
+        self.categories = categories
+        self.beneficiaries = beneficiaries
+        self.senders = senders
+        self.tags = tags
+        self.movements = movements
+        self.scheduledPayments = scheduledPayments
+        self.transfers = transfers
+        self.reimbursements = reimbursements
+    }
 
     func account(named id: String) -> AccountSummary? {
         accounts.first { $0.id.caseInsensitiveCompare(id) == .orderedSame }
@@ -235,6 +361,7 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
 
 nonisolated struct LedgerAllocation: Equatable, Sendable {
     let categoryID: String
+    let beneficiaryID: String?
     let amount: Money
     let shared: Bool
 }

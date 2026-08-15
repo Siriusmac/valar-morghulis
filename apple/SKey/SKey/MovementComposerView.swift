@@ -14,8 +14,20 @@ struct MovementComposerView: View {
     @State private var accountID = ""
     @State private var category: LedgerDirectoryItem?
     @State private var counterparty: LedgerDirectoryItem?
+    @State private var tag: LedgerDirectoryItem?
     @State private var isShared = false
+    @State private var splitsEnabled = false
+    @State private var splitDrafts: [MovementSplitEditorDraft] = []
+    @State private var splitDirectorySheet: SplitDirectorySheetContext?
     @State private var affectsAccountBalance = false
+    @State private var installmentsEnabled = false
+    @State private var installmentCount = 3
+    @State private var installmentProvider = "PayPal"
+    @State private var customInstallmentProvider = ""
+    @State private var installmentPlanID = "installment-plan-\(UUID().uuidString.lowercased())"
+    @State private var scheduledPaymentIDs = (0..<4).map { _ in
+        "scheduled-payment-\(UUID().uuidString.lowercased())"
+    }
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -34,9 +46,7 @@ struct MovementComposerView: View {
         _descriptionText = State(initialValue: movement?.description ?? "")
         _comments = State(initialValue: movement?.comments ?? "")
         _accountID = State(initialValue: movement?.accountID ?? "")
-        _isShared = State(initialValue: movement.map {
-            $0.shared || ($0.splits?.contains { $0.shared } ?? false)
-        } ?? false)
+        _isShared = State(initialValue: movement?.shared ?? false)
         _affectsAccountBalance = State(initialValue: movement?.affectsAccountBalance ?? false)
         _draftID = State(initialValue: movement?.id ?? UUID().uuidString.lowercased())
     }
@@ -84,6 +94,14 @@ struct MovementComposerView: View {
                 Text(errorMessage ?? "Riprova tra poco.")
             }
             .interactiveDismissDisabled(isSaving)
+            .sheet(item: $splitDirectorySheet) { context in
+                NavigationStack {
+                    splitDirectorySheetContent(context)
+                }
+                #if os(iOS)
+                .presentationDetents([.large])
+                #endif
+            }
         }
         #if os(iOS)
         .presentationDetents([.large])
@@ -103,6 +121,9 @@ struct MovementComposerView: View {
                     category = nil
                     counterparty = nil
                     if newType == .income {
+                        installmentsEnabled = false
+                        splitsEnabled = false
+                        splitDrafts = []
                         updateIncomeAccount(forSharedState: isShared, options: options)
                     }
                 }
@@ -118,6 +139,41 @@ struct MovementComposerView: View {
                 if submitted, parsedAmount == nil {
                     Text("Inserisci un importo maggiore di zero.")
                         .foregroundStyle(.red)
+                }
+            }
+
+
+            if movement == nil, type == .expense {
+                Section {
+                    Toggle("Acquisto a rate", isOn: $installmentsEnabled)
+
+                    if installmentsEnabled {
+                        Picker("Numero rate", selection: $installmentCount) {
+                            Text("3 rate").tag(3)
+                            Text("5 rate").tag(5)
+                        }
+
+                        Picker("Servizio", selection: $installmentProvider) {
+                            ForEach(Self.installmentProviders, id: \.self) { provider in
+                                Text(provider).tag(provider)
+                            }
+                        }
+
+                        if installmentProvider == "Altro" {
+                            TextField("Nome del servizio", text: $customInstallmentProvider)
+                        }
+
+                        if let parts = installmentPreview {
+                            LabeledContent("Prima rata", value: parts[0].euroFormatted)
+                            LabeledContent("Ultima rata", value: parts[parts.count - 1].euroFormatted)
+                        }
+                    }
+                } header: {
+                    Text("Pagamento rateale")
+                } footer: {
+                    if installmentsEnabled {
+                        Text("La prima rata viene registrata subito; le successive scadono ogni mese. Per una spesa condivisa, il debito familiare considera immediatamente l’intero acquisto.")
+                    }
                 }
             }
 
@@ -142,6 +198,7 @@ struct MovementComposerView: View {
                         isShared = selectedAccount?.familyID != nil
                     }
                     normalizeDirectorySelections()
+                    normalizeSplitSelections()
                     updateBalanceImpact()
                 }
 
@@ -170,6 +227,28 @@ struct MovementComposerView: View {
                 } label: {
                     LabeledContent(counterpartyLabel, value: counterparty?.name ?? "Seleziona")
                 }
+
+                NavigationLink {
+                    DirectorySelectionView(
+                        title: "Tag",
+                        prompt: "Inserisci tag",
+                        items: availableTags,
+                        kind: .tag,
+                        scope: effectiveScope,
+                        selection: $tag
+                    )
+                } label: {
+                    LabeledContent("Tag", value: tag?.name ?? "Facoltativo")
+                }
+
+                if tag != nil {
+                    Button("Rimuovi tag", role: .destructive) { tag = nil }
+                        .font(.caption)
+                }
+            }
+
+            if type == .expense {
+                splitSection
             }
 
             if appModel.selectedFamilyID != nil {
@@ -264,6 +343,10 @@ struct MovementComposerView: View {
         return (values ?? []).filter { effectivelyShared || $0.scope == .personal }
     }
 
+    private var availableTags: [LedgerDirectoryItem] {
+        (options?.tags ?? []).filter { effectivelyShared || $0.scope == .personal }
+    }
+
     private var counterpartyLabel: String {
         type == .expense ? "Beneficiario" : "Mittente"
     }
@@ -295,13 +378,24 @@ struct MovementComposerView: View {
     }
 
     private var isFormValid: Bool {
-        parsedAmount != nil && selectedAccount != nil && category != nil && counterparty != nil
+        parsedAmount != nil
+            && selectedAccount != nil
+            && category != nil
+            && counterparty != nil
+            && splitsAreValid
     }
 
     private var validationMessage: String {
         if selectedAccount == nil { return "Seleziona il conto del movimento." }
         if category == nil { return "Seleziona o crea una categoria." }
         if counterparty == nil { return "Seleziona o crea un \(counterpartyLabel.lowercased())." }
+        if splitsEnabled, splitDrafts.isEmpty { return "Aggiungi almeno un parziale." }
+        if splitsEnabled, splitDrafts.contains(where: { parsedSplitAmount($0.amountText) == nil || $0.category == nil }) {
+            return "Completa ogni parziale con categoria e importo valido."
+        }
+        if splitTotal > Money(decimal: parsedAmount ?? 0) {
+            return "La somma dei parziali non può superare l’importo totale."
+        }
         return "Controlla l’importo inserito."
     }
 
@@ -320,6 +414,18 @@ struct MovementComposerView: View {
                 let counterpartyID = movement.type == .expense ? movement.beneficiaryID : movement.senderID
                 let candidates = movement.type == .expense ? loaded.beneficiaries : loaded.senders
                 counterparty = candidates.first { $0.id == counterpartyID }
+                tag = loaded.tags.first { $0.id == movement.tagID }
+                splitDrafts = (movement.splits ?? []).map { split in
+                    MovementSplitEditorDraft(
+                        id: split.id,
+                        amountText: NSDecimalNumber(decimal: split.amount.decimal).stringValue
+                            .replacingOccurrences(of: ".", with: ","),
+                        category: loaded.categories.first { $0.id == split.categoryID },
+                        beneficiary: loaded.beneficiaries.first { $0.id == split.beneficiaryID },
+                        isShared: split.shared
+                    )
+                }
+                splitsEnabled = !splitDrafts.isEmpty
             } else {
                 accountID = loaded.accounts.first(where: { $0.familyID == nil })?.id
                     ?? loaded.accounts.first?.id
@@ -361,8 +467,11 @@ struct MovementComposerView: View {
             account: account,
             category: category,
             counterparty: counterparty,
+            tag: tag,
             isShared: effectivelyShared,
-            affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : nil
+            splits: resolvedSplits,
+            affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : nil,
+            installment: installmentDraft
         )
 
         Task {
@@ -396,6 +505,17 @@ struct MovementComposerView: View {
         guard !effectivelyShared else { return }
         if category?.scope == .family { category = nil }
         if counterparty?.scope == .family { counterparty = nil }
+        if tag?.scope == .family { tag = nil }
+    }
+
+    private func normalizeSplitSelections() {
+        let familyAccount = selectedAccount?.familyID != nil
+        for index in splitDrafts.indices {
+            if familyAccount { splitDrafts[index].isShared = true }
+            guard !splitDrafts[index].isShared, !familyAccount else { continue }
+            if splitDrafts[index].category?.scope == .family { splitDrafts[index].category = nil }
+            if splitDrafts[index].beneficiary?.scope == .family { splitDrafts[index].beneficiary = nil }
+        }
     }
 
     private func updateBalanceImpact() {
@@ -412,6 +532,263 @@ struct MovementComposerView: View {
         return originalIsShared ? options.accounts : options.accounts.filter { $0.familyID == nil }
     }
 
+    private var installmentDraft: InstallmentPurchaseDraft? {
+        guard movement == nil, type == .expense, installmentsEnabled else { return nil }
+        let provider = installmentProvider == "Altro"
+            ? customInstallmentProvider.trimmingCharacters(in: .whitespacesAndNewlines)
+            : installmentProvider
+        return InstallmentPurchaseDraft(
+            planID: installmentPlanID,
+            provider: provider.isEmpty ? "Altro" : provider,
+            count: installmentCount,
+            scheduledPaymentIDs: Array(scheduledPaymentIDs.prefix(installmentCount - 1))
+        )
+    }
+
+    private var installmentPreview: [Money]? {
+        guard installmentsEnabled, let amount = parsedAmount else { return nil }
+        return LedgerCalculations.installmentAmounts(total: amount, count: installmentCount)
+    }
+
+    private var resolvedSplits: [MovementSplitDraft]? {
+        guard splitsEnabled else { return nil }
+        let familyAccount = selectedAccount?.familyID != nil
+        return splitDrafts.compactMap { item in
+            guard let amount = parsedSplitAmount(item.amountText), let category = item.category else { return nil }
+            return MovementSplitDraft(
+                id: item.id,
+                amount: amount,
+                category: category,
+                beneficiary: item.beneficiary,
+                isShared: familyAccount || item.isShared
+            )
+        }
+    }
+
+    private var splitTotal: Money {
+        splitDrafts.reduce(.zero) { total, item in
+            total + Money(decimal: parsedSplitAmount(item.amountText) ?? 0)
+        }
+    }
+
+    private var splitsAreValid: Bool {
+        guard splitsEnabled else { return true }
+        guard !splitDrafts.isEmpty,
+              splitDrafts.allSatisfy({ parsedSplitAmount($0.amountText) != nil && $0.category != nil }),
+              let amount = parsedAmount
+        else { return false }
+        return splitTotal <= Money(decimal: amount)
+    }
+
+    private func parsedSplitAmount(_ text: String) -> Decimal? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Decimal(string: normalized), value > 0 else { return nil }
+        return value
+    }
+
+    @ViewBuilder
+    private var splitSection: some View {
+        Section {
+            Picker("Suddivisione per categorie", selection: $splitsEnabled) {
+                Text("Categoria unica").tag(false)
+                Text("Aggiungi parziali").tag(true)
+            }
+            .onChange(of: splitsEnabled) { _, enabled in
+                if enabled, splitDrafts.isEmpty { addSplit() }
+                if !enabled { splitDrafts = [] }
+            }
+
+            if splitsEnabled {
+                ForEach(splitDrafts) { item in
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Parziale")
+                                .font(.headline)
+                            Spacer()
+                            Button("Elimina", systemImage: "trash", role: .destructive) {
+                                splitDrafts.removeAll { $0.id == item.id }
+                            }
+                            .labelStyle(.iconOnly)
+                            .accessibilityLabel("Elimina parziale")
+                        }
+
+                        #if os(iOS)
+                        TextField(
+                            "Importo parziale",
+                            text: splitFieldBinding(
+                                id: item.id,
+                                keyPath: \.amountText,
+                                fallback: item.amountText
+                            ),
+                            prompt: Text("0,00 €")
+                        )
+                            .keyboardType(.decimalPad)
+                        #else
+                        TextField(
+                            "Importo parziale",
+                            text: splitFieldBinding(
+                                id: item.id,
+                                keyPath: \.amountText,
+                                fallback: item.amountText
+                            ),
+                            prompt: Text("0,00 €")
+                        )
+                        #endif
+
+                        Button {
+                            focusedField = nil
+                            splitDirectorySheet = SplitDirectorySheetContext(split: item, kind: .category)
+                        } label: {
+                            splitDirectoryRow(
+                                title: "Categoria",
+                                value: item.category?.name ?? "Seleziona"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            focusedField = nil
+                            splitDirectorySheet = SplitDirectorySheetContext(split: item, kind: .beneficiary)
+                        } label: {
+                            splitDirectoryRow(
+                                title: "Beneficiario",
+                                value: item.beneficiary?.name ?? "Facoltativo"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if item.beneficiary != nil {
+                            Button("Rimuovi beneficiario", role: .destructive) {
+                                splitFieldBinding(
+                                    id: item.id,
+                                    keyPath: \.beneficiary,
+                                    fallback: item.beneficiary
+                                ).wrappedValue = nil
+                            }
+                                .font(.caption)
+                        }
+
+                        Toggle(
+                            "Spesa condivisa",
+                            isOn: splitFieldBinding(
+                                id: item.id,
+                                keyPath: \.isShared,
+                                fallback: item.isShared
+                            )
+                        )
+                            .disabled(selectedAccount?.familyID != nil)
+                            .onChange(of: item.isShared) { _, _ in normalizeSplitSelections() }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Button("Aggiungi parziale", systemImage: "plus") { addSplit() }
+
+                LabeledContent("Residuo nella categoria principale") {
+                    Text(Money(cents: max(0, (parsedAmount.map { Money(decimal: $0).cents } ?? 0) - splitTotal.cents)).euroFormatted)
+                        .monospacedDigit()
+                        .foregroundStyle(splitTotal > Money(decimal: parsedAmount ?? 0) ? .red : .secondary)
+                }
+            }
+        } header: {
+            Text("Categorie")
+        } footer: {
+            if splitsEnabled {
+                Text("Ogni parziale viene sottratto dalla categoria principale e può restare personale oppure essere condiviso con la famiglia.")
+            }
+        }
+    }
+
+    private func addSplit() {
+        splitDrafts.append(MovementSplitEditorDraft(
+            id: "movement-split-\(UUID().uuidString.lowercased())",
+            amountText: "",
+            category: nil,
+            beneficiary: nil,
+            isShared: selectedAccount?.familyID != nil || isShared
+        ))
+    }
+
+    private func splitFieldBinding<Value>(
+        id: String,
+        keyPath: WritableKeyPath<MovementSplitEditorDraft, Value>,
+        fallback: Value
+    ) -> Binding<Value> {
+        Binding(
+            get: {
+                splitDrafts.first(where: { $0.id == id })?[keyPath: keyPath] ?? fallback
+            },
+            set: { value in
+                guard let index = splitDrafts.firstIndex(where: { $0.id == id }) else { return }
+                splitDrafts[index][keyPath: keyPath] = value
+            }
+        )
+    }
+
+    private func splitDirectoryRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func splitDirectorySheetContent(_ context: SplitDirectorySheetContext) -> some View {
+        switch context.kind {
+        case .category:
+            DirectorySelectionView(
+                title: "Categoria parziale",
+                prompt: "Inserisci categoria",
+                items: splitCategories(for: context.split),
+                kind: .category(.expense),
+                scope: splitScope(for: context.split),
+                selection: splitFieldBinding(
+                    id: context.split.id,
+                    keyPath: \.category,
+                    fallback: context.split.category
+                )
+            )
+        case .beneficiary:
+            DirectorySelectionView(
+                title: "Beneficiario parziale",
+                prompt: "Inserisci beneficiario",
+                items: splitBeneficiaries(for: context.split),
+                kind: .beneficiary,
+                scope: splitScope(for: context.split),
+                selection: splitFieldBinding(
+                    id: context.split.id,
+                    keyPath: \.beneficiary,
+                    fallback: context.split.beneficiary
+                )
+            )
+        }
+    }
+
+    private func splitScope(for split: MovementSplitEditorDraft) -> DirectoryScope {
+        selectedAccount?.familyID != nil || split.isShared ? .family : .personal
+    }
+
+    private func splitCategories(for split: MovementSplitEditorDraft) -> [LedgerDirectoryItem] {
+        (options?.categories ?? []).filter {
+            ($0.movementType == nil || $0.movementType == .expense)
+                && (splitScope(for: split) == .family || $0.scope == .personal)
+        }
+    }
+
+    private func splitBeneficiaries(for split: MovementSplitEditorDraft) -> [LedgerDirectoryItem] {
+        (options?.beneficiaries ?? []).filter {
+            splitScope(for: split) == .family || $0.scope == .personal
+        }
+    }
+
     private enum FocusField: Hashable {
         case amount
         case description
@@ -426,6 +803,28 @@ struct MovementComposerView: View {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    private static let installmentProviders = ["PayPal", "Klarna", "Scalapay", "Amazon", "Altro"]
+}
+
+private struct MovementSplitEditorDraft: Identifiable, Equatable {
+    let id: String
+    var amountText: String
+    var category: LedgerDirectoryItem?
+    var beneficiary: LedgerDirectoryItem?
+    var isShared: Bool
+}
+
+private struct SplitDirectorySheetContext: Identifiable {
+    enum Kind: String {
+        case category
+        case beneficiary
+    }
+
+    let split: MovementSplitEditorDraft
+    let kind: Kind
+
+    var id: String { "\(split.id)-\(kind.rawValue)" }
 }
 
 private struct DirectorySelectionView: View {
@@ -433,11 +832,13 @@ private struct DirectorySelectionView: View {
         case category(MovementKind)
         case beneficiary
         case sender
+        case tag
 
         var defaultColor: String? {
             switch self {
             case .category(.income): "#3f7650"
             case .category(.expense): "#c64e2f"
+            case .tag: "#c64e2f"
             case .beneficiary, .sender: nil
             }
         }
@@ -534,6 +935,7 @@ private struct DirectorySelectionView: View {
         case .category: "category"
         case .beneficiary: "beneficiary"
         case .sender: "sender"
+        case .tag: "tag"
         }
     }
 }

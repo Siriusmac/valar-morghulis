@@ -56,6 +56,16 @@ nonisolated enum JSONValue: Codable, Equatable, Sendable {
         return value
     }
 
+    var decimalInteger: Int {
+        guard case .number(let value) = self else { return 0 }
+        return NSDecimalNumber(decimal: value).intValue
+    }
+
+    var numberValue: Decimal? {
+        guard case .number(let value) = self else { return nil }
+        return value
+    }
+
     func decode<T: Decodable>(_ type: T.Type) throws -> T {
         let data = try JSONEncoder().encode(self)
         return try JSONDecoder().decode(type, from: data)

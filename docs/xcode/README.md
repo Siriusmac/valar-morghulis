@@ -47,7 +47,9 @@ sono ancora state portate o coperte da test equivalenti in Swift.
 - UI SwiftUI nativa con target iPhone, iPad e macOS; Mac Catalyst è disattivato.
 - Supabase Swift 2.55.1 come client del backend esistente.
 - Configurazioni Debug e Release collegate ai rispettivi `.xcconfig`.
-- Login, Account e famiglie, conti, CRUD dei movimenti semplici, rimborsi con
+- Login, Account e famiglie, creazione/modifica conti, CRUD dei movimenti,
+  parziali per categoria personali o condivisi, acquisti in 3 o 5 rate e
+  pagamenti programmati, rimborsi con
   conferma, elenco mensile, saldi calcolati e grafici mensili
   condivisi/per categoria già operativi.
 - Registrazione APNs iOS/macOS e richiesta push agli altri membri dopo un

@@ -4,7 +4,10 @@
 
 Destinazioni: Bacheca, Spese ed entrate, Pagamenti programmati, Conti, Categorie, Beneficiari e mittenti, Tag, Guida, Account.
 
-iPhone usa navigazione compatta; iPad e Mac sidebar completa. “Aggiungi movimento” è un'azione che apre una sheet e conserva la destinazione corrente.
+iPhone usa navigazione compatta; iPad e Mac sidebar completa. “Nuovo movimento”
+è un'azione primaria verde nella toolbar, apre una sheet e conserva la
+destinazione corrente. Non occupa una posizione nella tab bar: secondo le HIG
+la barra inferiore rappresenta destinazioni, non comandi.
 
 ## Bacheca
 
@@ -37,12 +40,31 @@ Usare controlli nativi, focus state e scrolling automatico: l'intero controllo a
 - Dettaglio con movimenti, saldo/data iniziali e pubblicazione nome per rimborsi.
 - “Giro fondi” solo nella sezione Conti.
 - Conti familiari chiaramente contrassegnati.
+- “Crea conto” è un comando testuale esplicito; la modifica usa swipe trailing
+  su iPhone e iPad verticale, mentre macOS e iPad orizzontale mostrano icone
+  permanenti di modifica ed eliminazione.
+- La creazione di un conto familiare richiede la famiglia proprietaria, senza
+  dipendere implicitamente dallo spazio attivo.
+- Nell'editor dei conti personali una selezione per ogni famiglia decide dove
+  pubblicare soltanto nome e ID opaco per i rimborsi. Un'icona occhio indica
+  almeno una pubblicazione; saldo e movimenti non vengono mai esposti.
+- L'eliminazione mantiene intatti i movimenti storici. I conti familiari sono
+  eliminabili solo da un amministratore della famiglia attiva.
 
 ## Directory e pagamenti programmati
 
-Categorie con segmenti Spese/Entrate; Beneficiari e mittenti con segmenti omonimi. Voci rinominabili. Eliminazione con sostituzione o “Nessun …”; lo storico riflette le rinomine.
+Categorie con segmenti Spese/Entrate; Beneficiari e mittenti con segmenti
+omonimi; tag in una directory dedicata. Le voci sono creabili e rinominabili.
+La selezione apre i movimenti associati, con totale e data iniziale “Dal”. Su
+iPhone le azioni sono trailing swipe; su Mac e iPad orizzontale restano visibili
+come icone. L'eliminazione di categorie e controparti richiede una sostituzione
+compatibile oppure “Senza categoria”/“Nessun …” e aggiorna anche parziali e rate
+future. I tag espongono anche l'eliminazione, che rimuove l'associazione dai
+movimenti senza cancellarli. Lo storico è una destinazione esplicita nello stack
+del dettaglio, evitando doppi passaggi o liste ripetute nello split view iPad.
 
-Raggruppare rate per piano mostrando pagate/mancanti, prossima scadenza, conto e importo. Spiegare l'effetto delle modifiche sulla serie.
+Le rate sono raggruppate per piano mostrando pagate/mancanti, singole scadenze,
+conto e importo residuo.
 
 ## Account e famiglie
 

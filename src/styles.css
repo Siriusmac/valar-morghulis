@@ -324,6 +324,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .management-row__actions { display: flex !important; align-items: center; gap: 10px; }
 .directory-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .directory-grid article { min-height: 82px; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid var(--line); padding-right: 20px; }
+.directory-grid article.directory-selectable { cursor: pointer; }
+.directory-grid article.directory-selectable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .directory-grid article:nth-child(3n + 2), .directory-grid article:nth-child(3n + 3) { padding-left: 20px; border-left: 1px solid var(--line); }
 .directory-grid article > div { display: grid; }
 .directory-grid small { display: flex; align-items: center; gap: 4px; }
@@ -335,6 +337,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .directory-delete-form label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
 .directory-delete-form select { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
 .directory-delete-form > div:last-child { display: flex; gap: 8px; }
+.movement-detail-summary { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 18px; padding: 14px 16px; border-radius: 8px; background: var(--positive-soft); color: var(--muted); }
+.movement-detail-summary strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .directory-unassigned { background: linear-gradient(90deg, rgba(97, 124, 105, .05), transparent); }
 .category-dot { width: 12px; height: 46px; border-radius: 8px; flex: 0 0 auto; }
 
@@ -891,6 +895,31 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 }
 
 .account-sharing-toggle input { width: 17px; height: 17px; margin: 0; }
+
+.account-family-sharing {
+  display: grid;
+  gap: 3px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.account-family-sharing legend {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.account-family-sharing .account-sharing-toggle { margin-top: 2px; }
+
+.management-row__info > strong svg {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  color: var(--positive);
+  vertical-align: -2px;
+}
 
 .reimbursement-review-list { display: grid; gap: 10px; }
 

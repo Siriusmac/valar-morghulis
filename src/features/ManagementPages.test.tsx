@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MovementList } from '../components/MovementList'
 import { defaultData, users } from '../lib/seed'
-import type { Beneficiary, Sender } from '../types'
-import { BeneficiariesPage } from './ManagementPages'
+import type { Account, Beneficiary, Sender } from '../types'
+import { AccountsPage, BeneficiariesPage } from './ManagementPages'
 
 afterEach(cleanup)
 
@@ -142,5 +142,41 @@ describe('BeneficiariesPage', () => {
     )
 
     expect(screen.getByText('Nessun beneficiario')).toBeTruthy()
+  })
+})
+
+describe('AccountsPage', () => {
+  const families = [
+    { id: 'family-one', name: 'Famiglia Uno' },
+    { id: 'family-two', name: 'Famiglia Due' },
+  ]
+
+  it('asks explicitly which family owns a new shared account', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onTransfer={vi.fn()} onShowMovements={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
+    fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Vacanze' } })
+    fireEvent.change(screen.getByLabelText('Visibilità'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Famiglia del conto'), { target: { value: 'family-two' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crea conto' }))
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledOnce())
+    const [account, familyId] = onAdd.mock.calls[0] as [Account, string]
+    expect(account).toMatchObject({ name: 'Vacanze', scope: 'family' })
+    expect(familyId).toBe('family-two')
+  })
+
+  it('updates reimbursement visibility independently for multiple families', async () => {
+    const onChange = vi.fn().mockResolvedValue(undefined)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onTransfer={vi.fn()} onShowMovements={vi.fn()} reimbursementSharing={{
+      references: [{ familyId: 'family-one', ownerId: users[0].id, accountId: 'simone-bank', name: 'Conto corrente' }],
+      onChange,
+    }} />)
+
+    const accountRow = screen.getByText('Conto corrente').closest('article')!
+    fireEvent.click(within(accountRow).getByLabelText('Famiglia Due'))
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ id: 'simone-bank' }), ['family-one', 'family-two']))
   })
 })

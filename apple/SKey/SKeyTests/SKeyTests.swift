@@ -214,6 +214,58 @@ struct SKeyTests {
     }
 
     @Test
+    func splitsInstallmentTotalInCentsAssigningRemainderToLastPayment() {
+        let amounts = LedgerCalculations.installmentAmounts(total: 100, count: 3)
+
+        #expect(amounts == [Money(cents: 3_333), Money(cents: 3_333), Money(cents: 3_334)])
+        #expect(amounts.reduce(Money.zero, +) == Money(cents: 10_000))
+    }
+
+    @Test
+    func distributesCategorySplitsAcrossInstallmentsWithoutLosingCents() {
+        let installments = LedgerCalculations.installmentAmounts(total: 100, count: 3)
+        let rows = LedgerCalculations.splitAllocationsAcrossInstallments(
+            allocations: [Money(cents: 7_000), Money(cents: 3_000)],
+            installments: installments
+        )
+
+        #expect(rows == [
+            [Money(cents: 2_333), Money(cents: 1_000)],
+            [Money(cents: 2_333), Money(cents: 1_000)],
+            [Money(cents: 2_334), Money(cents: 1_000)]
+        ])
+        #expect(rows.flatMap { $0 }.reduce(.zero, +) == Money(cents: 10_000))
+    }
+
+    @Test
+    func clampsMonthlyInstallmentDateToEndOfMonth() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let january31 = try #require(calendar.date(from: DateComponents(year: 2026, month: 1, day: 31)))
+        let february = LedgerCalculations.date(byAddingMonths: 1, to: january31, calendar: calendar)
+
+        #expect(calendar.dateComponents([.year, .month, .day], from: february) == DateComponents(year: 2026, month: 2, day: 28))
+    }
+
+    @Test
+    func decodesInstallmentMovementAndScheduledPaymentFromWebAppData() throws {
+        let movementData = Data(
+            #"{"id":"movement-1","type":"expense","authorId":"user","memberId":"user","amount":33.33,"date":"2026-08-15","description":"Acquisto · rata 1/3","categoryId":"shopping","beneficiaryId":"store","accountId":"bank","shared":true,"installmentPlanId":"plan-1","installmentProvider":"Klarna","installmentNumber":1,"installmentCount":3,"sharedSettlementAmount":100,"createdAt":"2026-08-15T10:00:00Z"}"#.utf8
+        )
+        let paymentData = Data(
+            #"{"id":"payment-2","planId":"plan-1","authorId":"user","memberId":"user","amount":33.33,"dueDate":"2026-09-15","description":"Acquisto","categoryId":"shopping","beneficiaryId":"store","accountId":"bank","shared":true,"provider":"Klarna","installmentNumber":2,"installmentCount":3,"status":"scheduled"}"#.utf8
+        )
+
+        let movement = try JSONDecoder().decode(LedgerMovement.self, from: movementData)
+        let payment = try JSONDecoder().decode(LedgerScheduledPayment.self, from: paymentData)
+
+        #expect(movement.installmentPlanID == payment.planID)
+        #expect(movement.sharedSettlementAmount == Money(cents: 10_000))
+        #expect(payment.status == .scheduled)
+        #expect(payment.installmentNumber == 2)
+    }
+
+    @Test
     func decodesMovementFromAppDataVersionThree() throws {
         let data = Data(
             #"{"id":"movement-1","type":"expense","authorId":"user","memberId":"user","amount":30.25,"date":"2026-08-14","description":"Spesa","categoryId":"food","beneficiaryId":"market","accountId":"cash","shared":true,"createdAt":"2026-08-14T10:00:00Z"}"#.utf8

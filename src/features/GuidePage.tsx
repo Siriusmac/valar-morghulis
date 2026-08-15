@@ -113,7 +113,7 @@ export function GuidePage() {
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
             <li>Usa <strong>Giro fondi</strong> per spostare denaro tra due conti senza registrare una spesa.</li>
             <li>I movimenti precedenti alla data del saldo iniziale possono restare nelle statistiche senza modificare il saldo.</li>
-            <li>Per ogni conto personale puoi scegliere se rendere visibile alla famiglia soltanto il suo nome, così potrà essere selezionato nei rimborsi. Saldo, istituto e movimenti restano privati.</li>
+            <li>Quando crei un conto familiare scegli esplicitamente a quale famiglia appartiene. Per ogni conto personale puoi selezionare una o più famiglie alle quali rendere visibile soltanto il nome per i rimborsi; saldo, istituto e movimenti restano privati.</li>
           </ul>
         </section>
 
