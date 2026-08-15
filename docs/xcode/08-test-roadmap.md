@@ -82,10 +82,11 @@ movimenti estranei al salvataggio corrente. Restano da aggiungere al modulo
 nativo l'editor completo di parziali, tag e rateizzazione, oltre a cache offline
 e riallineamento Realtime.
 
-Prima del collaudo push applicare la migration e distribuire la Edge Function;
-la build locale da sola non può verificare APNs. Usare almeno due dispositivi
-reali con membri diversi e controllare che né l'autore né i membri non coinvolti
-ricevano l'avviso e che nessun importo compaia nella notifica.
+Le migration push e rimborsi multiutente sono applicate sul progetto remoto.
+Prima del collaudo push resta da distribuire la Edge Function e configurare APNs;
+la build locale da sola non può verificarne la consegna. Usare almeno due
+dispositivi reali con membri diversi e controllare che né l'autore né i membri
+non coinvolti ricevano l'avviso e che nessun importo compaia nella notifica.
 
 ## Collaudo web/native
 

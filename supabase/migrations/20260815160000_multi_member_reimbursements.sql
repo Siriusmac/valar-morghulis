@@ -1,6 +1,7 @@
--- Nelle famiglie con più di due membri l'autore del rimborso deve essere il
--- pagatore. In questo modo ogni record ha un solo destinatario che può
--- confermarlo e ricevere la relativa notifica, senza ambiguità tra creditori.
+-- Nelle famiglie con più di due membri l'autore dei nuovi rimborsi deve essere
+-- il pagatore. Sugli aggiornamenti il controllo viene ripetuto soltanto se
+-- cambia una delle parti: conferme e rifiuti di eventuali record storici
+-- restano quindi possibili.
 create or replace function public.validate_multi_member_reimbursement()
 returns trigger
 language plpgsql
@@ -11,6 +12,13 @@ declare
   family_member_count integer;
 begin
   if new.record_type <> 'reimbursement' then return new; end if;
+
+  if tg_op = 'UPDATE'
+    and new.created_by is not distinct from old.created_by
+    and new.data ->> 'fromId' is not distinct from old.data ->> 'fromId'
+    and new.data ->> 'toId' is not distinct from old.data ->> 'toId' then
+    return new;
+  end if;
 
   select count(*) into family_member_count
   from public.family_members

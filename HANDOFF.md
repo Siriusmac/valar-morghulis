@@ -171,8 +171,7 @@ stato `pending`, impedisce all’autore di alterarne lo stato e aggiunge la
 procedura protetta con cui soltanto la controparte può confermare o rifiutare,
 completando il proprio conto quando necessario.
 La migrazione è stata applicata al progetto Supabase remoto il 27 luglio 2026.
-Il successivo `db push --dry-run` conferma che database locale e remoto erano
-allineati prima delle migration push ancora locali del 15 agosto.
+Il database remoto è allineato alle migration locali fino al 15 agosto 2026.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
@@ -202,11 +201,15 @@ importi entro i rispettivi crediti disponibili. Vengono creati rimborsi
 separati, collegati da un identificativo di gruppo, e ciascun destinatario
 conferma soltanto il proprio. Il flusso a due membri resta invariato.
 
-Queste migration e la nuova funzione non sono state applicate né distribuite.
-Per attivarle servono la capability Apple Push Notifications per il bundle
-`it.valarmorghulis.skey`, profili di firma aggiornati e i segreti Supabase
-`APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. Un errore APNs non annulla né
-duplica il rimborso: il client segnala separatamente il mancato avviso.
+Le migration `20260815143000_push_notifications.sql` e
+`20260815160000_multi_member_reimbursements.sql` sono state applicate al progetto
+Supabase remoto il 15 agosto 2026; il successivo `migration list` è allineato e
+`db lint --linked --schema public` non rileva errori. La Edge Function non è
+ancora stata distribuita. Per attivare l'invio servono la capability Apple Push
+Notifications per il bundle `it.valarmorghulis.skey`, profili di firma aggiornati
+e i segreti Supabase `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. Un errore
+APNs non annulla né duplica il rimborso: il client segnala separatamente il
+mancato avviso.
 
 La migrazione `20260726110000_family_shared_records.sql` introduce
 `family_shared_records`, recupera i dati condivisi già esistenti e abilita
