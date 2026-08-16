@@ -3,8 +3,10 @@ import type { AppData, Movement, MovementSplit, MovementType, Reimbursement, Use
 export interface MovementAllocation {
   categoryId: string
   beneficiaryId?: string
+  tagId?: string
   amount: number
   shared: boolean
+  excludeFromReports: boolean
 }
 
 function roundMoney(value: number) {
@@ -15,18 +17,37 @@ interface AllocationSource {
   amount: number
   categoryId: string
   beneficiaryId?: string
+  tagId?: string
   shared: boolean
   splits?: MovementSplit[]
+  commissionedPurchaseId?: string
+  excludeFromReports?: boolean
 }
 
 export function movementAllocations(movement: AllocationSource): MovementAllocation[] {
+  // A commissioned allocation changes the payer's account once, but belongs to
+  // the recipient's personal bookkeeping and must not enter the payer's reports.
   const splits = (movement.splits ?? [])
     .filter((item) => Number.isFinite(item.amount) && item.amount > 0)
-    .map((item) => ({ categoryId: item.categoryId, beneficiaryId: item.beneficiaryId, amount: roundMoney(item.amount), shared: item.shared }))
+    .map((item) => ({
+      categoryId: item.categoryId,
+      beneficiaryId: item.beneficiaryId,
+      tagId: item.tagId,
+      amount: roundMoney(item.amount),
+      shared: item.shared,
+      excludeFromReports: Boolean(item.excludeFromReports || item.commissionedPurchaseId),
+    }))
   const splitTotal = splits.reduce((sum, item) => sum + item.amount, 0)
   const remainder = roundMoney(Math.max(0, movement.amount - splitTotal))
   return [
-    ...(remainder > 0 ? [{ categoryId: movement.categoryId, beneficiaryId: movement.beneficiaryId, amount: remainder, shared: movement.shared }] : []),
+    ...(remainder > 0 ? [{
+      categoryId: movement.categoryId,
+      beneficiaryId: movement.beneficiaryId,
+      tagId: movement.tagId,
+      amount: remainder,
+      shared: movement.shared,
+      excludeFromReports: Boolean(movement.excludeFromReports || movement.commissionedPurchaseId),
+    }] : []),
     ...splits,
   ]
 }
@@ -36,7 +57,7 @@ export function sharedMovementAmount(movement: Movement) {
     return movement.shared || movement.splits?.some((item) => item.shared) ? movement.sharedSettlementAmount : 0
   }
   return roundMoney(movementAllocations(movement)
-    .filter((item) => item.shared)
+    .filter((item) => item.shared && !item.excludeFromReports)
     .reduce((sum, item) => sum + item.amount, 0))
 }
 
@@ -174,6 +195,7 @@ export function totalsByCategory(data: AppData, movements: Movement[], sharedOnl
     if (movement.excludeFromReports) continue
     const account = data.accounts.find((item) => item.id === movement.accountId)
     for (const allocation of movementAllocations(movement)) {
+      if (allocation.excludeFromReports) continue
       if (sharedOnly && account?.scope !== 'family' && !allocation.shared) continue
       totals.set(allocation.categoryId, (totals.get(allocation.categoryId) ?? 0) + allocation.amount)
     }

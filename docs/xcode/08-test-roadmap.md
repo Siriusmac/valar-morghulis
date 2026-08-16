@@ -76,10 +76,11 @@ richiede inoltre una push generica soltanto alla controparte del record: i token
 sono privati e l'esito APNs resta separato dal salvataggio contabile. Il tap
 seleziona la famiglia corretta e presenta la conferma indicata nel payload.
 
-L'editor dei parziali è ora operativo anche nel client nativo: ogni riga ha
-importo, categoria, beneficiario facoltativo e condivisione indipendente. La
-combinazione con le rate usa la stessa ripartizione centesimale della web app e
-la sincronizzazione pubblica soltanto le allocazioni condivise.
+L'editor dei parziali è ora operativo anche nel client nativo: l'acquisto ha
+un beneficiario unico e ogni riga ha importo, categoria, tag e destinazione indipendente fra personale,
+famiglia e acquisto per conto terzi. La combinazione con le rate usa la stessa
+ripartizione centesimale della web app e la sincronizzazione pubblica soltanto
+le allocazioni condivise; le sole righe commissionate restano fuori dai report.
 
 Le directory native di categorie, beneficiari, mittenti e tag supportano
 creazione, rinomina e apertura dello storico filtrato. La cancellazione di
@@ -103,7 +104,11 @@ record già posseduti dall’autore, per evitare che la procedura Supabase elimi
 movimenti estranei al salvataggio corrente. Restano da aggiungere cache offline
 e riallineamento Realtime.
 
-Le migration push e rimborsi multiutente sono applicate sul progetto remoto.
+Le migration push, rimborsi multiutente, contatti e acquisti multipli su
+commissione sono applicate sul progetto remoto fino alla
+`20260816170000_multiple_commissioned_purchase_allocations.sql`. Il successivo
+`migration list` è allineato e `db lint --linked --schema public` non segnala
+errori.
 Prima del collaudo push resta da distribuire la Edge Function e configurare APNs;
 la build locale da sola non può verificarne la consegna. Usare almeno due
 dispositivi reali con membri diversi e controllare che né l'autore né i membri

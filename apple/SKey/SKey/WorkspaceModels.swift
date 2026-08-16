@@ -464,7 +464,26 @@ nonisolated struct MovementSplitDraft: Identifiable, Equatable, Sendable {
     let amount: Decimal
     let category: LedgerDirectoryItem
     let beneficiary: LedgerDirectoryItem?
+    let tag: LedgerDirectoryItem?
     let isShared: Bool
+    let commissionedPurchaseID: String?
+    let excludeFromReports: Bool
+
+    init(
+        id: String, amount: Decimal, category: LedgerDirectoryItem,
+        beneficiary: LedgerDirectoryItem?, tag: LedgerDirectoryItem? = nil,
+        isShared: Bool, commissionedPurchaseID: String? = nil,
+        excludeFromReports: Bool = false
+    ) {
+        self.id = id
+        self.amount = amount
+        self.category = category
+        self.beneficiary = beneficiary
+        self.tag = tag
+        self.isShared = isShared
+        self.commissionedPurchaseID = commissionedPurchaseID
+        self.excludeFromReports = excludeFromReports
+    }
 }
 
 nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {

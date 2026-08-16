@@ -62,12 +62,14 @@ function sanitizedSharedMovement(data: AppData, movement: Movement): Movement | 
     amount,
     categoryId: primary.categoryId,
     beneficiaryId: primary.beneficiaryId,
+    tagId: primary.tagId,
     shared: true,
     splits: partials.map((item, index) => ({
       id: `${movement.id}-shared-${index + 1}`,
       amount: item.amount,
       categoryId: item.categoryId,
       beneficiaryId: item.beneficiaryId,
+      tagId: item.tagId,
       shared: true,
     })),
     sharedSettlementAmount: movement.sharedSettlementAmount,
@@ -85,12 +87,14 @@ function sanitizedSharedPayment(payment: ScheduledPayment): ScheduledPayment | n
     amount: Math.round(sharedAllocations.reduce((sum, item) => sum + item.amount, 0) * 100) / 100,
     categoryId: primary.categoryId,
     beneficiaryId: primary.beneficiaryId,
+    tagId: primary.tagId,
     shared: true,
     splits: partials.map((item, index) => ({
       id: `${payment.id}-shared-${index + 1}`,
       amount: item.amount,
       categoryId: item.categoryId,
       beneficiaryId: item.beneficiaryId,
+      tagId: item.tagId,
       shared: true,
     })),
     affectsAccountBalance: false,
@@ -108,14 +112,18 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
       if (allocation.beneficiaryId) beneficiaryIds.add(allocation.beneficiaryId)
     }
     if (movement.senderId) senderIds.add(movement.senderId)
-    if (movement.tagId) tagIds.add(movement.tagId)
+    for (const allocation of movementAllocations(movement)) {
+      if (allocation.tagId) tagIds.add(allocation.tagId)
+    }
   }
   for (const payment of scheduledPayments) {
     for (const allocation of movementAllocations(payment)) {
       categoryIds.add(allocation.categoryId)
       if (allocation.beneficiaryId) beneficiaryIds.add(allocation.beneficiaryId)
     }
-    if (payment.tagId) tagIds.add(payment.tagId)
+    for (const allocation of movementAllocations(payment)) {
+      if (allocation.tagId) tagIds.add(allocation.tagId)
+    }
   }
   return { categoryIds, beneficiaryIds, senderIds, tagIds }
 }

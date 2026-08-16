@@ -1037,7 +1037,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 amount: Money(decimal: split.amount),
                 category: category,
                 beneficiary: beneficiary,
-                shared: shared
+                tag: split.tag,
+                shared: shared && !split.excludeFromReports,
+                commissionedPurchaseID: split.commissionedPurchaseID,
+                excludeFromReports: split.excludeFromReports
             )
         }
     }
@@ -1061,7 +1064,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 amount: amount,
                 category: split.category,
                 beneficiary: split.beneficiary,
-                shared: split.shared
+                tag: split.tag,
+                shared: split.shared,
+                commissionedPurchaseID: split.commissionedPurchaseID,
+                excludeFromReports: split.excludeFromReports
             )
         }
     }
@@ -1084,6 +1090,11 @@ struct SupabaseLedgerRepository: LedgerRepository {
             "shared": .bool(split.shared)
         ]
         if let beneficiary = split.beneficiary { object["beneficiaryId"] = .string(beneficiary.id) }
+        if let tag = split.tag { object["tagId"] = .string(tag.id) }
+        if let commissionedPurchaseID = split.commissionedPurchaseID {
+            object["commissionedPurchaseId"] = .string(commissionedPurchaseID)
+        }
+        if split.excludeFromReports { object["excludeFromReports"] = .bool(true) }
         return .object(object)
     }
 
@@ -1097,10 +1108,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
             $0 + ($1.objectValue?["amount"]?.numberValue ?? 0)
         }
         let remainder = max(0, total - splitTotal)
-        var allocations: [(amount: Decimal, categoryID: String, beneficiaryID: String?)] = []
+        var allocations: [(amount: Decimal, categoryID: String, beneficiaryID: String?, tagID: String?)] = []
         if source["shared"] == .bool(true), remainder > 0,
            let categoryID = source["categoryId"]?.stringValue {
-            allocations.append((remainder, categoryID, source["beneficiaryId"]?.stringValue))
+            allocations.append((remainder, categoryID, source["beneficiaryId"]?.stringValue, source["tagId"]?.stringValue))
         }
         allocations.append(contentsOf: splits.compactMap { split in
             guard let object = split.objectValue,
@@ -1109,7 +1120,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
                   amount > 0,
                   let categoryID = object["categoryId"]?.stringValue
             else { return nil }
-            return (amount, categoryID, object["beneficiaryId"]?.stringValue)
+            return (amount, categoryID, object["beneficiaryId"]?.stringValue, object["tagId"]?.stringValue)
         })
         guard let primary = allocations.first else { return nil }
 
@@ -1119,6 +1130,11 @@ struct SupabaseLedgerRepository: LedgerRepository {
             source["beneficiaryId"] = .string(beneficiaryID)
         } else {
             source.removeValue(forKey: "beneficiaryId")
+        }
+        if let tagID = primary.tagID {
+            source["tagId"] = .string(tagID)
+        } else {
+            source.removeValue(forKey: "tagId")
         }
         source["shared"] = .bool(true)
         source["affectsAccountBalance"] = .bool(false)
@@ -1133,6 +1149,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 if let beneficiaryID = allocation.beneficiaryID {
                     split["beneficiaryId"] = .string(beneficiaryID)
                 }
+                if let tagID = allocation.tagID { split["tagId"] = .string(tagID) }
                 return .object(split)
             })
         } else {
@@ -1176,7 +1193,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
                           let id = split["id"]?.stringValue,
                           let replacement = sourceSplits[id]?.objectValue
                     else { return nil }
-                    for key in ["categoryId", "beneficiaryId", "shared"] {
+                    for key in ["categoryId", "beneficiaryId", "tagId", "shared", "commissionedPurchaseId", "excludeFromReports"] {
                         if let item = replacement[key] { split[key] = item } else { split.removeValue(forKey: key) }
                     }
                     return .object(split)
@@ -1964,5 +1981,8 @@ private struct ResolvedMovementSplit: Sendable {
     let amount: Money
     let category: LedgerDirectoryItem
     let beneficiary: LedgerDirectoryItem?
+    let tag: LedgerDirectoryItem?
     let shared: Bool
+    let commissionedPurchaseID: String?
+    let excludeFromReports: Bool
 }

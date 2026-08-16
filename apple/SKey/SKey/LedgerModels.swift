@@ -56,14 +56,35 @@ nonisolated struct LedgerMovementSplit: Identifiable, Codable, Equatable, Sendab
     let amount: Money
     let categoryID: String
     let beneficiaryID: String?
+    let tagID: String?
     let shared: Bool
+    let commissionedPurchaseID: String?
+    let excludeFromReports: Bool?
+
+    init(
+        id: String, amount: Money, categoryID: String, beneficiaryID: String?,
+        tagID: String? = nil, shared: Bool, commissionedPurchaseID: String? = nil,
+        excludeFromReports: Bool? = nil
+    ) {
+        self.id = id
+        self.amount = amount
+        self.categoryID = categoryID
+        self.beneficiaryID = beneficiaryID
+        self.tagID = tagID
+        self.shared = shared
+        self.commissionedPurchaseID = commissionedPurchaseID
+        self.excludeFromReports = excludeFromReports
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
         case amount
         case categoryID = "categoryId"
         case beneficiaryID = "beneficiaryId"
+        case tagID = "tagId"
         case shared
+        case commissionedPurchaseID = "commissionedPurchaseId"
+        case excludeFromReports
     }
 }
 
@@ -401,8 +422,10 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
 nonisolated struct LedgerAllocation: Equatable, Sendable {
     let categoryID: String
     let beneficiaryID: String?
+    let tagID: String?
     let amount: Money
     let shared: Bool
+    let excludeFromReports: Bool
 }
 
 nonisolated struct LedgerCategoryTotal: Identifiable, Equatable, Sendable {

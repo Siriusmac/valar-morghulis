@@ -28,7 +28,8 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
-- suddivisione facoltativa di uno scontrino in più categorie, con categoria e beneficiario ricercabili o creabili per ogni parziale, quote personali o condivise indipendenti e residuo automatico sulla categoria principale;
+- nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dalla scelta fra acquisto singolo e multiplo;
+- suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari e acquisti per conto di contatti diversi, con residuo automatico in coda;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
@@ -36,6 +37,7 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
 - spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata e pagamenti successivi programmati;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
+- sezione “Rimborsi” con viste “Attesi” e “Dovuti” separate;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, inviti in attesa o scaduti da reinviare e inviti rifiutati da rimuovere;
@@ -76,7 +78,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260816010000_category_directory_deletion.sql`,
    `supabase/migrations/20260816020000_tag_and_account_deletion.sql`,
    `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql` e
-   `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql`;
+   `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql` e
+   `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
@@ -150,6 +153,13 @@ pnpm lint
 pnpm run build
 ```
 
+Ultima verifica completata il 16 agosto 2026: 130 test web, lint, build Vite,
+controllo della configurazione Supabase nel bundle Cloudflare, build iOS/macOS
+e 29 test unitari Apple. Il collaudo browser desktop e mobile ha confermato il
+beneficiario unico dell'acquisto multiplo, le righe personali/familiari/per
+conto terzi, il relativo flusso disponibile anche in demo e l'assenza di
+overflow orizzontale o errori console.
+
 Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HANDOFF.md](HANDOFF.md).
 
 ## Nota tecnica
@@ -160,11 +170,11 @@ controlli di sistema per iPhone, iPad e macOS, mantenendo Supabase e AppData v3
 compatibili con la web app. Sono già operativi accesso, ripristino della
 sessione, selezione dello spazio personale o familiare, lettura di profilo e
 conti con creazione e modifica, configurazione di account e famiglie, inserimento
-e modifica di spese ed entrate personali o condivise, suddivisione per categorie
-con visibilità indipendente di ogni parziale, acquisti in 3 o 5 rate,
+e modifica di spese ed entrate personali o condivise, acquisti singoli o multipli
+con categoria, tag e destinazione indipendenti per parziale, acquisti in 3 o 5 rate,
 azioni contestuali touch o Mac, anagrafiche di categorie, beneficiari, mittenti
 e tag modificabili con accesso ai relativi movimenti, elenco mensile dei
-movimenti, rimborsi con conferma, saldi calcolati di conti e famiglia e
+movimenti, sezione Rimborsi “Attesi/Dovuti”, conferma delle richieste, saldi calcolati di conti e famiglia e
 grafici mensili condivisi/per categoria tramite Swift Charts. Le rate future
 sono raggruppate per acquisto in “Pagamenti programmati” e vengono materializzate
 alla scadenza.

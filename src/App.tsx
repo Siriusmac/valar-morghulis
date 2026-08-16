@@ -28,6 +28,7 @@ const ScheduledPaymentsPage = lazy(() => import('./features/ScheduledPaymentsPag
 const TransferForm = lazy(() => import('./features/TransferForm').then((module) => ({ default: module.TransferForm })))
 const AccountSettings = lazy(() => import('./features/AccountSettings').then((module) => ({ default: module.AccountSettings })))
 const ContactsPage = lazy(() => import('./features/ContactsPage').then((module) => ({ default: module.ContactsPage })))
+const ReimbursementsPage = lazy(() => import('./features/ReimbursementsPage').then((module) => ({ default: module.ReimbursementsPage })))
 
 type ModalState =
   | { type: 'movement'; movement?: Movement; initialType?: MovementType }
@@ -73,7 +74,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   })
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'scheduled', 'accounts', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
@@ -267,10 +268,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast('Saldo iniziale aggiornato')
   }
   const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number) => setModal({ type: 'details', title, filter, amount })
-  const contacts = cloud ? mergeContacts(
-    familyContacts(appUsers, user.id, cloud.familyName),
-    contactData.friends,
-  ) : []
+  const contacts = mergeContacts(
+    familyContacts(appUsers, user.id, cloud?.familyName ?? 'Famiglia demo'),
+    cloud ? contactData.friends : [],
+  )
   const sendContactInvite = async (email: string) => {
     await inviteContact(email)
     await refreshContacts()
@@ -334,6 +335,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} />
+    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} onRespond={cloud ? respondToReimbursement : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')
@@ -375,7 +377,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     <AppShell page={page} user={user} registeredUserCount={cloud ? cloud.registeredUserCount : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} initialType={modal.initialType} personalOnly={cloud?.personalMode} contacts={contacts} onCommissionedPurchase={cloud && !modal.movement ? submitCommissionedPurchase : undefined} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} initialType={modal.initialType} personalOnly={cloud?.personalMode} contacts={contacts} onCommissionedPurchase={modal.movement ? undefined : cloud ? submitCommissionedPurchase : async () => {}} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'transfer' ? <Modal title="Nuovo movimento" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSelectMovement={(initialType) => setModal({ type: 'movement', initialType })} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>Totale <strong>{formatMoney(detailTotal)}</strong></span>{detailMovements.length ? <span>dal <strong>{formatDate(detailMovements[detailMovements.length - 1].date)}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} compact /></Suspense></Modal> : null}

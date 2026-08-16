@@ -137,6 +137,8 @@ struct AppShellView: View {
             MovementsView(appModel: appModel)
         case .scheduledPayments:
             ScheduledPaymentsView(appModel: appModel)
+        case .reimbursements:
+            ReimbursementsView(appModel: appModel)
         case .accounts:
             AccountsView(appModel: appModel)
         case .categories:

@@ -426,7 +426,7 @@ private struct DirectoryMovementsView: View {
             case .sender:
                 movement.type == .income && (movement.senderID ?? "") == route.itemID
             case .tag:
-                movement.tagID == route.itemID
+                LedgerCalculations.allocations(of: movement).contains { ($0.tagID ?? "") == route.itemID }
             }
         }.sorted { $0.date == $1.date ? $0.createdAt > $1.createdAt : $0.date > $1.date }
     }
@@ -437,7 +437,9 @@ private struct DirectoryMovementsView: View {
             LedgerCalculations.allocations(of: movement).filter { $0.categoryID == route.itemID }.reduce(.zero) { $0 + $1.amount }
         case .beneficiary:
             LedgerCalculations.allocations(of: movement).filter { ($0.beneficiaryID ?? "") == route.itemID }.reduce(.zero) { $0 + $1.amount }
-        case .sender, .tag:
+        case .tag:
+            LedgerCalculations.allocations(of: movement).filter { ($0.tagID ?? "") == route.itemID }.reduce(.zero) { $0 + $1.amount }
+        case .sender:
             movement.amount
         }
     }

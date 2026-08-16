@@ -2,7 +2,7 @@
 
 ## Navigazione
 
-Destinazioni: Bacheca, Spese ed entrate, Pagamenti programmati, Conti, Categorie, Beneficiari e mittenti, Tag, Guida, Account.
+Destinazioni: Bacheca, Spese ed entrate, Pagamenti programmati, Rimborsi, Conti, Categorie, Beneficiari e mittenti, Tag, Contatti, Guida, Account.
 
 iPhone usa navigazione compatta; iPad e Mac sidebar completa. “Nuovo movimento”
 è un'azione primaria verde nella toolbar, apre una sheet e conserva la
@@ -23,13 +23,12 @@ la barra inferiore rappresenta destinazioni, non comandi.
 Form progressivo:
 
 1. Spesa, Entrata o Giro fondi, con il trasferimento come terza scelta solo in creazione.
-2. Per spese ed entrate: importo, data e conto.
-3. Categoria con ricerca e creazione contestuale.
-4. Beneficiario per spesa o mittente per entrata.
-5. Tag e commenti.
-6. Condivisione.
-7. Parziali opzionali.
-8. Rateizzazione delle spese, compatibile con parziali.
+2. Importo.
+3. Conto di origine/destinazione; per le spese segue “Rateizza” con intermediario e numero rate.
+4. Beneficiario o mittente, data, descrizione e commenti.
+5. Per le spese: acquisto singolo o multiplo.
+6. Nel singolo, scelta “per conto di” oppure categoria, tag e condivisione con la famiglia attiva.
+7. Nel multiplo, il beneficiario resta unico a monte e le righe autonome contengono importo, destinazione personale/familiare/per conto terzi, categoria e tag; il residuo è sempre l'ultima riga compilabile.
 
 Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
@@ -78,10 +77,11 @@ gli amici accettati. La rimozione è disponibile solo per gli amici: swipe su
 iPhone e iPad verticale, icona permanente su Mac e iPad orizzontale. Toccando
 una persona si apre lo storico degli acquisti che la coinvolgono.
 
-Nel nuovo movimento una spesa può essere marcata “per conto di un’altra
-persona”. Si sceglie un contatto esistente oppure si inserisce l'email per
-invitarlo contestualmente; descrizione e conto personale sono obbligatori,
-mentre condivisione familiare, parziali e rate sono disattivati. Le richieste in
+Nel nuovo movimento un acquisto intero o un singolo parziale può essere marcato
+“per conto di un’altra persona”. Si sceglie un contatto esistente oppure si
+inserisce l'email per invitarlo contestualmente; descrizione e conto personale
+sono obbligatori. Nello stesso movimento possono convivere righe personali,
+familiari e commissionate e la rateizzazione resta disponibile sul totale. Le richieste in
 arrivo si confermano in Contatti scegliendo categoria e conto personali, oppure
 si rifiutano. Le push delle compensazioni familiari aprono questa stessa vista.
 

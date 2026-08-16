@@ -18,7 +18,7 @@
 | Beneficiary / Sender | name, scope, ownerId | Spese / entrate |
 | Tag | name, scope, ownerId, color | Sempre selezionabile |
 | Movement | tipo, autore, membro, importo, data, conto, directory | Commenti, rate e parziali |
-| MovementSplit | amount, categoryId, beneficiaryId, shared | Il residuo resta sul principale |
+| MovementSplit | amount, categoryId, beneficiaryId, tagId, shared, commissionedPurchaseId, excludeFromReports | Il residuo resta sul principale |
 | ScheduledPayment | planId, dueDate, numero/totale, status | Materializzazione idempotente |
 | Transfer | conti, importo, data | Escluso dalle statistiche |
 | Reimbursement | utenti, conti, importo, status | pending/confirmed/rejected |
@@ -29,7 +29,7 @@
 
 1. Importo positivo e conto esistente.
 2. Somma parziali non superiore al totale.
-3. Il residuo appartiene a categoria, beneficiario e condivisione principali.
+3. Il beneficiario è unico per l'intero acquisto; il residuo appartiene alla categoria e alla condivisione principali.
 4. Un'entrata non ha beneficiario; una spesa non ha mittente.
 5. Solo l'autore modifica o elimina il proprio movimento.
 6. L'editing conserva l'ID; non crea copie.
@@ -38,6 +38,7 @@
 9. Una spesa su commissione del pagante ha `excludeFromReports == true`; il
    movimento classificato dal destinatario ha `affectsAccountBalance == false`.
 10. La rimozione di un contatto non elimina acquisti o movimenti pregressi.
+11. L'esclusione dai report si applica alla singola allocazione commissionata, non alle altre righe dello stesso movimento.
 
 ## Saldo conto
 
@@ -69,6 +70,7 @@ incide nuovamente sul saldo del proprio conto.
 - Materializzazione idempotente con identità deterministica/`paidMovementId`.
 - Spesa personale: saldo solo per rate pagate.
 - Spesa familiare: debito condiviso sull'intero importo subito; rate future con regolazione condivisa zero.
+- La ripartizione delle rate parte sempre dal totale e distribuisce ogni allocazione senza perdere centesimi; una riga commissionata conserva collegamento ed esclusione in ogni rata.
 
 ## Casi obbligatori
 

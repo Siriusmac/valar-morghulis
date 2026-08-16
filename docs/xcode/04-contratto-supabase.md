@@ -79,5 +79,9 @@ Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `c
 - Compensazioni: `family_id` e `reimbursement_id` sono entrambi presenti oppure
   entrambi assenti; alla risposta la RPC verifica autore, partecipanti, stato e
   identificativo della richiesta prima di aggiornare il rimborso familiare.
+- Acquisti multipli: la migration
+  `20260816170000_multiple_commissioned_purchase_allocations.sql` rimuove
+  l'unicità del movimento pagante in `commissioned_purchases`, così uno stesso
+  scontrino può generare richieste distinte per più parziali e contatti.
 
 `AppData.version` è 3. Ogni nuova versione richiede decoder retrocompatibile, migrazione locale testata, backend compatibile con il client precedente e divieto di sovrascrivere snapshot di versione sconosciuta.

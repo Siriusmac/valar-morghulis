@@ -4,6 +4,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
     case dashboard
     case movements
     case scheduledPayments
+    case reimbursements
     case accounts
     case categories
     case counterparties
@@ -32,6 +33,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         case .dashboard: "Bacheca"
         case .movements: "Spese ed Entrate"
         case .scheduledPayments: "Pagamenti programmati"
+        case .reimbursements: "Rimborsi"
         case .accounts: "Conti"
         case .categories: "Categorie"
         case .counterparties: "Beneficiari e mittenti"
@@ -54,6 +56,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         case .dashboard: "rectangle.3.group"
         case .movements: "arrow.up.arrow.down.circle"
         case .scheduledPayments: "calendar.badge.clock"
+        case .reimbursements: "hand.raised.fingers.spread"
         case .accounts: "creditcard"
         case .categories: "square.grid.2x2"
         case .counterparties: "building.2"
@@ -65,7 +68,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
 
     var group: Group {
         switch self {
-        case .dashboard, .movements, .scheduledPayments, .accounts:
+        case .dashboard, .movements, .scheduledPayments, .reimbursements, .accounts:
             .overview
         case .categories, .counterparties, .tags, .contacts:
             .organization

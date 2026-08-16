@@ -1,9 +1,9 @@
 import { Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Send, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
-import { accountBalance, movementAllocations, totalsByCategory, visibleMovements } from '../lib/calculations'
+import { accountBalance, movementAllocations, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
-import type { Account, AppData, Beneficiary, Category, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
+import type { Account, AppData, Beneficiary, Category, Movement, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number) => void }
 
@@ -268,7 +268,11 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
     setReportTagId('')
     setShowReportForm(false)
   }
-  const showTagMovements = (tag: Tag) => onShowMovements(`Movimenti · ${tag.name}`, (movement) => movement.tagId === tag.id)
+  const showTagMovements = (tag: Tag) => onShowMovements(
+    `Movimenti · ${tag.name}`,
+    (movement) => movementAllocations(movement).some((allocation) => allocation.tagId === tag.id),
+    (movement) => movementAllocations(movement).filter((allocation) => allocation.tagId === tag.id).reduce((sum, allocation) => sum + allocation.amount, 0),
+  )
   return <DirectoryPage title="Tag" subtitle="Misura il costo o il risultato di progetti ed eventi." addLabel="Nuovo tag" showForm={showForm} setShowForm={setShowForm}>
     {showForm ? <InlineForm title="Nuovo tag" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Vacanza a Parigi" autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
     <div className="directory-grid">{tags.map((tag) => <article className="directory-selectable" key={tag.id} tabIndex={0} onClick={() => editingId !== tag.id && showTagMovements(tag)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && editingId !== tag.id) showTagMovements(tag) }}>
@@ -278,8 +282,19 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
     </article>)}</div>
     <div className="tag-report-toolbar"><div><h2>Righe di riepilogo</h2><p>I tag restano sempre disponibili nei nuovi movimenti.</p></div><button className="button button--ghost" onClick={() => setShowReportForm(true)} disabled={!availableReports.length}><Plus />Aggiungi riepilogo</button></div>
     {showReportForm ? <form className="report-picker" onSubmit={addReport}><label>Tag da mostrare<select value={reportTagId} onChange={(event) => setReportTagId(event.target.value)} autoFocus>{availableReports.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="button button--ghost" type="button" onClick={() => setShowReportForm(false)}>Annulla</button><button className="button button--primary" type="submit"><Plus />Aggiungi riga</button></form> : null}
-    <div className="tag-reports">{reportTags.map((tag) => { const tagged = visible.filter((item) => item.tagId === tag.id); const expenses = tagged.filter((item) => item.type === 'expense'); const incomes = tagged.filter((item) => item.type === 'income'); const spent = expenses.reduce((sum, item) => sum + item.amount, 0); const earned = incomes.reduce((sum, item) => sum + item.amount, 0); return <section key={tag.id}><div className="tag-report__heading"><span className="directory-icon"><TagIcon /></span><div><h2>{tag.name}</h2><p>Bilancio {formatMoney(earned - spent)} · Spese {formatMoney(spent)}</p></div><div className="tag-report__actions"><button className="detail-button" onClick={() => showTagMovements(tag)}><Eye />Movimenti</button><button className="icon-button icon-button--danger" title="Rimuovi riga di riepilogo" onClick={() => onRemoveReport(tag.id)}><Trash2 /></button></div></div><DonutChart title="Spese per categoria" data={totalsByCategory(data, expenses)} tone="expense" compact /></section> })}</div>
+    <div className="tag-reports">{reportTags.map((tag) => { const tagged = visible.filter((item) => movementAllocations(item).some((allocation) => allocation.tagId === tag.id)); const expenses = tagged.filter((item) => item.type === 'expense'); const incomes = tagged.filter((item) => item.type === 'income'); const amountForTag = (item: AppData['movements'][number]) => movementAllocations(item).filter((allocation) => allocation.tagId === tag.id && !allocation.excludeFromReports).reduce((sum, allocation) => sum + allocation.amount, 0); const spent = expenses.reduce((sum, item) => sum + amountForTag(item), 0); const earned = incomes.reduce((sum, item) => sum + amountForTag(item), 0); return <section key={tag.id}><div className="tag-report__heading"><span className="directory-icon"><TagIcon /></span><div><h2>{tag.name}</h2><p>Bilancio {formatMoney(earned - spent)} · Spese {formatMoney(spent)}</p></div><div className="tag-report__actions"><button className="detail-button" onClick={() => showTagMovements(tag)}><Eye />Movimenti</button><button className="icon-button icon-button--danger" title="Rimuovi riga di riepilogo" onClick={() => onRemoveReport(tag.id)}><Trash2 /></button></div></div><DonutChart title="Spese per categoria" data={tagTotalsByCategory(data, expenses, tag.id)} tone="expense" compact /></section> })}</div>
   </DirectoryPage>
+}
+
+function tagTotalsByCategory(data: AppData, movements: Movement[], tagId: string) {
+  const totals = new Map<string, number>()
+  movements.forEach((movement) => movementAllocations(movement)
+    .filter((allocation) => allocation.tagId === tagId && !allocation.excludeFromReports)
+    .forEach((allocation) => totals.set(allocation.categoryId, (totals.get(allocation.categoryId) ?? 0) + allocation.amount)))
+  return [...totals.entries()]
+    .map(([categoryId, total]) => ({ category: data.categories.find((category) => category.id === categoryId), total }))
+    .filter((item): item is { category: Category; total: number } => Boolean(item.category))
+    .toSorted((left, right) => right.total - left.total)
 }
 
 function DirectoryPage({ title, subtitle, addLabel, showForm, setShowForm, children }: { title: string; subtitle: string; addLabel: string; showForm: boolean; setShowForm: (value: boolean) => void; children: React.ReactNode }) { return <div className="page"><div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div><button className="button button--primary desktop-action" onClick={() => setShowForm(!showForm)}><Plus />{addLabel}</button></div>{children}</div> }

@@ -173,7 +173,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   )
 }
 
-function ReimbursementReview({ reimbursement, data, user, members, onRespond }: {
+export function ReimbursementReview({ reimbursement, data, user, members, onRespond }: {
   reimbursement: Reimbursement
   data: AppData
   user: User

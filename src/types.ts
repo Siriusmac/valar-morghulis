@@ -1,5 +1,5 @@
 export type UserId = string
-export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags' | 'contacts' | 'guide' | 'account'
+export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'reimbursements' | 'accounts' | 'categories' | 'beneficiaries' | 'tags' | 'contacts' | 'guide' | 'account'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
 
@@ -59,7 +59,10 @@ export interface MovementSplit {
   amount: number
   categoryId: string
   beneficiaryId?: string
+  tagId?: string
   shared: boolean
+  commissionedPurchaseId?: string
+  excludeFromReports?: boolean
 }
 
 export interface Movement {
@@ -111,6 +114,7 @@ export interface ScheduledPayment {
   status: 'scheduled' | 'paid'
   paidMovementId?: string
   affectsAccountBalance?: boolean
+  commissionedPurchaseId?: string
 }
 
 export interface Transfer {

@@ -171,8 +171,8 @@ describe('movement category splits', () => {
       splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: false }],
     }
     expect(movementAllocations(movement)).toEqual([
-      { categoryId: 'alimentari', beneficiaryId: 'lidl', amount: 70, shared: true },
-      { categoryId: 'accessori-casa', beneficiaryId: undefined, amount: 30, shared: false },
+      { categoryId: 'alimentari', beneficiaryId: 'lidl', tagId: undefined, amount: 70, shared: true, excludeFromReports: false },
+      { categoryId: 'accessori-casa', beneficiaryId: undefined, tagId: undefined, amount: 30, shared: false, excludeFromReports: false },
     ])
     expect(totalsByCategory(data, [movement]).map((item) => [item.category?.id, item.total])).toEqual([
       ['alimentari', 70],
@@ -190,6 +190,22 @@ describe('movement category splits', () => {
     expect(totalsByCategory(data, [movement], true).map((item) => [item.category?.id, item.total])).toEqual([
       ['accessori-casa', 30],
     ])
+  })
+
+  it('keeps a commissioned partial out of reports and family balances', () => {
+    const data = cleanData()
+    const movement = {
+      ...expense('mixed-commission', 'simone', 100, 'simone-bank'),
+      splits: [
+        { id: 'friend', amount: 30, categoryId: 'accessori-casa', shared: false, commissionedPurchaseId: 'purchase-friend', excludeFromReports: true },
+      ],
+    }
+    data.movements = [movement]
+
+    expect(totalsByCategory(data, [movement]).map((item) => [item.category?.id, item.total])).toEqual([
+      ['alimentari', 70],
+    ])
+    expect(sharedBalance(data, 'simone')).toBe(35)
   })
 
   it('distributes every category across installments without losing cents', () => {

@@ -448,17 +448,17 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .transfer-form input, .transfer-form select, .reimbursement-form select { height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
 
 .modal-layer { position: fixed; inset: 0; z-index: 100; background: rgba(20,36,58,.44); display: flex; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(3px); animation: fade-in .18s ease; }
-.modal { width: min(460px, 100%); max-height: calc(100vh - 48px); overflow: auto; border-radius: 10px; background: #fff; box-shadow: var(--shadow); animation: modal-in .22s ease; }
-.modal--wide { width: min(720px, 100%); }
+.modal { width: min(460px, 100%); max-height: calc(100vh - 48px); overflow: auto; overflow-x: hidden; border-radius: 10px; background: #fff; box-shadow: var(--shadow); animation: modal-in .22s ease; }
+.modal--wide { width: min(900px, 100%); }
 .modal__header { height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; background: white; }
 .modal__header h2 { font-size: 27px; }
 .modal__body { padding: 26px 28px 28px; }
 .expense-form { display: grid; gap: 18px; }
-.amount-field { text-align: center; padding: 4px 0 6px; }
+.amount-field { text-align: center; padding: 10px 0 14px; }
 .amount-field > label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
 .amount-field > div { display: flex; justify-content: center; align-items: baseline; }
-.amount-field span { color: var(--accent); font: 500 28px/1 'Newsreader', Georgia, serif; }
-.amount-field input { width: 180px; height: 62px; border: 0; padding: 0 7px; color: var(--accent); font: 500 54px/1 'Newsreader', Georgia, serif; text-align: center; outline: 0; }
+.amount-field span { color: var(--accent); font: 500 36px/1 'Newsreader', Georgia, serif; }
+.amount-field input { width: min(320px, 72vw); height: 82px; border: 0; padding: 0 9px; color: var(--accent); font: 500 70px/1 'Newsreader', Georgia, serif; text-align: center; outline: 0; }
 .amount-field input::placeholder { color: #d7c2bb; }
 .amount-field small { display: block; color: #a83b32; font-size: 10px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -472,6 +472,9 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .split-editor__intro small { color: var(--muted); font-size: 10px; }
 .split-editor__intro .button { min-height: 34px; padding: 0 11px; }
 .split-row { display: grid; grid-template-columns: minmax(95px, .55fr) 1fr 1fr minmax(115px, .7fr) 34px; gap: 9px; align-items: end; padding: 11px; border: 1px solid rgba(125, 65, 45, .12); border-radius: 6px; background: rgba(255,255,255,.72); }
+.split-row--purchase { grid-template-columns: minmax(105px, .6fr) minmax(175px, 1.15fr) minmax(175px, 1fr) minmax(130px, .75fr) 34px; }
+.split-row--remainder { grid-template-columns: minmax(145px, .8fr) minmax(175px, 1fr) minmax(145px, 1fr) minmax(115px, .7fr) minmax(145px, 1fr); }
+.single-purchase-fields { display: grid; gap: 14px; }
 .split-row .lookup-field__menu { inset-block-start: 68px; }
 .split-row__remove { margin-bottom: 4px; }
 .split-remainder { min-height: 39px; padding: 0 11px; border-radius: 5px; background: white; display: flex; align-items: center; justify-content: space-between; gap: 15px; font-size: 11px; }
@@ -802,11 +805,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .split-selector { grid-template-columns: 1fr; }
   .split-editor__intro { align-items: flex-start; flex-direction: column; }
   .split-row { grid-template-columns: 1fr 1fr 35px; }
+  .split-row--purchase, .split-row--remainder { grid-template-columns: 1fr; }
+  .split-row--purchase > *, .split-row--remainder > * { grid-column: 1 / -1; grid-row: auto; }
   .split-row__amount { grid-column: 1; grid-row: 1; }
   .split-row__sharing { grid-column: 2; grid-row: 1; }
   .split-row__category { grid-column: 1 / -1; grid-row: 2; }
-  .split-row__beneficiary { grid-column: 1 / -1; grid-row: 3; }
-  .split-row__remove { grid-column: 3; grid-row: 1; }
+  .split-row__remove { grid-column: 1; grid-row: auto; justify-self: end; }
   .installment-fields { grid-template-columns: 1fr; padding-left: 14px; }
   .tag-report-toolbar { align-items: stretch; flex-direction: column; }
   .tag-report-toolbar .button { align-self: flex-start; }
@@ -820,7 +824,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .scheduled-installments article { grid-template-columns: 30px 1fr auto; gap: 10px; }
   input, select, textarea { font-size: 16px !important; }
   input:focus, select:focus, textarea:focus { scroll-margin-top: 86px; scroll-margin-bottom: 38vh; }
-  .amount-field input { font-size: 48px !important; }
+  .amount-field input { font-size: 58px !important; }
   .form-actions .button { flex: 1; }
   .sharing-edit-box label { grid-template-columns: 1fr; }
   .form-actions--edit { flex-wrap: wrap; }

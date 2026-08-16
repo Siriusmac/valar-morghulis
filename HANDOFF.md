@@ -23,12 +23,14 @@ Funzioni disponibili:
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
-- suddivisione facoltativa di un movimento in parziali con categoria e beneficiario ricercabili o creabili, ciascuno personale o condiviso, interamente modificabile a posteriori;
+- nuovo movimento con gerarchia coerente web/Apple: tipo, importo, conto e rate, beneficiario/mittente e data, quindi acquisto singolo o multiplo;
+- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; ogni riga può essere personale, condivisa oppure per conto di un contatto;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
+- pagina “Rimborsi” con segmenti “Attesi” (`toId`) e “Dovuti” (`fromId`) su web e client Apple;
 - compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
 - rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
 - spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo;
@@ -70,7 +72,8 @@ Funzioni disponibili:
 - I movimenti personali sono visibili soltanto al proprietario; quelli condivisi sono visibili alla famiglia.
 - Un movimento su conto condiviso è visibile a tutta la famiglia ma non genera debito o credito.
 - Nei movimenti suddivisi, i parziali vengono sottratti dalla categoria principale; soltanto i parziali marcati come condivisi partecipano al saldo familiare. Il conto registra comunque una sola operazione per l’importo totale.
-- Suddivisione per categorie e rateizzazione possono convivere: ogni parziale viene ripartito proporzionalmente sulle rate, preservando i centesimi, la categoria, il beneficiario e la scelta personale/condivisa.
+- Acquisto multiplo e rateizzazione possono convivere: ogni parziale viene ripartito proporzionalmente sulle rate, preservando i centesimi, la categoria, il tag e la destinazione; il beneficiario resta quello unico dell'acquisto. La rateizzazione usa sempre il totale dell'acquisto.
+- Le sole allocazioni “per conto di” sono escluse da statistiche e saldo familiare del pagante; le altre righe dello stesso movimento continuano a produrre i normali effetti personali o familiari.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
@@ -282,8 +285,8 @@ saldo familiare in modo proporzionale al numero dei membri.
 Ogni movimento creato dall'utente corrente espone le azioni native di modifica
 ed eliminazione con swipe da destra verso sinistra su touch e icone permanenti
 su Mac. Gli altri membri restano in sola lettura. Il form espone ora anche i
-parziali per categoria: importo, categoria, beneficiario facoltativo e
-visibilità personale/familiare sono indipendenti per riga. I parziali restano
+parziali per categoria: il beneficiario è unico per l'acquisto, mentre importo,
+categoria e visibilità personale/familiare sono indipendenti per riga. I parziali restano
 editabili e, durante una rateizzazione, vengono distribuiti su ogni rata senza
 perdere centesimi. Il record familiare pubblicato contiene soltanto le quote
 condivise; il movimento completo resta nella copia privata dell'autore.
@@ -334,11 +337,22 @@ il successivo `migration list` è allineato e `db lint --linked --schema public`
 non rileva errori. Le Edge Function `invite-contact` e
 `notify-family-reimbursement` risultano entrambe `ACTIVE`.
 
+La migration `20260816170000_multiple_commissioned_purchase_allocations.sql`
+ha sostituito l'indice univoco `(payer_id, payer_movement_id)` con un indice
+ordinario. Uno stesso scontrino può quindi generare più richieste su commissione
+per contatti diversi mantenendo un solo addebito sul conto del pagatore. È stata
+applicata al progetto remoto il 16 agosto 2026; `migration list` è allineato e
+il lint dello schema `public` non rileva errori.
+
 Verifiche concluse il 16 agosto 2026: build macOS riuscita, build generica iOS
-riuscita e 29 test unitari nativi superati. Il gate web ha confermato 127 test,
-lint e build Vite. La suite UI Xcode era stata verificata nel controllo
-precedente dello stesso blocco. La consegna APNs reale resta da collaudare su
-dispositivi firmati dopo l'attivazione server.
+riuscita e 29 test unitari nativi superati. Il gate web ha confermato 130 test,
+lint, build Vite e presenza della configurazione Supabase nel bundle Cloudflare.
+Il browser locale ha verificato il nuovo movimento desktop e mobile, inclusi
+acquisto multiplo, beneficiario unico, acquisto per conto terzi in demo e
+assenza di overflow o errori console. Il runner UI Xcode macOS è rimasto in attesa di avvio ed è
+stato interrotto; la suite UI era stata verificata nel controllo precedente
+dello stesso blocco. La consegna APNs reale resta da collaudare su dispositivi
+firmati dopo l'attivazione server.
 
 ## Hosting Cloudflare
 

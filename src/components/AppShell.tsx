@@ -1,5 +1,5 @@
 import {
-  BookOpen, Building2, CalendarClock, ContactRound, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
+  BookOpen, Building2, CalendarClock, ContactRound, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
   ReceiptText, Tag, Tags, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -10,6 +10,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Bacheca', icon: LayoutDashboard },
   { id: 'movements', label: 'Spese ed Entrate', icon: ReceiptText },
   { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
+  { id: 'reimbursements', label: 'Rimborsi', icon: HandCoins },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },

@@ -55,6 +55,8 @@ nonisolated enum LedgerCalculations {
     }
 
     static func allocations(of movement: LedgerMovement) -> [LedgerAllocation] {
+        // Commissioned portions affect the payer's account only. The recipient
+        // classifies them later, so they stay outside the payer's reports.
         let splits = (movement.splits ?? []).filter { $0.amount > .zero }
         let splitTotal = splits.reduce(Money.zero) { $0 + $1.amount }
         let remainder = Money(cents: max(0, movement.amount.cents - splitTotal.cents))
@@ -63,16 +65,20 @@ nonisolated enum LedgerCalculations {
             ? [LedgerAllocation(
                 categoryID: movement.categoryID,
                 beneficiaryID: movement.beneficiaryID,
+                tagID: movement.tagID,
                 amount: remainder,
-                shared: movement.shared
+                shared: movement.shared,
+                excludeFromReports: movement.excludeFromReports == true || movement.commissionedPurchaseID != nil
             )]
             : [])
             + splits.map {
                 LedgerAllocation(
                     categoryID: $0.categoryID,
                     beneficiaryID: $0.beneficiaryID,
+                    tagID: $0.tagID,
                     amount: $0.amount,
-                    shared: $0.shared
+                    shared: $0.shared,
+                    excludeFromReports: $0.excludeFromReports == true || $0.commissionedPurchaseID != nil
                 )
             }
     }
@@ -109,7 +115,9 @@ nonisolated enum LedgerCalculations {
 
     static func sharedAmount(of movement: LedgerMovement) -> Money {
         if let settlement = movement.sharedSettlementAmount {
-            let hasSharedSplit = movement.splits?.contains { $0.shared } == true
+            let hasSharedSplit = movement.splits?.contains {
+                $0.shared && $0.excludeFromReports != true && $0.commissionedPurchaseID == nil
+            } == true
             return movement.shared || hasSharedSplit ? settlement : .zero
         }
 
@@ -118,9 +126,11 @@ nonisolated enum LedgerCalculations {
         }
         let remainder = Money(cents: max(0, movement.amount.cents - splitTotal.cents))
         let sharedSplits = (movement.splits ?? [])
-            .filter(\.shared)
+            .filter { $0.shared && $0.excludeFromReports != true && $0.commissionedPurchaseID == nil }
             .reduce(Money.zero) { $0 + $1.amount }
-        return sharedSplits + (movement.shared ? remainder : .zero)
+        let sharedRemainder = movement.shared && movement.excludeFromReports != true
+            && movement.commissionedPurchaseID == nil ? remainder : .zero
+        return sharedSplits + sharedRemainder
     }
 
     static func categoryTotals(
@@ -134,6 +144,7 @@ nonisolated enum LedgerCalculations {
             if movement.excludeFromReports == true { continue }
             let familyAccount = snapshot.account(named: movement.accountID)?.familyID != nil
             for allocation in allocations(of: movement) {
+                if allocation.excludeFromReports { continue }
                 if sharedOnly && !familyAccount && !allocation.shared { continue }
                 totals[allocation.categoryID] = totals[allocation.categoryID, default: .zero]
                     + allocation.amount
