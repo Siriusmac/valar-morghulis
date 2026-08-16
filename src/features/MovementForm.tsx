@@ -1,9 +1,19 @@
-import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
+import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, ShoppingBag, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { MovementTypeSelector } from '../components/MovementTypeSelector'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
-import type { AppData, Beneficiary, Category, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
+import type { AppData, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
+
+export interface CommissionedPurchaseDraft {
+  id: string
+  movementId: string
+  recipientId?: string
+  inviteEmail?: string
+  amount: number
+  purchaseDate: string
+  description: string
+}
 
 interface Props {
   data: AppData
@@ -17,6 +27,8 @@ interface Props {
   personalOnly?: boolean
   initialType?: MovementType
   onSelectTransfer?: () => void
+  contacts?: Contact[]
+  onCommissionedPurchase?: (draft: CommissionedPurchaseDraft) => Promise<void>
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
@@ -31,7 +43,7 @@ function findByName<T extends { name: string }>(items: T[], value: string) {
   return items.find((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
 }
 
-export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false, initialType = 'expense', onSelectTransfer }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false, initialType = 'expense', onSelectTransfer, contacts = [], onCommissionedPurchase }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? initialType)
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -71,8 +83,13 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [provider, setProvider] = useState('PayPal')
   const [customProvider, setCustomProvider] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [commissioned, setCommissioned] = useState(false)
+  const [commissionedRecipientId, setCommissionedRecipientId] = useState('')
+  const [commissionedInviteEmail, setCommissionedInviteEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [requestError, setRequestError] = useState('')
   const selectedAccount = data.accounts.find((item) => item.id === accountId)
-  const effectivelyShared = !personalOnly && (selectedAccount?.scope === 'family' || shared)
+  const effectivelyShared = !commissioned && !personalOnly && (selectedAccount?.scope === 'family' || shared)
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const sharedWithLabel = memberCount > 2 ? 'la famiglia' : otherName
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
@@ -81,6 +98,8 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const mainRemainder = Math.max(0, Math.round((numericAmount - splitTotal) * 100) / 100)
   const beneficiaryMissing = type === 'expense' && !beneficiaryQuery.trim() && (!initial || initial.type !== 'expense')
   const senderMissing = type === 'income' && !senderQuery.trim() && (!initial || initial.type !== 'income')
+  const commissionedTargetMissing = commissioned && !commissionedRecipientId && !commissionedInviteEmail.trim()
+  const displayedAccounts = commissioned ? personalAccounts : availableAccounts
 
   const addSplit = () => {
     setSplits((items) => [...items, {
@@ -172,7 +191,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setAffectsAccountBalance(!(selectedAccount?.openingBalanceDate && nextDate < selectedAccount.openingBalanceDate))
   }
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitted(true)
     const categoryName = categoryQuery.trim()
@@ -183,7 +202,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       || splits.some((item) => !item.categoryQuery.trim() || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0)
       || splitTotal > numericAmount
     )
-    if (!numericAmount || numericAmount <= 0 || !accountId || !categoryName || beneficiaryMissing || senderMissing || invalidSplits) return
+    if (!numericAmount || numericAmount <= 0 || !accountId || !categoryName || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || (commissioned && !description.trim())) return
     const categoryMatch = findByName(categories, categoryName)
     const beneficiaryMatch = findByName(beneficiaries, beneficiaryName)
     const senderMatch = findByName(senders, senderName)
@@ -204,7 +223,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     const resolvedTagId = tag?.id ?? (tagId || undefined)
     const resolvedDescription = description.trim() || categoryName || 'Movimento'
     const resolvedComments = comments.trim() || undefined
-    const shouldInstall = type === 'expense' && installmentsEnabled && !initial
+    const shouldInstall = type === 'expense' && installmentsEnabled && !initial && !commissioned
     const planId = shouldInstall ? makeId('installment-plan') : undefined
     const amounts = shouldInstall ? splitAmount(numericAmount, installmentCount) : [numericAmount]
     const resolvedProvider = shouldInstall ? (provider === 'Altro' ? customProvider.trim() || 'Altro' : provider) : undefined
@@ -294,8 +313,10 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
         ...(selectedAccount?.openingBalanceDate && dueDate < selectedAccount.openingBalanceDate ? { affectsAccountBalance } : {}),
       }
     }) : []
-    onSave({
-      id: initial?.id ?? makeId('movement'),
+    const movementId = initial?.id ?? makeId('movement')
+    const purchaseId = commissioned ? makeId('commissioned-purchase') : undefined
+    const movement: Movement = {
+      id: movementId,
       type,
       authorId: initial?.authorId ?? user.id,
       memberId: user.id,
@@ -308,7 +329,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       accountId,
       tagId: resolvedTagId,
       comments: resolvedComments,
-      shared: effectivelyShared,
+      shared: commissioned ? false : effectivelyShared,
       splits: shouldInstall ? splitsForInstallment(0) : resolvedSplits,
       installmentPlanId: planId ?? initial?.installmentPlanId,
       installmentProvider: resolvedProvider ?? initial?.installmentProvider,
@@ -316,8 +337,22 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       installmentCount: shouldInstall ? installmentCount : initial?.installmentCount,
       sharedSettlementAmount: shouldInstall && sharedPurchaseAmount > 0 ? sharedPurchaseAmount : editedInstallmentSettlementAmount,
       affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : undefined,
+      commissionedPurchaseId: purchaseId,
+      excludeFromReports: commissioned || undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
-    }, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag, scheduledPayments })
+    }
+    if (commissioned && purchaseId && onCommissionedPurchase) {
+      setSaving(true)
+      try {
+        setRequestError('')
+        await onCommissionedPurchase({ id: purchaseId, movementId, recipientId: commissionedRecipientId || undefined, inviteEmail: commissionedInviteEmail.trim() || undefined, amount: numericAmount, purchaseDate: date, description: description.trim() })
+      } catch (reason) {
+        setRequestError(reason instanceof Error ? reason.message : 'Non è stato possibile inviare la richiesta.')
+        setSaving(false)
+        return
+      } finally { setSaving(false) }
+    }
+    onSave(movement, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag, scheduledPayments })
   }
 
   return <form className="expense-form movement-form" onSubmit={submit}>
@@ -332,12 +367,19 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       <CreatableLookup label="Categoria" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} error={submitted && !categoryQuery.trim() ? 'Inserisci una categoria.' : undefined} />
       {type === 'expense' ? <CreatableLookup label="Beneficiario" value={beneficiaryQuery} options={beneficiaries} placeholder="Inserisci beneficiario" onChange={changeBeneficiaryQuery} error={submitted && beneficiaryMissing ? 'Inserisci un beneficiario.' : undefined} /> : null}
       {type === 'income' ? <CreatableLookup label="Mittente" value={senderQuery} options={senders} placeholder="Inserisci mittente" onChange={changeSenderQuery} error={submitted && senderMissing ? 'Inserisci un mittente.' : undefined} /> : null}
-      <label>Conto<select value={accountId} onChange={(e) => selectAccount(e.target.value)}>{availableAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>
+      <label>Conto<select value={accountId} onChange={(e) => selectAccount(e.target.value)}>{displayedAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>
       <label>Tag<select value={newTag ? '__new' : tagId} onChange={(e) => e.target.value === '__new' ? setNewTag('Nuovo tag') : (setNewTag(''), setTagId(e.target.value))}><option value="">Nessun tag</option>{tags.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="__new">+ Crea nuovo tag</option></select></label>
       {newTag ? <label>Nome nuovo tag<input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Es. Vacanza a Parigi" /></label> : null}
       <label>Data<input type="date" value={date} onChange={(e) => changeDate(e.target.value)} required /></label>
     </div>
-    {type === 'expense' ? <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
+    {type === 'expense' && !initial && onCommissionedPurchase ? <section className={`installment-box commissioned-box ${commissioned ? 'installment-box--active' : ''}`}>
+      <button type="button" className="installment-toggle" onClick={() => {
+        setCommissioned((value) => !value); setShared(false); setInstallmentsEnabled(false); setSplitsEnabled(false); setSplits([])
+        if (selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '')
+      }}><ShoppingBag /><span><strong>Acquisto per conto di un’altra persona</strong><small>Paghi tu, il destinatario riceve una richiesta e lo cataloga nella propria contabilità.</small></span><i aria-hidden="true"><span /></i></button>
+      {commissioned ? <div className="installment-fields"><label>Destinatario<select value={commissionedRecipientId} onChange={(event) => { setCommissionedRecipientId(event.target.value); setCommissionedInviteEmail('') }}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!commissionedRecipientId ? <label>Email da invitare<input type="email" value={commissionedInviteEmail} onChange={(event) => setCommissionedInviteEmail(event.target.value)} placeholder="nome@email.it" required /></label> : null}<small>Questa uscita modifica il saldo del tuo conto ma non le tue statistiche di spesa. Il destinatario dovrà confermarla.</small>{submitted && commissionedTargetMissing ? <small className="field-error">Scegli un contatto o inserisci l’email da invitare.</small> : null}{submitted && !description.trim() ? <small className="field-error">La descrizione è obbligatoria per permettere al destinatario di riconoscere l’acquisto.</small> : null}{requestError ? <small className="field-error">{requestError}</small> : null}</div> : null}
+    </section> : null}
+    {type === 'expense' && !commissioned ? <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
       <label className="split-selector">Suddivisione per categorie<select value={splitsEnabled ? 'split' : 'single'} onChange={(e) => {
         const enabled = e.target.value === 'split'
         setSplitsEnabled(enabled)
@@ -368,16 +410,16 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       <label><input type="radio" name="balance-impact" checked={!affectsAccountBalance} onChange={() => setAffectsAccountBalance(false)} /><span><strong>Solo statistiche</strong><small>Non modifica il saldo del conto (consigliato).</small></span></label>
       <label><input type="radio" name="balance-impact" checked={affectsAccountBalance} onChange={() => setAffectsAccountBalance(true)} /><span><strong>Includi nel saldo</strong><small>Somma o sottrae l’importo anche dal saldo calcolato.</small></span></label>
     </fieldset> : null}
-    {type === 'expense' && !initial ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
+    {type === 'expense' && !initial && !commissioned ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" onClick={() => {
         setInstallmentsEnabled((value) => !value)
       }}><CalendarClock /><span><strong>Rateizza</strong><small>Registra oggi la prima rata e programma le successive.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <div className="installment-fields"><label>Intermediario<select value={provider} onChange={(e) => setProvider(e.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(e) => setCustomProvider(e.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(e) => setInstallmentCount(Number(e.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div> : null}
     </section> : null}
-    {personalOnly ? <div className="family-account-note"><LockKeyhole /><span><strong>Movimento personale</strong><small>In questa vista i movimenti restano privati e non partecipano a saldi familiari.</small></span></div> : initial ? <section className="sharing-edit-box">
+    {commissioned ? <div className="family-account-note"><ShoppingBag /><span><strong>Spesa per conto terzi</strong><small>Non è una spesa condivisa e non modifica i saldi familiari.</small></span></div> : personalOnly ? <div className="family-account-note"><LockKeyhole /><span><strong>Movimento personale</strong><small>In questa vista i movimenti restano privati e non partecipano a saldi familiari.</small></span></div> : initial ? <section className="sharing-edit-box">
       <label>Condivisione del movimento<select value={effectivelyShared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(event) => setMovementSharing(event.target.value === 'family')}><option value="personal">Movimento personale</option><option value="family">Movimento condiviso</option></select></label>
       <small>{selectedAccount?.scope === 'family' ? 'Il movimento resta condiviso perché utilizza un conto della famiglia.' : splits.length ? 'La scelta viene applicata anche a tutti i parziali del movimento.' : effectivelyShared ? `La quota viene ripartita al ${splitPercentage} tra i ${memberCount} membri.` : `Il movimento resta visibile soltanto a ${user.name}.`}</small>
     </section> : selectedAccount?.scope === 'family' ? <div className="family-account-note"><Landmark /><span><strong>{type === 'income' ? 'Entrata della famiglia' : 'Conto condiviso'}</strong><small>{type === 'income' ? 'L’entrata viene assegnata alla famiglia e accreditata sul conto condiviso.' : 'Questo movimento non modifica il debito o credito tra i membri.'}</small></span></div> : <button type="button" className={`share-toggle ${shared ? 'share-toggle--active' : ''}`} onClick={toggleShared}><span className="share-toggle__icon">{shared ? <Scale /> : <LockKeyhole />}</span><span><strong>{shared ? `${type === 'income' ? 'Entrata della famiglia' : 'Spesa condivisa con ' + sharedWithLabel}` : `${type === 'income' ? `Entrata di ${user.name}` : 'Spesa personale'}`}</strong><small>{shared ? (type === 'income' ? 'Verrà assegnata automaticamente al conto condiviso.' : `Verrà ripartita al ${splitPercentage} per ciascuno dei ${memberCount} membri.`) : `Verrà assegnata a ${user.name} e sarà visibile soltanto a te.`}</small></span><i aria-hidden="true"><span /></i></button>}
-    <div className={`form-actions ${initial ? 'form-actions--edit' : ''}`}>{initial && onDelete ? <button className="button button--danger form-actions__delete" type="button" onClick={() => confirm(initial.installmentPlanId && initial.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare definitivamente questo movimento?') && onDelete(initial.id)}><Trash2 />Elimina movimento</button> : null}<button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{initial ? <Check /> : <Plus />}{initial ? 'Salva modifiche' : 'Salva movimento'}</button></div>
+    <div className={`form-actions ${initial ? 'form-actions--edit' : ''}`}>{initial && onDelete ? <button className="button button--danger form-actions__delete" type="button" onClick={() => confirm(initial.installmentPlanId && initial.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare definitivamente questo movimento?') && onDelete(initial.id)}><Trash2 />Elimina movimento</button> : null}<button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit" disabled={saving}>{initial ? <Check /> : <Plus />}{saving ? 'Invio richiesta…' : initial ? 'Salva modifiche' : 'Salva movimento'}</button></div>
   </form>
 }

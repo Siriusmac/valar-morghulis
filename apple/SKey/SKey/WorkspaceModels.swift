@@ -50,8 +50,35 @@ nonisolated struct FamilyWorkspace: Equatable, Sendable {
     let members: [FamilyMemberSummary]
     let invitations: [FamilyInvitationSummary]
     let reimbursementAccounts: [ReimbursementAccountReference]
+    let contacts: [ContactSummary]
+    let contactInvitations: [ContactInvitationSummary]
+    let commissionedPurchases: [CommissionedPurchaseSummary]
     let personalAccounts: [AccountSummary]
     let sharedAccounts: [AccountSummary]
+
+    init(
+        profile: UserProfile,
+        families: [FamilySummary],
+        members: [FamilyMemberSummary],
+        invitations: [FamilyInvitationSummary],
+        reimbursementAccounts: [ReimbursementAccountReference],
+        contacts: [ContactSummary] = [],
+        contactInvitations: [ContactInvitationSummary] = [],
+        commissionedPurchases: [CommissionedPurchaseSummary] = [],
+        personalAccounts: [AccountSummary],
+        sharedAccounts: [AccountSummary]
+    ) {
+        self.profile = profile
+        self.families = families
+        self.members = members
+        self.invitations = invitations
+        self.reimbursementAccounts = reimbursementAccounts
+        self.contacts = contacts
+        self.contactInvitations = contactInvitations
+        self.commissionedPurchases = commissionedPurchases
+        self.personalAccounts = personalAccounts
+        self.sharedAccounts = sharedAccounts
+    }
 
     func accounts(for familyID: UUID?) -> [AccountSummary] {
         guard let familyID else { return personalAccounts }
@@ -69,6 +96,98 @@ nonisolated struct FamilyWorkspace: Equatable, Sendable {
             ]
         }
         return members.filter { $0.familyID == familyID }
+    }
+}
+
+nonisolated struct ContactSummary: Identifiable, Equatable, Sendable {
+    enum Source: Equatable, Sendable { case family, friend }
+    let id: UUID
+    let displayName: String
+    let email: String?
+    let source: Source
+    let familyNames: [String]
+}
+
+nonisolated struct ContactInvitationSummary: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let email: String
+    let expiresAt: Date
+}
+
+nonisolated struct CommissionedPurchaseSummary: Identifiable, Equatable, Sendable {
+    enum Status: String, Codable, Equatable, Sendable { case pending, confirmed, rejected }
+    let id: String
+    let payerID: UUID
+    let recipientID: UUID?
+    let invitationID: UUID?
+    let familyID: UUID?
+    let reimbursementID: String?
+    let payerMovementID: String
+    let amount: Money
+    let purchaseDate: String
+    let description: String
+    let status: Status
+    let recipientMovementID: String?
+}
+
+nonisolated struct CommissionedPurchaseDraft: Equatable, Sendable {
+    let id: String
+    let recipientID: UUID?
+    let invitationID: UUID?
+    let familyID: UUID?
+    let reimbursementID: String?
+    let payerMovementID: String
+    let amount: Decimal
+    let purchaseDate: String
+    let description: String
+}
+
+nonisolated struct CommissionedPurchaseResponse: Equatable, Sendable {
+    let id: String
+    let accepted: Bool
+    let movementID: String?
+    let categoryID: String?
+    let accountID: String?
+}
+
+nonisolated struct ContactLinkRow: Codable, Sendable {
+    let userIDA: UUID
+    let userIDB: UUID
+    enum CodingKeys: String, CodingKey { case userIDA = "user_id_a"; case userIDB = "user_id_b" }
+}
+
+nonisolated struct ContactInvitationRow: Codable, Sendable {
+    let id: UUID
+    let email: String
+    let expiresAt: Date
+    let acceptedAt: Date?
+    let declinedAt: Date?
+    enum CodingKeys: String, CodingKey {
+        case id, email
+        case expiresAt = "expires_at"
+        case acceptedAt = "accepted_at"
+        case declinedAt = "declined_at"
+    }
+}
+
+nonisolated struct CommissionedPurchaseRow: Codable, Sendable {
+    let id: String
+    let payerID: UUID
+    let recipientID: UUID?
+    let invitationID: UUID?
+    let familyID: UUID?
+    let reimbursementID: String?
+    let payerMovementID: String
+    let amount: Decimal
+    let purchaseDate: String
+    let description: String
+    let status: CommissionedPurchaseSummary.Status
+    let recipientMovementID: String?
+    enum CodingKeys: String, CodingKey {
+        case id, amount, description, status
+        case payerID = "payer_id"; case recipientID = "recipient_id"; case invitationID = "invitation_id"
+        case familyID = "family_id"; case reimbursementID = "reimbursement_id"; case payerMovementID = "payer_movement_id"
+        case purchaseDate = "purchase_date"; case recipientMovementID = "recipient_movement_id"
     }
 }
 
@@ -363,6 +482,9 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
     let splits: [MovementSplitDraft]?
     let affectsAccountBalance: Bool?
     let installment: InstallmentPurchaseDraft?
+    let commissionedPurchaseID: String?
+    let paidByUserID: UUID?
+    let excludeFromReports: Bool
 
     init(
         id: String = UUID().uuidString.lowercased(),
@@ -378,7 +500,10 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         isShared: Bool,
         splits: [MovementSplitDraft]? = nil,
         affectsAccountBalance: Bool?,
-        installment: InstallmentPurchaseDraft? = nil
+        installment: InstallmentPurchaseDraft? = nil,
+        commissionedPurchaseID: String? = nil,
+        paidByUserID: UUID? = nil,
+        excludeFromReports: Bool = false
     ) {
         self.id = id
         self.type = type
@@ -394,6 +519,9 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         self.splits = splits
         self.affectsAccountBalance = affectsAccountBalance
         self.installment = installment
+        self.commissionedPurchaseID = commissionedPurchaseID
+        self.paidByUserID = paidByUserID
+        self.excludeFromReports = excludeFromReports
     }
 }
 

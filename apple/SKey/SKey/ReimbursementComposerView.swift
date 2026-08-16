@@ -8,6 +8,8 @@ struct ReimbursementComposerView: View {
     @State private var amountText = ""
     @State private var fromAccountID = ""
     @State private var toAccountID = ""
+    @State private var settlementMethod = LedgerReimbursement.SettlementMethod.money
+    @State private var purchaseDescription = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var notificationMessage: String?
@@ -109,6 +111,13 @@ struct ReimbursementComposerView: View {
                     .keyboardType(.decimalPad)
                     #endif
 
+                if balance < .zero {
+                    Picker("Modalità", selection: $settlementMethod) {
+                        Text("Rimborso in denaro").tag(LedgerReimbursement.SettlementMethod.money)
+                        Text("Compensa con un acquisto").tag(LedgerReimbursement.SettlementMethod.purchase)
+                    }
+                }
+
                 Picker("Conto di origine del debitore", selection: $fromAccountID) {
                     Text("Da specificare dal debitore").tag("")
                     ForEach(debtorAccounts(workspace: workspace, snapshot: snapshot, balance: balance), id: \.id) {
@@ -116,12 +125,14 @@ struct ReimbursementComposerView: View {
                     }
                 }
 
-                Picker("Conto di destinazione", selection: $toAccountID) {
+                if settlementMethod == .purchase {
+                    TextField("Descrizione dell’acquisto", text: $purchaseDescription)
+                } else { Picker("Conto di destinazione", selection: $toAccountID) {
                     Text("Da specificare dal creditore").tag("")
                     ForEach(creditorAccounts(workspace: workspace, snapshot: snapshot, balance: balance), id: \.id) {
                         Text($0.label).tag($0.id)
                     }
-                }
+                } }
             } header: {
                 Text("Rimborso")
             } footer: {
@@ -232,10 +243,16 @@ struct ReimbursementComposerView: View {
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     #endif
-                Picker("Conto di destinazione", selection: multiDestinationBinding(item.memberID)) {
+                Picker("Modalità", selection: multiMethodBinding(item.memberID)) {
+                    Text("Rimborso in denaro").tag(LedgerReimbursement.SettlementMethod.money)
+                    Text("Compensa con un acquisto").tag(LedgerReimbursement.SettlementMethod.purchase)
+                }
+                if multiSelections[item.memberID]?.settlementMethod == .purchase {
+                    TextField("Descrizione dell’acquisto", text: multiDescriptionBinding(item.memberID))
+                } else { Picker("Conto di destinazione", selection: multiDestinationBinding(item.memberID)) {
                     Text("Lo specifica il destinatario").tag("")
                     ForEach(accounts, id: \.id) { Text($0.label).tag($0.id) }
-                }
+                } }
             }
         } header: {
             Text("Destinatario")
@@ -271,6 +288,7 @@ struct ReimbursementComposerView: View {
             return multiSelectionIsValid
         }
         return counterpartID != nil && parsedAmount != nil
+            && (settlementMethod == .money || (!fromAccountID.isEmpty && !purchaseDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
     }
 
     private func prepareDefaults() {
@@ -287,7 +305,9 @@ struct ReimbursementComposerView: View {
                         reimbursementID: "reimbursement-\(UUID().uuidString.lowercased())",
                         selected: true,
                         amountText: item.suggestedAmount.decimal.description.replacingOccurrences(of: ".", with: ","),
-                        toAccountID: destination
+                        toAccountID: destination,
+                        settlementMethod: .money,
+                        purchaseDescription: ""
                     ))
                 })
             }
@@ -360,8 +380,11 @@ struct ReimbursementComposerView: View {
             fromID: balance < .zero ? currentID : counterpartID,
             toID: balance < .zero ? counterpartID : currentID,
             fromAccountID: fromAccountID.isEmpty ? nil : fromAccountID,
-            toAccountID: toAccountID.isEmpty ? nil : toAccountID,
-            date: Date()
+            toAccountID: settlementMethod == .money && !toAccountID.isEmpty ? toAccountID : nil,
+            date: Date(), settlementMethod: settlementMethod,
+            purchaseDescription: settlementMethod == .purchase ? purchaseDescription.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+            commissionedPurchaseID: settlementMethod == .purchase ? "commissioned-purchase-\(UUID().uuidString.lowercased())" : nil,
+            payerMovementID: settlementMethod == .purchase ? "movement-\(UUID().uuidString.lowercased())" : nil
         )
         isSaving = true
         Task {
@@ -400,8 +423,11 @@ struct ReimbursementComposerView: View {
                 fromID: workspace.profile.id,
                 toID: recipientID,
                 fromAccountID: fromAccountID.isEmpty ? nil : fromAccountID,
-                toAccountID: selection.toAccountID.isEmpty ? nil : selection.toAccountID,
-                date: date
+                toAccountID: selection.settlementMethod == .money && !selection.toAccountID.isEmpty ? selection.toAccountID : nil,
+                date: date, settlementMethod: selection.settlementMethod,
+                purchaseDescription: selection.settlementMethod == .purchase ? selection.purchaseDescription : nil,
+                commissionedPurchaseID: selection.settlementMethod == .purchase ? "commissioned-purchase-\(UUID().uuidString.lowercased())" : nil,
+                payerMovementID: selection.settlementMethod == .purchase ? "movement-\(UUID().uuidString.lowercased())" : nil
             )
         }
         guard drafts.count == selected.count else { return }
@@ -452,6 +478,7 @@ struct ReimbursementComposerView: View {
         return selected.allSatisfy { memberID, selection in
             guard let amount = parsedAmount(selection.amountText) else { return false }
             return Money(decimal: amount) <= limits[memberID.lowercased(), default: .zero]
+                && (selection.settlementMethod == .money || (!fromAccountID.isEmpty && !selection.purchaseDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
         }
     }
 
@@ -485,6 +512,14 @@ struct ReimbursementComposerView: View {
         )
     }
 
+    private func multiMethodBinding(_ memberID: String) -> Binding<LedgerReimbursement.SettlementMethod> {
+        Binding(get: { multiSelections[memberID]?.settlementMethod ?? .money }, set: { multiSelections[memberID]?.settlementMethod = $0 })
+    }
+
+    private func multiDescriptionBinding(_ memberID: String) -> Binding<String> {
+        Binding(get: { multiSelections[memberID]?.purchaseDescription ?? "" }, set: { multiSelections[memberID]?.purchaseDescription = $0 })
+    }
+
     private struct AccountOption: Identifiable {
         let id: String
         let label: String
@@ -495,5 +530,7 @@ struct ReimbursementComposerView: View {
         var selected: Bool
         var amountText: String
         var toAccountID: String
+        var settlementMethod: LedgerReimbursement.SettlementMethod
+        var purchaseDescription: String
     }
 }

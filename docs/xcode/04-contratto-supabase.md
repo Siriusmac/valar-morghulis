@@ -17,6 +17,9 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 | `family_user_app_data` | Dati privati per famiglia | Solo proprietario |
 | `family_shared_records` | Record condivisi | Lettura membri; scrittura via RPC |
 | `family_reimbursement_accounts` | Nomi conti pubblicati | Membri vedono solo ID e nome |
+| `contact_invitations` | Inviti email alla rubrica | Solo mittente e destinatario autenticato |
+| `contact_links` | Relazioni canoniche fra due utenti | Solo i due partecipanti |
+| `commissioned_purchases` | Richieste e conferme di acquisti per conto terzi | Solo pagante e destinatario |
 
 ## RPC
 
@@ -33,12 +36,20 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 - `set_reimbursement_account_families(account_id, account_name, target_family_ids)`
 - `delete_family_directory_record(target_family_id, record_type, record_id, replacement_id)`
 - `respond_to_family_reimbursement(target_family_id, target_reimbursement_id, accept_reimbursement, selected_account_id)`
+- `accept_contact_invitation(invitation_token)` / `decline_contact_invitation(invitation_token)`
+- `remove_contact(target_contact_id)`
+- `create_commissioned_purchase(...)`
+- `respond_to_commissioned_purchase(...)`
 
 Mappare i codici errore SQL/RPC a errori italiani; non mostrare dettagli interni.
 
 ## Edge Function e record condivisi
 
 `invite-family-member` riceve `familyId` ed `email` con sessione autenticata. Gestire gli stati non 2xx senza perdere il form.
+
+`invite-contact` riceve soltanto l'email: l'accettazione crea un collegamento
+personale e non una membership familiare. Se l'invito nasce dal primo acquisto,
+la richiesta viene collegata automaticamente al profilo che lo accetta.
 
 Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Le transazioni hanno `authorId` uguale all'utente autenticato. Un nuovo rimborso è forzato server-side a `pending`; solo la controparte lo risolve e lo stato server prevale sempre.
 
@@ -63,5 +74,10 @@ Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `c
   `set_reimbursement_account_families` sostituisce l'insieme completo delle
   famiglie selezionate dopo aver verificato proprietà del conto e membership.
 - Dopo approvazioni, inviti o eliminazioni: rilettura autorevole.
+- Contatti: eliminare solo `contact_links`; le righe di
+  `commissioned_purchases` restano consultabili dai partecipanti.
+- Compensazioni: `family_id` e `reimbursement_id` sono entrambi presenti oppure
+  entrambi assenti; alla risposta la RPC verifica autore, partecipanti, stato e
+  identificativo della richiesta prima di aggiornare il rimborso familiare.
 
 `AppData.version` è 3. Ogni nuova versione richiede decoder retrocompatibile, migrazione locale testata, backend compatibile con il client precedente e divieto di sovrascrivere snapshot di versione sconosciuta.

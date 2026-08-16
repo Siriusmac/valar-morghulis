@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 13 agosto 2026.
+Aggiornato il 16 agosto 2026.
 
 ## Stato del prodotto
 
@@ -29,6 +29,9 @@ Funzioni disponibili:
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
+- compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
+- rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
+- spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo;
 - il record familiare confermato o rifiutato prevale sulla copia privata precedente dell’autore, evitando che un rimborso approvato torni a risultare “in attesa” dopo il login;
 - pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
 - completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
@@ -171,7 +174,8 @@ stato `pending`, impedisce all’autore di alterarne lo stato e aggiunge la
 procedura protetta con cui soltanto la controparte può confermare o rifiutare,
 completando il proprio conto quando necessario.
 La migrazione è stata applicata al progetto Supabase remoto il 27 luglio 2026.
-Il database remoto è allineato alle migration locali fino al 15 agosto 2026.
+Il database remoto è allineato alle migration locali fino alla migration
+`20260816120000_contacts_and_commissioned_purchases.sql` del 16 agosto 2026.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
@@ -313,10 +317,28 @@ in un'unica transazione l'intero insieme delle pubblicazioni del conto.
 “Pagamenti programmati” raggruppa le rate future per piano di acquisto come la
 web app e mostra totale residuo, conto, rate pagate e singole scadenze.
 
-Verifiche concluse: build macOS riuscita, build generica iOS riuscita e 26 test
-unitari nativi superati. Il gate web ha confermato 123 test, lint e build Vite.
-La suite unitaria Xcode separata è terminata regolarmente; la consegna APNs reale
-resta da collaudare su dispositivi firmati dopo l'attivazione server.
+La migration `20260816120000_contacts_and_commissioned_purchases.sql` introduce
+inviti e collegamenti tra contatti e richieste di acquisto su commissione, con
+RLS limitata ai due partecipanti e RPC atomiche per accettazione, rimozione e
+conferma. Vincoli e controlli server-side assicurano che una compensazione possa
+risolvere soltanto il rimborso pending che l'ha generata, fra gli stessi due
+partecipanti. La Edge Function `invite-contact` invia l'invito senza associare
+l'amico ad alcuna famiglia. `notify-family-reimbursement` distingue le
+compensazioni con acquisto e indirizza la push Apple alla conferma in Contatti.
+Il client Apple carica il modulo in modo isolato: durante una distribuzione
+graduale, l'assenza temporanea delle nuove tabelle non blocca bacheca, conti o
+movimenti.
+
+La migration è stata applicata al progetto Supabase remoto il 16 agosto 2026;
+il successivo `migration list` è allineato e `db lint --linked --schema public`
+non rileva errori. Le Edge Function `invite-contact` e
+`notify-family-reimbursement` risultano entrambe `ACTIVE`.
+
+Verifiche concluse il 16 agosto 2026: build macOS riuscita, build generica iOS
+riuscita e 29 test unitari nativi superati. Il gate web ha confermato 127 test,
+lint e build Vite. La suite UI Xcode era stata verificata nel controllo
+precedente dello stesso blocco. La consegna APNs reale resta da collaudare su
+dispositivi firmati dopo l'attivazione server.
 
 ## Hosting Cloudflare
 

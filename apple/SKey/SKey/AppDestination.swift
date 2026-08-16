@@ -8,6 +8,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
     case categories
     case counterparties
     case tags
+    case contacts
     case guide
 
     enum Group: String, CaseIterable {
@@ -35,6 +36,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         case .categories: "Categorie"
         case .counterparties: "Beneficiari e mittenti"
         case .tags: "Tag"
+        case .contacts: "Contatti"
         case .guide: "Guida"
         }
     }
@@ -56,6 +58,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         case .categories: "square.grid.2x2"
         case .counterparties: "building.2"
         case .tags: "tag"
+        case .contacts: "person.2"
         case .guide: "book"
         }
     }
@@ -64,7 +67,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         switch self {
         case .dashboard, .movements, .scheduledPayments, .accounts:
             .overview
-        case .categories, .counterparties, .tags:
+        case .categories, .counterparties, .tags, .contacts:
             .organization
         case .guide:
             .support

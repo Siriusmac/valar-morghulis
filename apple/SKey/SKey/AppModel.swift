@@ -38,6 +38,7 @@ final class AppModel {
     private(set) var ledgerState: LedgerState
     private(set) var selectedFamilyID: UUID?
     private(set) var pendingReimbursementRoute: PushReimbursementRoute?
+    private(set) var pendingCommissionedPurchaseID: String?
 
     @ObservationIgnored
     private let supabase: SupabaseClient?
@@ -69,12 +70,16 @@ final class AppModel {
     @ObservationIgnored
     private var pushRouteObservation: NSObjectProtocol?
 
+    @ObservationIgnored
+    private var commissionedPurchaseRouteObservation: NSObjectProtocol?
+
     init(bundle: Bundle = .main, userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         workspaceState = .idle
         ledgerState = .idle
         selectedFamilyID = nil
         pendingReimbursementRoute = nil
+        pendingCommissionedPurchaseID = nil
 
         do {
             let configuration = try AppConfiguration(bundle: bundle)
@@ -118,6 +123,7 @@ final class AppModel {
         self.ledgerState = ledgerState
         self.selectedFamilyID = selectedFamilyID
         pendingReimbursementRoute = nil
+        pendingCommissionedPurchaseID = nil
     }
 
     deinit {
@@ -127,6 +133,9 @@ final class AppModel {
         }
         if let pushRouteObservation {
             NotificationCenter.default.removeObserver(pushRouteObservation)
+        }
+        if let commissionedPurchaseRouteObservation {
+            NotificationCenter.default.removeObserver(commissionedPurchaseRouteObservation)
         }
     }
 
@@ -394,6 +403,7 @@ final class AppModel {
         guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
         guard let currentUserID, let ledgerRepository else { throw AppModelError.clientUnavailable }
         guard !drafts.isEmpty else { return .noRegisteredDevices }
+        guard case .loaded(let workspace) = workspaceState else { throw AppModelError.workspaceUnavailable }
         var sentAnyNotification = false
         var missingDevicesOnly = true
         var notificationFailed = false
@@ -404,6 +414,39 @@ final class AppModel {
                 userID: currentUserID,
                 familyID: familyID
             )
+            if draft.settlementMethod == .purchase {
+                guard
+                    let familyRepository,
+                    let purchaseID = draft.commissionedPurchaseID,
+                    let movementID = draft.payerMovementID,
+                    let description = draft.purchaseDescription,
+                    let accountID = draft.fromAccountID,
+                    case .loaded(let snapshot) = ledgerState,
+                    let account = snapshot.account(named: accountID)
+                else { throw AppModelError.workspaceUnavailable }
+                let category = LedgerDirectoryItem(
+                    id: "category-commissioned-\(currentUserID.uuidString.lowercased())",
+                    name: "Acquisti per conto terzi", scope: .personal,
+                    ownerID: currentUserID.uuidString.lowercased(), movementType: .expense, color: "#687078"
+                )
+                let recipientName = workspace.members.first { $0.id == draft.toID }?.displayName ?? "Contatto"
+                let counterparty = LedgerDirectoryItem(
+                    id: "beneficiary-contact-\(draft.toID.uuidString.lowercased())",
+                    name: recipientName, scope: .personal,
+                    ownerID: currentUserID.uuidString.lowercased(), movementType: nil, color: nil
+                )
+                try await ledgerRepository.createMovement(MovementDraft(
+                    id: movementID, type: .expense, amount: draft.amount, date: draft.date,
+                    description: description, comments: nil, account: account, category: category,
+                    counterparty: counterparty, isShared: false, affectsAccountBalance: nil,
+                    commissionedPurchaseID: purchaseID, excludeFromReports: true
+                ), userID: currentUserID, userDisplayName: workspace.profile.displayName, familyID: nil)
+                try await familyRepository.createCommissionedPurchase(CommissionedPurchaseDraft(
+                    id: purchaseID, recipientID: draft.toID, invitationID: nil, familyID: familyID,
+                    reimbursementID: reimbursementID, payerMovementID: movementID, amount: draft.amount,
+                    purchaseDate: Self.dayFormatter.string(from: draft.date), description: description
+                ))
+            }
             do {
                 guard let pushNotificationRepository else {
                     notificationFailed = true
@@ -431,6 +474,14 @@ final class AppModel {
         return missingDevicesOnly ? .noRegisteredDevices : .notificationFailed
     }
 
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
     func respondToReimbursement(_ reimbursement: LedgerReimbursement, accepted: Bool, accountID: String?) async throws {
         guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
         guard let ledgerRepository else { throw AppModelError.clientUnavailable }
@@ -440,6 +491,31 @@ final class AppModel {
             accountID: accountID,
             familyID: familyID
         )
+        await reloadWorkspace()
+    }
+
+    func inviteContact(email: String) async throws -> UUID {
+        guard let familyRepository else { throw AppModelError.clientUnavailable }
+        let invitationID = try await familyRepository.inviteContact(email: email)
+        await reloadWorkspace()
+        return invitationID
+    }
+
+    func removeContact(_ contact: ContactSummary) async throws {
+        guard contact.source == .friend, let familyRepository else { return }
+        try await familyRepository.removeContact(id: contact.id)
+        await reloadWorkspace()
+    }
+
+    func createCommissionedPurchase(_ draft: CommissionedPurchaseDraft) async throws {
+        guard let familyRepository else { throw AppModelError.clientUnavailable }
+        try await familyRepository.createCommissionedPurchase(draft)
+        await reloadWorkspace()
+    }
+
+    func respondToCommissionedPurchase(_ response: CommissionedPurchaseResponse) async throws {
+        guard let familyRepository else { throw AppModelError.clientUnavailable }
+        try await familyRepository.respondToCommissionedPurchase(response)
         await reloadWorkspace()
     }
 
@@ -555,6 +631,23 @@ final class AppModel {
             guard let route = notification.object as? PushReimbursementRoute else { return }
             Task { @MainActor [weak self] in await self?.openPushRoute(route) }
         }
+        commissionedPurchaseRouteObservation = NotificationCenter.default.addObserver(
+            forName: .sKeyDidOpenCommissionedPurchase,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let route = notification.object as? PushCommissionedPurchaseRoute else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.pendingCommissionedPurchaseID = route.purchaseID
+                if let familyID = route.familyID,
+                   case .loaded(let workspace) = self.workspaceState,
+                   workspace.families.contains(where: { $0.id == familyID }) {
+                    self.selectedFamilyID = familyID
+                }
+                await self.reloadWorkspace()
+            }
+        }
     }
 
     func clearPendingReimbursementRoute() {
@@ -595,6 +688,10 @@ final class AppModel {
         } else if let pendingReimbursementRoute {
             await openPushRoute(pendingReimbursementRoute)
         }
+        if let purchaseRoute = PushNotificationCoordinator.shared.consumePendingCommissionedPurchaseRoute() {
+            pendingCommissionedPurchaseID = purchaseRoute.purchaseID
+            await reloadWorkspace()
+        }
     }
 
     private func resetSignedOutState() {
@@ -603,6 +700,7 @@ final class AppModel {
         workspaceState = .idle
         ledgerState = .idle
         pendingReimbursementRoute = nil
+        pendingCommissionedPurchaseID = nil
         sessionState = .signedOut
     }
 

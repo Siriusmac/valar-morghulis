@@ -47,6 +47,11 @@ struct AppShellView: View {
             sidebarSelection = .dashboard
             compactTab = .dashboard
         }
+        .onChange(of: appModel.pendingCommissionedPurchaseID) { _, purchaseID in
+            guard purchaseID != nil else { return }
+            sidebarSelection = .contacts
+            compactTab = .more
+        }
     }
 
     private var regularLayout: some View {
@@ -140,6 +145,8 @@ struct AppShellView: View {
             DirectoryManagementView(appModel: appModel, mode: .counterparties)
         case .tags:
             DirectoryManagementView(appModel: appModel, mode: .tags)
+        case .contacts:
+            ContactsView(appModel: appModel)
         case .guide:
             FeaturePlaceholderView(
                 destination: destination,

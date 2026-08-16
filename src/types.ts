@@ -1,5 +1,5 @@
 export type UserId = string
-export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags' | 'guide' | 'account'
+export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'accounts' | 'categories' | 'beneficiaries' | 'tags' | 'contacts' | 'guide' | 'account'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
 
@@ -84,6 +84,9 @@ export interface Movement {
   installmentCount?: number
   sharedSettlementAmount?: number
   affectsAccountBalance?: boolean
+  commissionedPurchaseId?: string
+  paidByUserId?: UserId
+  excludeFromReports?: boolean
   createdAt: string
 }
 
@@ -135,6 +138,43 @@ export interface Reimbursement {
   confirmedAt?: string
   rejectedBy?: UserId
   rejectedAt?: string
+  settlementMethod?: 'money' | 'purchase'
+  commissionedPurchaseId?: string
+}
+
+export interface Contact {
+  id: UserId
+  name: string
+  email: string
+  initials: string
+  source: 'friend' | 'family'
+  familyNames?: string[]
+}
+
+export interface ContactInvitation {
+  id: string
+  email: string
+  status: 'pending' | 'expired' | 'declined'
+  createdAt: string
+  expiresAt: string
+}
+
+export interface CommissionedPurchase {
+  id: string
+  payerId: UserId
+  recipientId?: UserId
+  invitationId?: string
+  familyId?: string
+  reimbursementId?: string
+  payerMovementId: string
+  amount: number
+  purchaseDate: string
+  description: string
+  status: 'pending' | 'confirmed' | 'rejected'
+  recipientMovementId?: string
+  recipientCategoryId?: string
+  recipientAccountId?: string
+  createdAt: string
 }
 
 export interface ReimbursementAccountReference {

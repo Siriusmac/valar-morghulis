@@ -89,6 +89,9 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
     let installmentCount: Int?
     let sharedSettlementAmount: Money?
     let affectsAccountBalance: Bool?
+    let commissionedPurchaseID: String?
+    let paidByUserID: String?
+    let excludeFromReports: Bool?
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -113,6 +116,9 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         case installmentCount
         case sharedSettlementAmount
         case affectsAccountBalance
+        case commissionedPurchaseID = "commissionedPurchaseId"
+        case paidByUserID = "paidByUserId"
+        case excludeFromReports
         case createdAt
     }
 
@@ -138,6 +144,9 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         installmentCount: Int? = nil,
         sharedSettlementAmount: Money?,
         affectsAccountBalance: Bool?,
+        commissionedPurchaseID: String? = nil,
+        paidByUserID: String? = nil,
+        excludeFromReports: Bool? = nil,
         createdAt: String
     ) {
         self.id = id
@@ -161,6 +170,9 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         self.installmentCount = installmentCount
         self.sharedSettlementAmount = sharedSettlementAmount
         self.affectsAccountBalance = affectsAccountBalance
+        self.commissionedPurchaseID = commissionedPurchaseID
+        self.paidByUserID = paidByUserID
+        self.excludeFromReports = excludeFromReports
         self.createdAt = createdAt
     }
 }
@@ -228,6 +240,7 @@ nonisolated struct LedgerTransfer: Identifiable, Codable, Equatable, Sendable {
 }
 
 nonisolated struct LedgerReimbursement: Identifiable, Codable, Equatable, Sendable {
+    enum SettlementMethod: String, Codable, Equatable, Sendable { case money, purchase }
     enum Status: String, Codable, Equatable, Sendable {
         case pending
         case confirmed
@@ -244,6 +257,8 @@ nonisolated struct LedgerReimbursement: Identifiable, Codable, Equatable, Sendab
     let fromAccountID: String?
     let toAccountID: String?
     let status: Status?
+    let settlementMethod: SettlementMethod?
+    let commissionedPurchaseID: String?
 
     init(
         id: String,
@@ -255,7 +270,9 @@ nonisolated struct LedgerReimbursement: Identifiable, Codable, Equatable, Sendab
         authorID: String,
         fromAccountID: String?,
         toAccountID: String?,
-        status: Status?
+        status: Status?,
+        settlementMethod: SettlementMethod? = nil,
+        commissionedPurchaseID: String? = nil
     ) {
         self.id = id
         self.groupID = groupID
@@ -267,6 +284,8 @@ nonisolated struct LedgerReimbursement: Identifiable, Codable, Equatable, Sendab
         self.fromAccountID = fromAccountID
         self.toAccountID = toAccountID
         self.status = status
+        self.settlementMethod = settlementMethod
+        self.commissionedPurchaseID = commissionedPurchaseID
     }
 
     enum CodingKeys: String, CodingKey {
@@ -280,6 +299,8 @@ nonisolated struct LedgerReimbursement: Identifiable, Codable, Equatable, Sendab
         case fromAccountID = "fromAccountId"
         case toAccountID = "toAccountId"
         case status
+        case settlementMethod
+        case commissionedPurchaseID = "commissionedPurchaseId"
     }
 }
 
@@ -293,6 +314,24 @@ nonisolated struct ReimbursementDraft: Equatable, Sendable {
     let fromAccountID: String?
     let toAccountID: String?
     let date: Date
+    let settlementMethod: LedgerReimbursement.SettlementMethod
+    let purchaseDescription: String?
+    let commissionedPurchaseID: String?
+    let payerMovementID: String?
+
+    init(
+        id: String, groupID: String?, amount: Decimal, counterpartID: UUID,
+        fromID: UUID, toID: UUID, fromAccountID: String?, toAccountID: String?, date: Date,
+        settlementMethod: LedgerReimbursement.SettlementMethod = .money,
+        purchaseDescription: String? = nil,
+        commissionedPurchaseID: String? = nil,
+        payerMovementID: String? = nil
+    ) {
+        self.id = id; self.groupID = groupID; self.amount = amount; self.counterpartID = counterpartID
+        self.fromID = fromID; self.toID = toID; self.fromAccountID = fromAccountID; self.toAccountID = toAccountID; self.date = date
+        self.settlementMethod = settlementMethod; self.purchaseDescription = purchaseDescription
+        self.commissionedPurchaseID = commissionedPurchaseID; self.payerMovementID = payerMovementID
+    }
 }
 
 nonisolated struct ReimbursementPlanItem: Identifiable, Equatable, Sendable {

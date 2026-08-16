@@ -10,6 +10,7 @@ import AppKit
 extension Notification.Name {
     static let sKeyDidReceivePushToken = Notification.Name("sKey.didReceivePushToken")
     static let sKeyDidOpenReimbursement = Notification.Name("sKey.didOpenReimbursement")
+    static let sKeyDidOpenCommissionedPurchase = Notification.Name("sKey.didOpenCommissionedPurchase")
 }
 
 nonisolated struct PushReimbursementRoute: Identifiable, Equatable, Sendable {
@@ -18,12 +19,19 @@ nonisolated struct PushReimbursementRoute: Identifiable, Equatable, Sendable {
     var id: String { "\(familyID.uuidString):\(reimbursementID)" }
 }
 
+nonisolated struct PushCommissionedPurchaseRoute: Identifiable, Equatable, Sendable {
+    let familyID: UUID?
+    let purchaseID: String
+    var id: String { purchaseID }
+}
+
 @MainActor
 final class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDelegate {
     static let shared = PushNotificationCoordinator()
 
     private(set) var currentDevice: PushDeviceRegistration?
     private(set) var pendingReimbursementRoute: PushReimbursementRoute?
+    private(set) var pendingCommissionedPurchaseRoute: PushCommissionedPurchaseRoute?
     private var hasRequestedRegistration = false
 
     func requestAuthorizationAndRegister() {
@@ -68,6 +76,11 @@ final class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDeleg
     }
 
     func receive(notification userInfo: [AnyHashable: Any]) {
+        if let route = Self.commissionedPurchaseRoute(from: userInfo) {
+            pendingCommissionedPurchaseRoute = route
+            NotificationCenter.default.post(name: .sKeyDidOpenCommissionedPurchase, object: route)
+            return
+        }
         guard let route = Self.reimbursementRoute(from: userInfo) else { return }
         receive(route: route)
     }
@@ -87,9 +100,23 @@ final class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDeleg
         return PushReimbursementRoute(familyID: familyID, reimbursementID: reimbursementID)
     }
 
+    nonisolated static func commissionedPurchaseRoute(from userInfo: [AnyHashable: Any]) -> PushCommissionedPurchaseRoute? {
+        guard
+            userInfo["type"] as? String == "commissioned_purchase",
+            let purchaseID = userInfo["purchaseId"] as? String
+        else { return nil }
+        let familyID = (userInfo["familyId"] as? String).flatMap(UUID.init(uuidString:))
+        return PushCommissionedPurchaseRoute(familyID: familyID, purchaseID: purchaseID)
+    }
+
     func consumePendingRoute() -> PushReimbursementRoute? {
         defer { pendingReimbursementRoute = nil }
         return pendingReimbursementRoute
+    }
+
+    func consumePendingCommissionedPurchaseRoute() -> PushCommissionedPurchaseRoute? {
+        defer { pendingCommissionedPurchaseRoute = nil }
+        return pendingCommissionedPurchaseRoute
     }
 
     nonisolated static func hexadecimalToken(from data: Data) -> String {

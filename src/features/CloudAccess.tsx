@@ -178,11 +178,13 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   const supabase = getSupabase()
   const searchParams = new URLSearchParams(window.location.search)
   const inviteToken = searchParams.get('invite')
+  const contactInviteToken = searchParams.get('contactInvite')
   const needsPasswordSetup = searchParams.get('setup') === 'password'
   const [passwordReady, setPasswordReady] = useState(!needsPasswordSetup)
-  const [invitationResolved, setInvitationResolved] = useState(!inviteToken)
+  const [familyInvitationResolved, setFamilyInvitationResolved] = useState(!inviteToken)
+  const [contactInvitationResolved, setContactInvitationResolved] = useState(!contactInviteToken)
   const [snapshot, setSnapshot] = useState<FamilySnapshot | null>(null)
-  const [loading, setLoading] = useState(!needsPasswordSetup && !inviteToken)
+  const [loading, setLoading] = useState(!needsPasswordSetup && !inviteToken && !contactInviteToken)
   const [error, setError] = useState('')
 
   const load = useCallback(async (preferredFamilyId?: string) => {
@@ -302,14 +304,14 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   // Ricarica profilo, famiglia e conti soltanto dopo l'eventuale scelta sull'invito.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (passwordReady && invitationResolved) void load() }, [invitationResolved, load, passwordReady])
+  useEffect(() => { if (passwordReady && familyInvitationResolved && contactInvitationResolved) void load() }, [contactInvitationResolved, familyInvitationResolved, load, passwordReady])
   if (!passwordReady) return <InvitationPasswordSetup onCompleted={() => {
     const nextUrl = new URL(window.location.href)
     nextUrl.searchParams.delete('setup')
     window.history.replaceState({}, '', nextUrl)
     setPasswordReady(true)
   }} />
-  if (inviteToken && !invitationResolved) return <InvitationDecision
+  if (inviteToken && !familyInvitationResolved) return <InvitationDecision
     token={inviteToken}
     onResolved={(familyId) => {
       const nextUrl = new URL(window.location.href)
@@ -318,9 +320,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       window.history.replaceState({}, '', nextUrl)
       localStorage.setItem(activeFamilyKey(session.user.id), familyId ?? PERSONAL_WORKSPACE_ID)
       setLoading(true)
-      setInvitationResolved(true)
+      setFamilyInvitationResolved(true)
     }}
   />
+  if (contactInviteToken && !contactInvitationResolved) return <ContactInvitationDecision token={contactInviteToken} onResolved={() => {
+    const nextUrl = new URL(window.location.href)
+    nextUrl.searchParams.delete('contactInvite')
+    nextUrl.searchParams.delete('setup')
+    window.history.replaceState({}, '', nextUrl)
+    setLoading(true)
+    setContactInvitationResolved(true)
+  }} />
   if (loading) return <AccessLoading label="Carichiamo la tua famiglia" />
   if (!snapshot) return <AccessError message={error || 'Impossibile caricare il profilo.'} onRetry={load} />
   if (!snapshot.onboardingCompleted && !snapshot.membership) return <CreateFamily
@@ -643,6 +653,26 @@ export function InvitationDecision({ token, onResolved }: {
       <small>Se rifiuti, l’amministratore dovrà eliminare l’invito prima di poterne inviare uno nuovo.</small>
     </div>
   </AccessLayout>
+}
+
+function ContactInvitationDecision({ token, onResolved }: { token: string; onResolved: () => void }) {
+  const supabase = getSupabase()
+  const [busy, setBusy] = useState<'accept' | 'decline' | ''>('')
+  const [error, setError] = useState('')
+  const respond = async (accepted: boolean) => {
+    setBusy(accepted ? 'accept' : 'decline'); setError('')
+    const { error: responseError } = await supabase.rpc(accepted ? 'accept_contact_invitation' : 'decline_contact_invitation', {
+      invitation_token: token,
+    })
+    if (responseError) { setError(onboardingMessage(responseError.message)); setBusy(''); return }
+    onResolved()
+  }
+  return <AccessLayout compact><div className="onboarding-card invitation-decision">
+    <span className="onboarding-icon"><UserCheck /></span><span className="eyebrow">Invito contatto</span>
+    <h2>Vuoi entrare nella sua cerchia?</h2><p>Potrete inviarvi richieste per acquisti fatti l’uno per conto dell’altro. Nessuno dei due vedrà conti, saldi o altri movimenti personali.</p>
+    {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
+    <div className="invitation-decision__actions"><button className="button button--primary button--full" type="button" disabled={Boolean(busy)} onClick={() => void respond(true)}>{busy === 'accept' ? <LoaderCircle className="spin" /> : <UserCheck />}Accetta invito</button><button className="button button--ghost button--full" type="button" disabled={Boolean(busy)} onClick={() => void respond(false)}>{busy === 'decline' ? <LoaderCircle className="spin" /> : <UserX />}Rifiuta</button></div>
+  </div></AccessLayout>
 }
 
 function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {

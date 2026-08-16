@@ -34,6 +34,9 @@ struct MovementComposerView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var submitted = false
+    @State private var commissionedPurchase = false
+    @State private var commissionedRecipientID: UUID?
+    @State private var commissionedInviteEmail = ""
     @State private var draftID = UUID().uuidString.lowercased()
     @FocusState private var focusedField: FocusField?
 
@@ -148,7 +151,7 @@ struct MovementComposerView: View {
             }
 
 
-            if movement == nil, type == .expense {
+            if movement == nil, type == .expense, !commissionedPurchase {
                 Section {
                     Toggle("Acquisto a rate", isOn: $installmentsEnabled)
 
@@ -179,6 +182,41 @@ struct MovementComposerView: View {
                     if installmentsEnabled {
                         Text("La prima rata viene registrata subito; le successive scadono ogni mese. Per una spesa condivisa, il debito familiare considera immediatamente l’intero acquisto.")
                     }
+                }
+            }
+
+            if movement == nil, type == .expense {
+                Section {
+                    Toggle("Acquisto per conto di un’altra persona", isOn: $commissionedPurchase)
+                        .onChange(of: commissionedPurchase) { _, enabled in
+                            if enabled {
+                                commissionedRecipientID = availableCommissionedContacts.first?.id
+                                isShared = false; splitsEnabled = false; splitDrafts = []; installmentsEnabled = false
+                                if selectedAccount?.familyID != nil { accountID = options.accounts.first { $0.familyID == nil }?.id ?? "" }
+                            } else {
+                                commissionedRecipientID = nil
+                                commissionedInviteEmail = ""
+                            }
+                        }
+                    if commissionedPurchase {
+                        Picker("Destinatario", selection: $commissionedRecipientID) {
+                            Text("Invita un nuovo contatto").tag(UUID?.none)
+                            ForEach(availableCommissionedContacts) { contact in Text(contact.displayName + (contact.source == .family ? " · famiglia" : "")).tag(Optional(contact.id)) }
+                        }
+                        .onChange(of: commissionedRecipientID) { _, recipientID in
+                            if recipientID != nil { commissionedInviteEmail = "" }
+                        }
+                        if commissionedRecipientID == nil {
+                            TextField("Email da invitare", text: $commissionedInviteEmail)
+#if os(iOS)
+                                .textInputAutocapitalization(.never)
+                                .keyboardType(.emailAddress)
+#endif
+                                .autocorrectionDisabled()
+                        }
+                    }
+                } header: { Text("Spesa su commissione") } footer: {
+                    if commissionedPurchase { Text("L’uscita modifica il saldo del tuo conto ma non le tue statistiche. Il destinatario dovrà confermarla e scegliere la propria categoria.") }
                 }
             }
 
@@ -252,11 +290,11 @@ struct MovementComposerView: View {
                 }
             }
 
-            if type == .expense {
+            if type == .expense, !commissionedPurchase {
                 splitSection
             }
 
-            if appModel.selectedFamilyID != nil {
+            if appModel.selectedFamilyID != nil, !commissionedPurchase {
                 Section {
                     Toggle(type == .income ? "Entrata della famiglia" : "Movimento condiviso", isOn: $isShared)
                         .disabled(selectedAccount?.familyID != nil || movement != nil)
@@ -411,12 +449,25 @@ struct MovementComposerView: View {
         options?.accounts.first { $0.id == toAccountID }
     }
 
+    private var availableCommissionedContacts: [ContactSummary] {
+        guard case .loaded(let workspace) = appModel.workspaceState else { return [] }
+        var contacts = Dictionary(uniqueKeysWithValues: workspace.contacts.map { ($0.id, $0) })
+        let familyName = appModel.activeFamily?.name ?? "Famiglia"
+        for member in workspace.members(for: appModel.selectedFamilyID) where member.id != workspace.profile.id {
+            contacts[member.id] = ContactSummary(
+                id: member.id, displayName: member.displayName, email: member.email,
+                source: .family, familyNames: [familyName]
+            )
+        }
+        return contacts.values.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+
     private var availableComposerModes: [ComposerMode] {
         movement == nil ? ComposerMode.allCases : [.expense, .income]
     }
 
     private var effectivelyShared: Bool {
-        isShared || selectedAccount?.familyID != nil
+        !commissionedPurchase && (isShared || selectedAccount?.familyID != nil)
     }
 
     private var effectiveScope: DirectoryScope {
@@ -475,12 +526,15 @@ struct MovementComposerView: View {
             && category != nil
             && counterparty != nil
             && splitsAreValid
+            && (!commissionedPurchase || ((commissionedRecipientID != nil || validCommissionedInviteEmail) && !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
     }
 
     private var validationMessage: String {
         if selectedAccount == nil { return "Seleziona il conto del movimento." }
         if category == nil { return "Seleziona o crea una categoria." }
         if counterparty == nil { return "Seleziona o crea un \(counterpartyLabel.lowercased())." }
+        if commissionedPurchase, commissionedRecipientID == nil, !validCommissionedInviteEmail { return "Seleziona un contatto o inserisci un indirizzo email valido." }
+        if commissionedPurchase, descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Inserisci una descrizione riconoscibile per il destinatario." }
         if splitsEnabled, splitDrafts.isEmpty { return "Aggiungi almeno un parziale." }
         if splitsEnabled, splitDrafts.contains(where: { parsedSplitAmount($0.amountText) == nil || $0.category == nil }) {
             return "Completa ogni parziale con categoria e importo valido."
@@ -489,6 +543,11 @@ struct MovementComposerView: View {
             return "La somma dei parziali non può superare l’importo totale."
         }
         return "Controlla l’importo inserito."
+    }
+
+    private var validCommissionedInviteEmail: Bool {
+        let email = commissionedInviteEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return email.contains("@") && email.contains(".")
     }
 
     private var isTransferValid: Bool {
@@ -577,6 +636,7 @@ struct MovementComposerView: View {
         }
         guard
             !isSaving,
+            isFormValid,
             let amount = parsedAmount,
             let account = selectedAccount,
             let category,
@@ -603,12 +663,27 @@ struct MovementComposerView: View {
             isShared: effectivelyShared,
             splits: resolvedSplits,
             affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : nil,
-            installment: installmentDraft
+            installment: installmentDraft,
+            commissionedPurchaseID: commissionedPurchase ? "commissioned-purchase-\(draftID)" : nil,
+            excludeFromReports: commissionedPurchase
         )
 
         Task {
             do {
                 if movement == nil {
+                    if commissionedPurchase {
+                        let invitationID = commissionedRecipientID == nil
+                            ? try await appModel.inviteContact(email: commissionedInviteEmail)
+                            : nil
+                        let recipientID = commissionedRecipientID
+                        let contact = recipientID.flatMap { id in availableCommissionedContacts.first { $0.id == id } }
+                        try await appModel.createCommissionedPurchase(CommissionedPurchaseDraft(
+                            id: "commissioned-purchase-\(draftID)", recipientID: recipientID, invitationID: invitationID,
+                            familyID: contact?.source == .family ? appModel.selectedFamilyID : nil,
+                            reimbursementID: nil, payerMovementID: draftID, amount: amount,
+                            purchaseDate: Self.dayFormatter.string(from: date), description: cleanDescription
+                        ))
+                    }
                     try await appModel.createMovement(draft)
                 } else {
                     try await appModel.updateMovement(draft)
@@ -722,6 +797,7 @@ struct MovementComposerView: View {
     }
 
     private func usableAccounts(in options: MovementOptions) -> [AccountSummary] {
+        if commissionedPurchase { return options.accounts.filter { $0.familyID == nil } }
         guard let movement else { return options.accounts }
         let originalIsShared = movement.shared || (movement.splits?.contains { $0.shared } ?? false)
         return originalIsShared ? options.accounts : options.accounts.filter { $0.familyID == nil }

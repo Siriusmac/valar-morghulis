@@ -74,10 +74,11 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260815143000_push_notifications.sql`,
    `supabase/migrations/20260815160000_multi_member_reimbursements.sql`,
    `supabase/migrations/20260816010000_category_directory_deletion.sql`,
-   `supabase/migrations/20260816020000_tag_and_account_deletion.sql` e
-   `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql`;
+   `supabase/migrations/20260816020000_tag_and_account_deletion.sql`,
+   `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql` e
+   `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql`;
 3. pubblica le funzioni `invite-family-member` e
-   `notify-family-reimbursement`;
+   `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
    `APP_URL=https://www.valarmorghulis.it`;
 5. copia `.env.example` in `.env.local` e inserisci URL e chiave pubblica del
@@ -92,6 +93,7 @@ supabase link --project-ref ID_PROGETTO
 supabase db push
 supabase functions deploy invite-family-member
 supabase functions deploy notify-family-reimbursement
+supabase functions deploy invite-contact
 supabase secrets set APP_URL=https://www.valarmorghulis.it
 ```
 
@@ -179,6 +181,15 @@ separatamente. iOS e macOS registrano il token APNs dell'utente autenticato;
 quando viene creato un rimborso, app Apple e web richiedono un avviso push
 generico soltanto alla controparte interessata, senza esporre importi o conti
 nella schermata bloccata. Toccando l'avviso si apre direttamente la conferma.
+
+Web app e client Apple includono anche “Contatti”: i membri delle famiglie sono
+presenti automaticamente e possono essere affiancati da amici invitati via
+email, senza concedere loro accesso ai dati familiari. Una spesa personale può
+essere registrata per conto di un contatto; resta fuori dai riepiloghi del
+pagante ma modifica il suo conto, mentre il destinatario la conferma e la
+classifica nella propria contabilità senza duplicare il saldo. Lo stesso flusso
+può compensare un rimborso familiare con un acquisto. Rimuovere un amico elimina
+soltanto il collegamento: lo storico resta a entrambi i partecipanti.
 
 La configurazione pubblica Supabase viene letta da file `.xcconfig`; il file
 locale `apple/SKey/Configuration/Secrets.xcconfig` è ignorato da Git. Per

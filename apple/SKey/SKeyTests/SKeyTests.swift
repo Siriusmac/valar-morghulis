@@ -208,6 +208,18 @@ struct SKeyTests {
     }
 
     @Test
+    func routesCommissionedPurchasePushToContacts() {
+        let route = PushNotificationCoordinator.commissionedPurchaseRoute(from: [
+            "type": "commissioned_purchase",
+            "familyId": "11111111-1111-1111-1111-111111111111",
+            "purchaseId": "purchase-1",
+        ])
+
+        #expect(route?.purchaseID == "purchase-1")
+        #expect(route?.familyID != nil)
+    }
+
+    @Test
     func moneyRoundsAndFormatsUsingIntegerCents() {
         #expect(Money(decimal: Decimal(string: "12.345")!).cents == 1_235)
         #expect(Money(cents: -450).decimal == Decimal(string: "-4.5"))
@@ -331,6 +343,23 @@ struct SKeyTests {
         )
 
         #expect(LedgerCalculations.accountBalance(account, in: snapshot) == Money(cents: 11_500))
+    }
+
+    @Test
+    func doesNotChargePurchaseReimbursementTwice() {
+        let account = ledgerAccount(id: "bank", openingBalance: 100)
+        let snapshot = ledgerSnapshot(
+            accounts: [account],
+            movements: [ledgerMovement(id: "commissioned", amount: 25, accountID: account.id, shared: false)],
+            reimbursements: [LedgerReimbursement(
+                id: "purchase", fromID: "user", toID: "other", amount: Money(cents: 2_500),
+                date: "2026-08-16", authorID: "user", fromAccountID: account.id,
+                toAccountID: nil, status: .confirmed, settlementMethod: .purchase,
+                commissionedPurchaseID: "purchase-1"
+            )]
+        )
+
+        #expect(LedgerCalculations.accountBalance(account, in: snapshot) == Money(cents: 7_500))
     }
 
     @Test

@@ -1,5 +1,5 @@
 import {
-  BookOpen, Building2, CalendarClock, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
+  BookOpen, Building2, CalendarClock, ContactRound, CreditCard, LayoutDashboard, LogOut, Menu, Plus,
   ReceiptText, Tag, Tags, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -14,6 +14,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
   { id: 'tags', label: 'Tag', icon: Tag },
+  { id: 'contacts', label: 'Contatti', icon: ContactRound },
   { id: 'guide', label: 'Guida', icon: BookOpen },
 ]
 
@@ -22,12 +23,13 @@ interface Props {
   page: PageId
   user: User
   registeredUserCount?: number
+  contactsEnabled?: boolean
   onPageChange: (page: PageId) => void
   onAddMovement: () => void
   onLogout: () => void
 }
 
-export function AppShell({ children, page, user, registeredUserCount, onPageChange, onAddMovement, onLogout }: Props) {
+export function AppShell({ children, page, user, registeredUserCount, contactsEnabled = false, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches)
   useEffect(() => {
@@ -56,7 +58,7 @@ export function AppShell({ children, page, user, registeredUserCount, onPageChan
           <button className="icon-button sidebar__close" onClick={() => setMenuOpen(false)} aria-label="Chiudi menu"><X /></button>
         </div>
         <nav className="sidebar__nav" aria-label="Navigazione principale">
-          {items.map(({ id, label, icon: Icon }) => (
+          {items.filter((item) => item.id !== 'contacts' || contactsEnabled).map(({ id, label, icon: Icon }) => (
             <button key={id} className={page === id ? 'nav-item nav-item--active' : 'nav-item'} onClick={() => selectPage(id)}>
               <Icon aria-hidden="true" /><span>{label}</span>
             </button>

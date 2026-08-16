@@ -51,6 +51,16 @@ Deno.serve(async (request) => {
   const recipientID = fromID === user.id ? toID : fromID
   if (!recipientID || recipientID === user.id) return json({ error: 'reimbursement_counterparty_required' }, 400)
 
+  const { data: commissionedPurchase, error: purchaseError } = await adminClient
+    .from('commissioned_purchases')
+    .select('id, payer_id, recipient_id, status')
+    .eq('reimbursement_id', body.reimbursementId)
+    .maybeSingle()
+  if (purchaseError) return json({ error: purchaseError.message }, 500)
+  if (commissionedPurchase && (commissionedPurchase.payer_id !== user.id || commissionedPurchase.recipient_id !== recipientID)) {
+    return json({ error: 'commissioned_purchase_participants_mismatch' }, 400)
+  }
+
   const { data: recipientMembership, error: memberError } = await adminClient
     .from('family_members')
     .select('user_id')
@@ -88,17 +98,21 @@ Deno.serve(async (request) => {
     if (claim.error?.code === '23505') { skipped += 1; continue }
     if (claim.error) { failed += 1; continue }
 
+    const isPurchase = Boolean(commissionedPurchase)
     const result = await sendAPNs(device, jwt, {
       aps: {
         alert: {
-          title: 'Nuovo rimborso',
-          body: 'Un membro della famiglia ha registrato un rimborso da confermare.',
+          title: isPurchase ? 'Acquisto da confermare' : 'Nuovo rimborso',
+          body: isPurchase
+            ? 'Un contatto ha registrato un acquisto per tuo conto. Scegli categoria e conto.'
+            : 'Un membro della famiglia ha registrato un rimborso da confermare.',
         },
         sound: 'default',
       },
-      type: 'reimbursement',
+      type: isPurchase ? 'commissioned_purchase' : 'reimbursement',
       familyId: body.familyId,
       reimbursementId: body.reimbursementId,
+      ...(commissionedPurchase ? { purchaseId: commissionedPurchase.id } : {}),
     })
     if (result.ok) { sent += 1; continue }
 

@@ -22,6 +22,8 @@
 | ScheduledPayment | planId, dueDate, numero/totale, status | Materializzazione idempotente |
 | Transfer | conti, importo, data | Escluso dalle statistiche |
 | Reimbursement | utenti, conti, importo, status | pending/confirmed/rejected |
+| ContactLink / ContactInvitation | coppia utenti o email, stato | Nessun accesso implicito alle famiglie |
+| CommissionedPurchase | pagante, destinatario/invito, importo, descrizione, stato | Può compensare un rimborso |
 
 ## Invarianti
 
@@ -33,6 +35,9 @@
 6. L'editing conserva l'ID; non crea copie.
 7. Eliminare la prima rata elimina il piano; modificarla aggiorna le rate future.
 8. `affectsAccountBalance == false` conserva il record solo per statistiche.
+9. Una spesa su commissione del pagante ha `excludeFromReports == true`; il
+   movimento classificato dal destinatario ha `affectsAccountBalance == false`.
+10. La rimozione di un contatto non elimina acquisti o movimenti pregressi.
 
 ## Saldo conto
 
@@ -51,6 +56,12 @@ Se esiste `sharedSettlementAmount`, usarlo soltanto se principale o almeno un pa
 Con `N >= 2`, quota personale `1/N`, quota degli altri `(N-1)/N`. Per una spesa da conto personale chi paga acquisisce credito per la quota degli altri; ciascun altro membro assume la propria quota. Per un'entrata il verso si inverte.
 
 I rimborsi contano solo se confermati. Verso un conto familiare riconoscono a chi versa la sola quota degli altri. Un trasferimento da familiare a personale produce l'effetto opposto.
+
+Un rimborso con `settlementMethod = purchase` usa la richiesta di acquisto
+collegata come conferma: il rimborso regola il saldo familiare soltanto quando
+il destinatario accetta, ma non aggiunge un secondo movimento di conto al
+pagante. Il destinatario registra una copia personale classificata che non
+incide nuovamente sul saldo del proprio conto.
 
 ## Rate
 

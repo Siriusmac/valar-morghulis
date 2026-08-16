@@ -71,6 +71,20 @@ del dettaglio, evitando doppi passaggi o liste ripetute nello split view iPad.
 Le rate sono raggruppate per piano mostrando pagate/mancanti, singole scadenze,
 conto e importo residuo.
 
+## Contatti e acquisti su commissione
+
+“Contatti” mostra prima i membri delle famiglie, contrassegnati come tali, poi
+gli amici accettati. La rimozione è disponibile solo per gli amici: swipe su
+iPhone e iPad verticale, icona permanente su Mac e iPad orizzontale. Toccando
+una persona si apre lo storico degli acquisti che la coinvolgono.
+
+Nel nuovo movimento una spesa può essere marcata “per conto di un’altra
+persona”. Si sceglie un contatto esistente oppure si inserisce l'email per
+invitarlo contestualmente; descrizione e conto personale sono obbligatori,
+mentre condivisione familiare, parziali e rate sono disattivati. Le richieste in
+arrivo si confermano in Contatti scegliendo categoria e conto personali, oppure
+si rifiutano. Le push delle compensazioni familiari aprono questa stessa vista.
+
 ## Account e famiglie
 
 - Profilo: nome, cognome, email, password, export ed eliminazione.

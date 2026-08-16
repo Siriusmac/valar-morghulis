@@ -306,4 +306,20 @@ describe('accountBalance', () => {
     expect(accountBalance(data, 'simone-bank')).toBe(base)
     expect(data.movements).toHaveLength(1)
   })
+
+  it('charges a commissioned purchase once and does not charge its linked reimbursement again', () => {
+    const data = cleanData()
+    const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    data.movements = [{
+      ...expense('commissioned', 'simone', 75, 'simone-bank'),
+      shared: false, commissionedPurchaseId: 'purchase-1', excludeFromReports: true,
+    }]
+    data.reimbursements = [{
+      id: 'purchase-reimbursement', fromId: 'simone', toId: 'anna', amount: 75,
+      date: '2026-07-18', authorId: 'simone', fromAccountId: 'simone-bank',
+      settlementMethod: 'purchase', commissionedPurchaseId: 'purchase-1', status: 'confirmed',
+    }]
+    expect(accountBalance(data, 'simone-bank')).toBe(base - 75)
+    expect(totalsByCategory(data, data.movements)).toEqual([])
+  })
 })

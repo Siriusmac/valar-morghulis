@@ -95,6 +95,7 @@ nonisolated enum LedgerCalculations {
         }
 
         for reimbursement in snapshot.reimbursements where reimbursementIsConfirmed(reimbursement) {
+            if reimbursement.settlementMethod == .purchase { continue }
             if reimbursement.fromAccountID?.caseInsensitiveCompare(account.id) == .orderedSame {
                 balance = balance - reimbursement.amount
             }
@@ -130,6 +131,7 @@ nonisolated enum LedgerCalculations {
     ) -> [LedgerCategoryTotal] {
         var totals: [String: Money] = [:]
         for movement in movements {
+            if movement.excludeFromReports == true { continue }
             let familyAccount = snapshot.account(named: movement.accountID)?.familyID != nil
             for allocation in allocations(of: movement) {
                 if sharedOnly && !familyAccount && !allocation.shared { continue }
@@ -169,6 +171,7 @@ nonisolated enum LedgerCalculations {
     ) -> [LedgerDailyTotal] {
         var totals = Array(repeating: Money.zero, count: max(0, days))
         for movement in snapshot.movements where movement.type == .expense && movement.date.hasPrefix(month) {
+            if movement.excludeFromReports == true { continue }
             guard hasSharedPortion(movement, in: snapshot) else { continue }
             guard
                 let day = Int(movement.date.suffix(2)),
@@ -193,6 +196,7 @@ nonisolated enum LedgerCalculations {
         var totals = Dictionary(uniqueKeysWithValues: normalizedIDs.map { ($0, Money.zero) })
 
         for movement in snapshot.movements where movement.type == .expense && movement.date.hasPrefix(month) {
+            if movement.excludeFromReports == true { continue }
             if snapshot.account(named: movement.accountID)?.familyID != nil { continue }
             let memberID = movement.memberID.lowercased()
             guard totals[memberID] != nil else { continue }

@@ -941,6 +941,14 @@ struct SupabaseLedgerRepository: LedgerRepository {
         } else {
             object.removeValue(forKey: "affectsAccountBalance")
         }
+        if let commissionedPurchaseID = draft.commissionedPurchaseID {
+            object["commissionedPurchaseId"] = .string(commissionedPurchaseID)
+        } else { object.removeValue(forKey: "commissionedPurchaseId") }
+        if let paidByUserID = draft.paidByUserID {
+            object["paidByUserId"] = .string(paidByUserID.uuidString.lowercased())
+        } else { object.removeValue(forKey: "paidByUserId") }
+        if draft.excludeFromReports { object["excludeFromReports"] = .bool(true) }
+        else { object.removeValue(forKey: "excludeFromReports") }
         if let installment = draft.installment {
             object["installmentPlanId"] = .string(installment.planID)
             object["installmentProvider"] = .string(installment.provider)
@@ -1301,6 +1309,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
         if let groupID = draft.groupID { object["groupId"] = .string(groupID) }
         if let fromAccountID = draft.fromAccountID { object["fromAccountId"] = .string(fromAccountID) }
         if let toAccountID = draft.toAccountID { object["toAccountId"] = .string(toAccountID) }
+        object["settlementMethod"] = .string(draft.settlementMethod.rawValue)
+        if let commissionedPurchaseID = draft.commissionedPurchaseID {
+            object["commissionedPurchaseId"] = .string(commissionedPurchaseID)
+        }
         let reimbursement = JSONValue.object(object)
         upsertJSON(reimbursement, id: id, in: "reimbursements", root: &root)
 

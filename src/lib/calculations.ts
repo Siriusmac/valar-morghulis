@@ -140,7 +140,7 @@ export function accountBalance(data: AppData, accountId: string) {
     if (transfer.toAccountId === accountId) balance += transfer.amount
   }
   for (const reimbursement of data.reimbursements) {
-    if (!reimbursementIsConfirmed(reimbursement)) continue
+    if (!reimbursementIsConfirmed(reimbursement) || reimbursement.settlementMethod === 'purchase') continue
     if (reimbursement.fromAccountId === accountId) balance -= reimbursement.amount
     if (reimbursement.toAccountId === accountId) balance += reimbursement.amount
   }
@@ -152,13 +152,13 @@ export function visibleMovements(data: AppData, userId: UserId) {
 }
 
 export function movementsForMonth(movements: Movement[], month: string, type?: MovementType) {
-  return movements.filter((item) => item.date.startsWith(month) && (!type || item.type === type))
+  return movements.filter((item) => !item.excludeFromReports && item.date.startsWith(month) && (!type || item.type === type))
 }
 
 export function sharedExpensesByMember(data: AppData, memberIds: UserId[], month: string) {
   const totals = new Map(memberIds.map((memberId) => [memberId, 0]))
   for (const movement of data.movements) {
-    if (movement.type !== 'expense' || !movement.date.startsWith(month)) continue
+    if (movement.excludeFromReports || movement.type !== 'expense' || !movement.date.startsWith(month)) continue
     const account = data.accounts.find((item) => item.id === movement.accountId)
     if (account?.scope === 'family' || !totals.has(movement.memberId)) continue
     const amount = sharedMovementAmount(movement)
@@ -171,6 +171,7 @@ export function sharedExpensesByMember(data: AppData, memberIds: UserId[], month
 export function totalsByCategory(data: AppData, movements: Movement[], sharedOnly = false) {
   const totals = new Map<string, number>()
   for (const movement of movements) {
+    if (movement.excludeFromReports) continue
     const account = data.accounts.find((item) => item.id === movement.accountId)
     for (const allocation of movementAllocations(movement)) {
       if (sharedOnly && account?.scope !== 'family' && !allocation.shared) continue
