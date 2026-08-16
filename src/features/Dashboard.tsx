@@ -20,6 +20,10 @@ interface Props {
   }
 }
 
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name
+}
+
 export function Dashboard({ data, user, members, onNavigate, onReimburse, onRespondReimbursement, workspace }: Props) {
   const todayMonth = todayISO().slice(0, 7)
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
@@ -53,7 +57,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   return (
     <div className="page dashboard-page">
       <div className="page-heading">
-        <div><h1>Ciao, {user.name}</h1><p>{workspace?.personalMode ? 'Qui trovi la tua contabilità personale.' : 'Qui trovi il punto della situazione familiare.'}</p></div>
+        <div><h1>Ciao, {firstName(user.name)}</h1><p>{workspace?.personalMode ? 'Qui trovi la tua contabilità personale.' : 'Qui trovi il punto della situazione familiare.'}</p></div>
         <div className="dashboard-heading-actions">
           {workspace && workspace.families.length ? <label className="dashboard-family-selector">
             <span>Vista condivisa</span>
@@ -72,7 +76,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
         <div className="balance-summary">
           <span className={`balance-summary__icon ${balance >= 0 ? 'balance-summary__icon--positive' : ''}`}><Scale /></span>
           <div>
-            <p>{balance < 0 ? (multipleOthers ? 'Devi alla famiglia' : `Devi a ${other.name}`) : balance > 0 ? (multipleOthers ? 'La famiglia deve a te' : `${other.name} deve a te`) : 'Siete in pari'}</p>
+            <p>{balance < 0 ? (multipleOthers ? 'Devi alla famiglia' : `Devi a ${firstName(other.name)}`) : balance > 0 ? (multipleOthers ? 'La famiglia deve a te' : `${firstName(other.name)} deve a te`) : 'Siete in pari'}</p>
             <strong className={balance > 0 ? 'positive-text' : ''}>{formatMoney(Math.abs(balance))}</strong>
             <small>Il saldo si aggiorna automaticamente</small>
           </div>

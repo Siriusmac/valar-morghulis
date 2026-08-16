@@ -7,6 +7,28 @@ import { todayISO } from '../lib/format'
 
 afterEach(cleanup)
 describe('Dashboard workspace selector', () => {
+  it('uses first names in the greeting and two-member balance summary', () => {
+    const data = structuredClone(defaultData)
+    const currentUser = { ...users[0], name: 'Simone Miotto' }
+    const otherUser = { ...users[1], name: 'Anna Bianchi' }
+    data.movements = [{
+      ...data.movements[0],
+      id: 'shared-debt',
+      amount: 100,
+      memberId: otherUser.id,
+      authorId: otherUser.id,
+      accountId: 'anna-bank',
+      shared: true,
+    }]
+
+    render(<Dashboard data={data} user={currentUser} members={[currentUser, otherUser]} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Ciao, Simone' })).toBeTruthy()
+    expect(screen.getByText('Devi a Anna')).toBeTruthy()
+    expect(screen.queryByText(/Simone Miotto/)).toBeNull()
+    expect(screen.queryByText(/Devi a Anna Bianchi/)).toBeNull()
+  })
+
   it('switches the shared dashboard between families', async () => {
     const onSwitch = vi.fn().mockResolvedValue(undefined)
     render(<Dashboard data={structuredClone(defaultData)} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} workspace={{

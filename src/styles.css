@@ -454,6 +454,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .modal__header h2 { font-size: 27px; }
 .modal__body { padding: 26px 28px 28px; }
 .expense-form { display: grid; gap: 18px; }
+.expense-form > *, .expense-form .form-grid > * { min-width: 0; }
+.expense-form input[type='date'] { display: block; width: 100%; min-width: 0; max-width: 100%; }
 .amount-field { text-align: center; padding: 10px 0 14px; }
 .amount-field > label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
 .amount-field > div { display: flex; justify-content: center; align-items: baseline; }
