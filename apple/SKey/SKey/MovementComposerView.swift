@@ -160,7 +160,7 @@ struct MovementComposerView: View {
                 }
 
                 if movement == nil, type == .expense {
-                    Toggle("Rateizza", isOn: $installmentsEnabled)
+                    Toggle("Pagamento a rate", isOn: $installmentsEnabled)
                     if installmentsEnabled {
                         Picker("Intermediario", selection: $installmentProvider) {
                             ForEach(Self.installmentProviders, id: \.self) { Text($0).tag($0) }

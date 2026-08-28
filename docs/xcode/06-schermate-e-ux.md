@@ -24,7 +24,7 @@ Form progressivo:
 
 1. Spesa, Entrata o Giro fondi, con il trasferimento come terza scelta solo in creazione.
 2. Importo.
-3. Conto di origine/destinazione; per le spese segue “Rateizza” con intermediario e numero rate.
+3. Conto di origine/destinazione; per le spese segue “Pagamento a rate” con intermediario e numero rate.
 4. Beneficiario o mittente, data, descrizione e commenti.
 5. Per le spese: acquisto unico o multiplo.
 6. “Tipo di acquisto” distingue “Acquisto unico” e “Acquisto multiplo”. Nel primo e in ogni riga del secondo, “Tipo di spesa” sceglie fra “Spesa personale”, “Spesa condivisa”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. La scelta della famiglia compare solo per “Spesa condivisa” e non contiene l’opzione personale.

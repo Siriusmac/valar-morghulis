@@ -455,7 +455,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .modal__body { padding: 26px 28px 28px; }
 .expense-form { display: grid; gap: 18px; }
 .expense-form > *, .expense-form .form-grid > * { min-width: 0; }
-.expense-form input[type='date'] { display: block; width: 100%; min-width: 0; max-width: 100%; }
+.expense-form input[type='date'] { display: block; width: 100%; min-width: 0; max-width: 100%; padding-block: 0; line-height: 41px; }
+.expense-form input[type='date']::-webkit-date-and-time-value { min-height: 41px; display: flex; align-items: center; justify-content: flex-start; text-align: left; }
 .amount-field { text-align: center; padding: 10px 0 14px; }
 .amount-field > label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
 .amount-field > div { display: flex; justify-content: center; align-items: baseline; }
@@ -907,7 +908,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .account-family-sharing {
   display: grid;
   gap: 3px;
-  margin: 8px 0 0;
+  margin: 8px 0 7px;
   padding: 0;
   border: 0;
 }
@@ -927,6 +928,29 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   margin-left: 6px;
   color: var(--positive);
   vertical-align: -2px;
+}
+
+@media (min-width: 1001px) {
+  .accounts-page .management-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 30px;
+  }
+
+  .accounts-page .management-row {
+    min-width: 0;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    grid-template-areas: "icon info value" "icon action value";
+    column-gap: 14px;
+    row-gap: 7px;
+    padding: 16px 0;
+  }
+
+  .accounts-page .management-row__icon { grid-area: icon; }
+  .accounts-page .management-row__info { grid-area: info; min-width: 0; }
+  .accounts-page .management-row__actions { grid-area: action; justify-self: start; flex-wrap: wrap; }
+  .accounts-page .management-row__value { grid-area: value; align-self: center; }
 }
 
 .reimbursement-review-list { display: grid; gap: 10px; }
@@ -974,6 +998,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .commissioned-box { margin-bottom: 18px; }
 
 @media (max-width: 720px) {
+  .expense-form input[type='date'] { text-align: center; }
+  .expense-form input[type='date']::-webkit-date-and-time-value { justify-content: center; text-align: center; }
   .reimbursement-review { grid-template-columns: auto minmax(0, 1fr); }
   .reimbursement-review__actions { grid-column: 1 / -1; }
   .reimbursement-review__actions .button { flex: 1; }

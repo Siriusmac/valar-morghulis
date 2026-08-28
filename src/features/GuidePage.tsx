@@ -167,7 +167,7 @@ export function GuidePage() {
         <section id="rate-rimborsi" className="guide-chapter">
           <ChapterHeading number="06" title="Rate e pagamenti programmati" icon={CalendarClock} />
           <p>
-            Attiva <strong>Rateizza</strong> nel nuovo movimento, indica intermediario e
+            Attiva <strong>Pagamento a rate</strong> nel nuovo movimento, indica intermediario e
             numero di rate. La prima rata incide subito sul conto; le altre vengono raccolte
             per acquisto in <strong>Pagamenti programmati</strong>, con totale residuo,
             rate pagate e prossime scadenze.

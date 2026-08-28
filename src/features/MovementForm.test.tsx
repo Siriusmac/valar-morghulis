@@ -214,7 +214,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '90' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Pagamento a rate/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     expect(savedData.scheduledPayments.map((payment) => payment.affectsAccountBalance)).toEqual([false, false])
@@ -365,7 +365,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
     fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'shared' } })
-    fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Pagamento a rate/ }))
 
     expect(screen.getByLabelText('Importo parziale 1')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
@@ -412,7 +412,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Spesa mista' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
-    fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Pagamento a rate/ }))
     fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'commissioned' } })
