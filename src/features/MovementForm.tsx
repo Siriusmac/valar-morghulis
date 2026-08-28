@@ -1,7 +1,8 @@
-import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, ShoppingBag, Trash2 } from 'lucide-react'
+import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { MovementTypeSelector } from '../components/MovementTypeSelector'
+import { reimbursementPlan } from '../lib/calculations'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import type { AppData, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
@@ -14,6 +15,8 @@ export interface CommissionedPurchaseDraft {
   purchaseDate: string
   description: string
   splitId?: string
+  reimbursementId?: string
+  accountId?: string
 }
 
 interface Props {
@@ -29,6 +32,7 @@ interface Props {
   initialType?: MovementType
   onSelectTransfer?: () => void
   contacts?: Contact[]
+  members?: User[]
   onCommissionedPurchase?: (draft: CommissionedPurchaseDraft) => Promise<void>
 }
 
@@ -38,6 +42,7 @@ type SplitDraft = Omit<MovementSplit, 'amount'> & {
   categoryQuery: string
   beneficiaryQuery: string
   commissioned: boolean
+  reimbursement: boolean
   commissionedRecipientId: string
   commissionedInviteEmail: string
 }
@@ -47,7 +52,7 @@ function findByName<T extends { name: string }>(items: T[], value: string) {
   return items.find((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
 }
 
-export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false, initialType = 'expense', onSelectTransfer, contacts = [], onCommissionedPurchase }: Props) {
+export function MovementForm({ data, user, otherName = 'la famiglia', memberCount = 2, onSave, onCancel, onDelete, initial, personalOnly = false, initialType = 'expense', onSelectTransfer, contacts = [], members = [], onCommissionedPurchase }: Props) {
   const [type, setType] = useState<MovementType>(initial?.type ?? initialType)
   const [amount, setAmount] = useState(initial?.amount.toString() ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -82,6 +87,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     categoryQuery: data.categories.find((category) => category.id === item.categoryId)?.name ?? '',
     beneficiaryQuery: data.beneficiaries.find((beneficiary) => beneficiary.id === item.beneficiaryId)?.name ?? '',
     commissioned: Boolean(item.commissionedPurchaseId),
+    reimbursement: false,
     commissionedRecipientId: '',
     commissionedInviteEmail: '',
   })))
@@ -91,6 +97,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const [customProvider, setCustomProvider] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [commissioned, setCommissioned] = useState(false)
+  const [reimbursementPurchase, setReimbursementPurchase] = useState(false)
   const [commissionedRecipientId, setCommissionedRecipientId] = useState('')
   const [commissionedInviteEmail, setCommissionedInviteEmail] = useState('')
   const [saving, setSaving] = useState(false)
@@ -114,6 +121,26 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
   const hasCommissionedAllocation = commissioned || splits.some((item) => item.commissioned)
   const splitCommissionedTargetMissing = splits.some((item) => item.commissioned && !item.commissionedRecipientId && !item.commissionedInviteEmail.trim())
   const displayedAccounts = hasCommissionedAllocation ? personalAccounts : availableAccounts
+  const reimbursementOptions = useMemo(
+    () => personalOnly ? [] : reimbursementPlan(data, user.id, members.map((member) => member.id)),
+    [data, members, personalOnly, user.id],
+  )
+  const reimbursementLimits = useMemo(
+    () => new Map(reimbursementOptions.map((item) => [item.memberId, item.availableCredit])),
+    [reimbursementOptions],
+  )
+  const reimbursementTotals = useMemo(() => {
+    const totals = new Map<string, number>()
+    if (commissioned && reimbursementPurchase && commissionedRecipientId) {
+      totals.set(commissionedRecipientId, splitsEnabled ? mainRemainder : numericAmount)
+    }
+    for (const item of splits) {
+      if (!item.reimbursement || !item.commissionedRecipientId) continue
+      totals.set(item.commissionedRecipientId, (totals.get(item.commissionedRecipientId) ?? 0) + (Number(item.amount.replace(',', '.')) || 0))
+    }
+    return totals
+  }, [commissioned, commissionedRecipientId, mainRemainder, numericAmount, reimbursementPurchase, splits, splitsEnabled])
+  const reimbursementAmountsInvalid = [...reimbursementTotals].some(([memberId, value]) => value > (reimbursementLimits.get(memberId) ?? 0) + 0.001)
 
   const addSplit = () => {
     setSplits((items) => [...items, {
@@ -125,6 +152,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       beneficiaryQuery: '',
       shared: false,
       commissioned: false,
+      reimbursement: false,
       commissionedRecipientId: '',
       commissionedInviteEmail: '',
     }])
@@ -149,6 +177,16 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setSplits((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item))
   }
 
+  const setMainPurchaseMode = (mode: 'single' | 'commissioned' | 'reimbursement') => {
+    const external = mode !== 'single'
+    setCommissioned(external)
+    setReimbursementPurchase(mode === 'reimbursement')
+    if (external) setShared(false)
+    setCommissionedRecipientId(mode === 'reimbursement' ? reimbursementOptions[0]?.memberId ?? '' : '')
+    setCommissionedInviteEmail('')
+    if (external && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '')
+  }
+
   const changeSplitCategoryQuery = (id: string, value: string) => {
     updateSplit(id, { categoryQuery: value, categoryId: findByName(categories, value)?.id ?? '' })
   }
@@ -164,6 +202,10 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     setInstallmentsEnabled(false)
     setSplitsEnabled(false)
     setSplits([])
+    setCommissioned(false)
+    setReimbursementPurchase(false)
+    setCommissionedRecipientId('')
+    setCommissionedInviteEmail('')
     const nextAccountId = nextType === 'income'
       ? personalAccounts[0]?.id ?? ''
       : personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? ''
@@ -219,7 +261,7 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
       || splitTotal > numericAmount
     )
     const mainAllocationRequired = !splitsEnabled || mainRemainder > 0
-    if (!numericAmount || numericAmount <= 0 || !accountId || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || (hasCommissionedAllocation && !description.trim())) return
+    if (!numericAmount || numericAmount <= 0 || !accountId || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
     const categoryMatch = findByName(categories, resolvedMainCategoryName)
     const beneficiaryMatch = findByName(beneficiaries, resolvedMainBeneficiaryName)
     const senderMatch = findByName(senders, senderName)
@@ -296,11 +338,13 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
           id: commissionedPurchaseId,
           movementId: '',
           recipientId: item.commissionedRecipientId || undefined,
-          inviteEmail: item.commissionedInviteEmail.trim() || undefined,
+          inviteEmail: item.reimbursement ? undefined : item.commissionedInviteEmail.trim() || undefined,
           amount: Math.round(Number(item.amount.replace(',', '.')) * 100) / 100,
           purchaseDate: date,
           description: description.trim(),
           splitId: item.id,
+          reimbursementId: item.reimbursement ? makeId('reimbursement') : undefined,
+          accountId,
         })
         return {
           id: item.id,
@@ -352,10 +396,13 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
         ...(selectedAccount?.openingBalanceDate && dueDate < selectedAccount.openingBalanceDate ? { affectsAccountBalance } : {}),
       }
     }) : []
+    // Il rimborso tramite acquisto riusa la richiesta commissionata: l'ID collega conferma e compensazione.
     if (purchaseId) commissionedDrafts.unshift({
       id: purchaseId, movementId, recipientId: commissionedRecipientId || undefined,
-      inviteEmail: commissionedInviteEmail.trim() || undefined, amount: mainCommissionedAmount,
+      inviteEmail: reimbursementPurchase ? undefined : commissionedInviteEmail.trim() || undefined, amount: mainCommissionedAmount,
       purchaseDate: date, description: description.trim(),
+      reimbursementId: reimbursementPurchase ? makeId('reimbursement') : undefined,
+      accountId,
     })
     commissionedDrafts.forEach((draft) => { draft.movementId = movementId })
     const allAllocationsCommissioned = (mainRemainder === 0 || Boolean(purchaseId)) && (resolvedSplits ?? []).every((item) => item.excludeFromReports)
@@ -404,6 +451,9 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     ? <div className="family-account-note"><Landmark /><span><strong>Spesa condivisa con {sharedWithLabel}</strong><small>Il conto appartiene alla famiglia.</small></span></div>
     : <label>Spesa condivisa con<select value={effectivelyShared ? 'family' : 'personal'} onChange={(event) => setMovementSharing(event.target.value === 'family')}><option value="personal">Nessuno · spesa personale</option><option value="family">{sharedWithLabel}</option></select></label>
   const mainCommissionFields = <div className="installment-fields"><label>Committente<select value={commissionedRecipientId} onChange={(event) => { setCommissionedRecipientId(event.target.value); setCommissionedInviteEmail('') }}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!commissionedRecipientId ? <label>Email da invitare<input type="email" value={commissionedInviteEmail} onChange={(event) => setCommissionedInviteEmail(event.target.value)} placeholder="nome@email.it" required /></label> : null}<small>Il committente riceverà la richiesta e catalogherà l’acquisto nella propria contabilità.</small>{submitted && commissionedTargetMissing ? <small className="field-error">Scegli un contatto o inserisci l’email da invitare.</small> : null}</div>
+  const reimbursementMemberName = (memberId: string) => members.find((member) => member.id === memberId)?.name ?? 'Membro della famiglia'
+  const reimbursementOptionsMarkup = reimbursementOptions.map((item) => <option key={item.memberId} value={item.memberId}>{reimbursementMemberName(item.memberId)} · fino a € {item.availableCredit.toFixed(2).replace('.', ',')}</option>)
+  const mainReimbursementFields = <div className="installment-fields"><label>Rimborso a<select value={commissionedRecipientId} onChange={(event) => { setCommissionedRecipientId(event.target.value); setCommissionedInviteEmail('') }}><option value="">Scegli il membro da rimborsare</option>{reimbursementOptionsMarkup}</select></label><small>L’acquisto compensa il debito verso il membro scelto. Dopo la conferma, sarà lui a catalogarlo nella propria contabilità.</small>{submitted && commissionedTargetMissing ? <small className="field-error">Scegli il membro della famiglia da rimborsare.</small> : null}</div>
 
   return <form className="expense-form movement-form" onSubmit={submit}>
     <MovementTypeSelector value={type} includeTransfer={!initial && Boolean(onSelectTransfer)} onChange={(nextType) => nextType === 'transfer' ? onSelectTransfer?.() : changeType(nextType)} />
@@ -426,30 +476,36 @@ export function MovementForm({ data, user, otherName = 'la famiglia', memberCoun
     <label>Commenti<textarea value={comments} onChange={(event) => setComments(event.target.value)} placeholder="Dettagli facoltativi sul movimento" rows={3} /></label>
 
     {type === 'income' ? <div className="form-grid"><CreatableLookup label="Categoria" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} error={submitted && !categoryQuery.trim() ? 'Inserisci una categoria.' : undefined} />{mainTagField}</div> : <section className={`split-box ${splitsEnabled ? 'split-box--active' : ''}`}>
-      <label className="split-selector">Tipo di acquisto<select aria-label="Tipo di acquisto" value={splitsEnabled ? 'multiple' : 'single'} onChange={(event) => {
+      <label className="split-selector">Composizione acquisto<select aria-label="Composizione acquisto" value={splitsEnabled ? 'multiple' : 'single'} onChange={(event) => {
         const multiple = event.target.value === 'multiple'; setSplitsEnabled(multiple)
         if (multiple && !splits.length) addSplit()
         if (!multiple) setSplits([])
       }}><option value="single">Acquisto singolo</option><option value="multiple">Acquisto multiplo</option></select></label>
 
       {splitsEnabled ? <div className="split-editor">
-        <div className="split-editor__intro"><div><strong>Voci dell’acquisto</strong><small>Ogni riga può essere personale, condivisa o effettuata per un’altra persona.</small></div><button className="button button--ghost" type="button" disabled={mainRemainder <= 0} onClick={addSplit}><Plus />Aggiungi categoria</button></div>
+        <div className="split-editor__intro"><div><strong>Voci dell’acquisto</strong><small>Ogni riga può essere ordinaria, effettuata per un’altra persona oppure usata come rimborso.</small></div><button className="button button--ghost" type="button" disabled={mainRemainder <= 0} onClick={addSplit}><Plus />Aggiungi categoria</button></div>
         {splits.map((item, index) => <div className="split-row split-row--purchase" key={item.id}>
           <label className="split-row__amount">Importo parziale<input aria-label={`Importo parziale ${index + 1}`} inputMode="decimal" placeholder="0,00" value={item.amount} onChange={(event) => updateSplit(item.id, { amount: event.target.value })} /></label>
-          <label>Destinazione<select aria-label={`Destinazione parziale ${index + 1}`} value={item.commissioned ? 'commissioned' : item.shared ? 'family' : 'personal'} onChange={(event) => {
+          <label>Tipo di acquisto<select aria-label={`Tipo di acquisto parziale ${index + 1}`} value={item.reimbursement ? 'reimbursement' : item.commissioned ? 'commissioned' : 'single'} onChange={(event) => {
             const value = event.target.value
-            updateSplit(item.id, { commissioned: value === 'commissioned', shared: value === 'family', commissionedRecipientId: '', commissionedInviteEmail: '' })
-            if (value === 'commissioned' && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '')
-          }}><option value="personal">Acquisto personale</option><option value="family">Spesa condivisa con {sharedWithLabel}</option>{onCommissionedPurchase ? <option value="commissioned">Per conto di un’altra persona</option> : null}</select></label>
-          {item.commissioned ? <><label>Committente<select value={item.commissionedRecipientId} onChange={(event) => updateSplit(item.id, { commissionedRecipientId: event.target.value, commissionedInviteEmail: '' })}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!item.commissionedRecipientId ? <label>Email da invitare<input type="email" value={item.commissionedInviteEmail} onChange={(event) => updateSplit(item.id, { commissionedInviteEmail: event.target.value })} placeholder="nome@email.it" /></label> : null}</> : <><CreatableLookup className="split-row__category" label={`Categoria parziale ${index + 1}`} value={item.categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={(value) => changeSplitCategoryQuery(item.id, value)} /><label>Tag<select value={item.tagId ?? ''} onChange={(event) => updateSplit(item.id, { tagId: event.target.value || undefined })}><option value="">Nessun tag</option>{tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}</select></label></>}
+            const external = value !== 'single'
+            updateSplit(item.id, { commissioned: external, reimbursement: value === 'reimbursement', shared: false, commissionedRecipientId: value === 'reimbursement' ? reimbursementOptions[0]?.memberId ?? '' : '', commissionedInviteEmail: '' })
+            if (external && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '')
+          }}><option value="single">Acquisto singolo</option>{onCommissionedPurchase ? <option value="commissioned">Acquisto per conto di un’altra persona</option> : null}<option value="reimbursement" disabled={!reimbursementOptions.length}>Rimborso tramite acquisto</option></select></label>
+          {item.commissioned ? item.reimbursement
+            ? <label>Rimborso a<select value={item.commissionedRecipientId} onChange={(event) => updateSplit(item.id, { commissionedRecipientId: event.target.value, commissionedInviteEmail: '' })}><option value="">Scegli il membro da rimborsare</option>{reimbursementOptionsMarkup}</select></label>
+            : <><label>Committente<select value={item.commissionedRecipientId} onChange={(event) => updateSplit(item.id, { commissionedRecipientId: event.target.value, commissionedInviteEmail: '' })}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!item.commissionedRecipientId ? <label>Email da invitare<input type="email" value={item.commissionedInviteEmail} onChange={(event) => updateSplit(item.id, { commissionedInviteEmail: event.target.value })} placeholder="nome@email.it" /></label> : null}</>
+            : <><CreatableLookup className="split-row__category" label={`Categoria parziale ${index + 1}`} value={item.categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={(value) => changeSplitCategoryQuery(item.id, value)} /><label>Tag<select value={item.tagId ?? ''} onChange={(event) => updateSplit(item.id, { tagId: event.target.value || undefined })}><option value="">Nessun tag</option>{tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}</select></label><label>Spesa condivisa con<select aria-label={`Spesa condivisa parziale ${index + 1}`} value={selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal'} disabled={selectedAccount?.scope === 'family'} onChange={(event) => updateSplit(item.id, { shared: event.target.value === 'family' })}><option value="personal">Nessuno · spesa personale</option><option value="family">{sharedWithLabel}</option></select></label></>}
           <button className="icon-button icon-button--danger split-row__remove" type="button" title={`Elimina parziale ${index + 1}`} onClick={() => setSplits((items) => items.filter((entry) => entry.id !== item.id))}><Trash2 /></button>
         </div>)}
-        {mainRemainder > 0 ? <div className="split-row split-row--purchase split-row--remainder"><div className="split-remainder"><span>Importo residuo</span><strong>€ {mainRemainder.toFixed(2).replace('.', ',')}</strong></div><label>Destinazione<select value={commissioned ? 'commissioned' : effectivelyShared ? 'family' : 'personal'} onChange={(event) => { const value = event.target.value; setCommissioned(value === 'commissioned'); setMovementSharing(value === 'family'); if (value === 'commissioned' && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '') }}><option value="personal">Acquisto personale</option><option value="family">Spesa condivisa con {sharedWithLabel}</option>{onCommissionedPurchase ? <option value="commissioned">Per conto di un’altra persona</option> : null}</select></label>{commissioned ? mainCommissionFields : <><CreatableLookup label="Categoria residua" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} />{mainTagField}{mainSharingField}</>}</div> : null}
+        {mainRemainder > 0 ? <div className="split-row split-row--purchase split-row--remainder"><div className="split-remainder"><span>Importo residuo</span><strong>€ {mainRemainder.toFixed(2).replace('.', ',')}</strong></div><label>Tipo di acquisto<select value={reimbursementPurchase ? 'reimbursement' : commissioned ? 'commissioned' : 'single'} onChange={(event) => setMainPurchaseMode(event.target.value as 'single' | 'commissioned' | 'reimbursement')}><option value="single">Acquisto singolo</option>{onCommissionedPurchase ? <option value="commissioned">Acquisto per conto di un’altra persona</option> : null}<option value="reimbursement" disabled={!reimbursementOptions.length}>Rimborso tramite acquisto</option></select></label>{commissioned ? reimbursementPurchase ? mainReimbursementFields : mainCommissionFields : <><CreatableLookup label="Categoria residua" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} />{mainTagField}{mainSharingField}</>}</div> : null}
         {submitted && splits.some((item) => (!item.commissioned && !item.categoryQuery.trim()) || !Number(item.amount.replace(',', '.')) || Number(item.amount.replace(',', '.')) <= 0) ? <small className="field-error">Completa ogni riga con destinazione, categoria e importo valido.</small> : null}
         {submitted && splitCommissionedTargetMissing ? <small className="field-error">Scegli il committente per ogni acquisto effettuato per un’altra persona.</small> : null}
+        {submitted && reimbursementAmountsInvalid ? <small className="field-error">L’importo usato come rimborso supera il credito disponibile del membro scelto.</small> : null}
         {splitTotal > numericAmount ? <small className="field-error">La somma dei parziali non può superare l’importo totale.</small> : null}
       </div> : <div className="single-purchase-fields">
-        {onCommissionedPurchase && !initial ? <section className={`installment-box commissioned-box ${commissioned ? 'installment-box--active' : ''}`}><button type="button" className="installment-toggle" onClick={() => { const enabled = !commissioned; setCommissioned(enabled); setShared(false); if (enabled && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '') }}><ShoppingBag /><span><strong>Acquisto per conto di un’altra persona</strong><small>Paghi tu e il committente riceve la richiesta di rimborso.</small></span><i aria-hidden="true"><span /></i></button>{commissioned ? mainCommissionFields : null}</section> : null}
+        {!initial ? <label>Tipo di acquisto<select value={reimbursementPurchase ? 'reimbursement' : commissioned ? 'commissioned' : 'single'} onChange={(event) => setMainPurchaseMode(event.target.value as 'single' | 'commissioned' | 'reimbursement')}><option value="single">Acquisto singolo</option>{onCommissionedPurchase ? <option value="commissioned">Acquisto per conto di un’altra persona</option> : null}<option value="reimbursement" disabled={!reimbursementOptions.length}>Rimborso tramite acquisto</option></select></label> : null}
+        {commissioned ? reimbursementPurchase ? mainReimbursementFields : mainCommissionFields : null}
         {!commissioned ? <div className="form-grid"><CreatableLookup label="Categoria" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} error={submitted && !categoryQuery.trim() ? 'Inserisci una categoria.' : undefined} />{mainTagField}{mainSharingField}</div> : null}
       </div>}
     </section>}

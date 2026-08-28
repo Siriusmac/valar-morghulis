@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 16 agosto 2026.
+Aggiornato il 28 agosto 2026.
 
 ## Stato del prodotto
 
@@ -24,7 +24,7 @@ Funzioni disponibili:
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
 - nuovo movimento con gerarchia coerente web/Apple: tipo, importo, conto e rate, beneficiario/mittente e data, quindi acquisto singolo o multiplo;
-- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; ogni riga può essere personale, condivisa oppure per conto di un contatto;
+- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; il movimento singolo e ogni riga multipla condividono il menu “Acquisto singolo / Acquisto per conto di un’altra persona / Rimborso tramite acquisto”, mentre la condivisione familiare resta una scelta separata sulle righe ordinarie;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
@@ -49,9 +49,11 @@ Funzioni disponibili:
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
 - pagina Account raggiungibile dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
-- pagina Guida raggiungibile dal menù laterale, con introduzione all’app,
-  indice a collegamenti interni e sette capitoli responsive sulle funzioni
-  principali;
+- pagina Guida raggiungibile dal menù laterale, con premessa sulla continuità
+  fra finanze personali, conti condivisi e rapporti fra utenti, indice a
+  collegamenti interni e dieci capitoli responsive che documentano anche
+  acquisti multipli, commissioni, contatti, rimborsi tramite acquisto, pagamenti
+  programmati, gestione delle anagrafiche e privacy multi-famiglia;
 - più famiglie per utente, famiglia attiva selezionabile e ruoli `admin`/`member` distinti per appartenenza;
 - vista condivisa selezionabile direttamente dalla bacheca, mantenendo un unico archivio personale fra tutte le famiglie;
 - onboarding utilizzabile anche senza creare subito una famiglia;
@@ -74,6 +76,7 @@ Funzioni disponibili:
 - Nei movimenti suddivisi, i parziali vengono sottratti dalla categoria principale; soltanto i parziali marcati come condivisi partecipano al saldo familiare. Il conto registra comunque una sola operazione per l’importo totale.
 - Acquisto multiplo e rateizzazione possono convivere: ogni parziale viene ripartito proporzionalmente sulle rate, preservando i centesimi, la categoria, il tag e la destinazione; il beneficiario resta quello unico dell'acquisto. La rateizzazione usa sempre il totale dell'acquisto.
 - Le sole allocazioni “per conto di” sono escluse da statistiche e saldo familiare del pagante; le altre righe dello stesso movimento continuano a produrre i normali effetti personali o familiari.
+- Anche una singola allocazione di un acquisto multiplo può compensare un rimborso: genera un rimborso `purchase` e una richiesta commissionata collegati allo stesso addebito, senza creare un secondo movimento sul conto del pagante. Il totale assegnato a ogni creditore non può superarne il credito disponibile.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
@@ -103,8 +106,8 @@ Funzioni disponibili:
 - `src/lib/seed.ts`: utenti e dati iniziali.
 - `src/features/CloudAccess.tsx`: autenticazione e onboarding famiglia.
 - `src/features/AccountSettings.tsx`: credenziali, selezione/creazione famiglie e funzioni amministrative.
-- `src/features/GuidePage.tsx`: introduzione, indice e guida operativa
-  responsive alle funzioni dell’app.
+- `src/features/GuidePage.tsx`: premessa di prodotto, indice stabile e guida
+  operativa responsive in dieci capitoli sulle funzioni dell’app.
 - `src/lib/supabase.ts`: client Supabase attivato soltanto tramite variabili Vite.
 - `supabase/migrations/`: schema, funzioni transazionali, indici e policy RLS.
 - `supabase/functions/invite-family-member/`: invio degli inviti email.
@@ -344,15 +347,21 @@ per contatti diversi mantenendo un solo addebito sul conto del pagatore. È stat
 applicata al progetto remoto il 16 agosto 2026; `migration list` è allineato e
 il lint dello schema `public` non rileva errori.
 
-Verifiche concluse il 16 agosto 2026: build macOS riuscita, build generica iOS
-riuscita e 29 test unitari nativi superati. Il gate web ha confermato 130 test,
+Il nuovo movimento web e Apple riusa questo schema anche per la compensazione:
+il singolo e ogni parziale espongono le tre finalità dell'acquisto in un unico
+menu. “Rimborso tramite acquisto” seleziona soltanto un creditore della famiglia
+attiva, crea `Reimbursement.settlementMethod = purchase` e collega il relativo
+`CommissionedPurchase` al movimento già addebitato. Non è richiesta una nuova
+migration.
+
+Verifiche concluse il 28 agosto 2026: build macOS riuscita, build generica iOS
+riuscita e 29 test unitari nativi superati. Il gate web ha confermato 133 test,
 lint, build Vite e presenza della configurazione Supabase nel bundle Cloudflare.
-Il browser locale ha verificato il nuovo movimento desktop e mobile, inclusi
-acquisto multiplo, beneficiario unico, acquisto per conto terzi in demo e
-assenza di overflow o errori console. Il runner UI Xcode macOS è rimasto in attesa di avvio ed è
-stato interrotto; la suite UI era stata verificata nel controllo precedente
-dello stesso blocco. La consegna APNs reale resta da collaudare su dispositivi
-firmati dopo l'attivazione server.
+Il browser locale ha verificato il nuovo movimento desktop e mobile, incluso il
+menu con le tre finalità sul movimento singolo e su ogni voce dell'acquisto
+multiplo. Ha inoltre verificato la guida in dieci capitoli, tutte le ancore
+dell'indice e il layout a 390 px, senza overflow o errori console. La consegna
+APNs reale resta da collaudare su dispositivi firmati dopo l'attivazione server.
 
 ## Hosting Cloudflare
 

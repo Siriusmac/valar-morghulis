@@ -2,7 +2,10 @@
 
 <img src="public/valar-logo.png" alt="Logo Valar Morghulis" width="120" />
 
-Web app mobile-first per gestire entrate e spese personali e familiari, conti, categorie, beneficiari, mittenti e tag. I movimenti condivisi vengono ripartiti in parti uguali tra tutti i membri della famiglia e il saldo si aggiorna automaticamente.
+Web app mobile-first che riunisce contabilità personale, conti e spese
+familiari, acquisti fatti per altre persone e rimborsi tra utenti. I dati
+personali restano privati; le operazioni condivise seguono regole trasparenti e
+aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ![Spese ed Entrate di Valar Morghulis](docs/movements-desktop.png)
 
@@ -28,8 +31,8 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
-- nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dalla scelta fra acquisto singolo e multiplo;
-- suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari e acquisti per conto di contatti diversi, con residuo automatico in coda;
+- nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dalla scelta fra acquisto singolo e multiplo; il singolo e ogni parziale usano lo stesso menu “Acquisto singolo / Acquisto per conto di un’altra persona / Rimborso tramite acquisto”;
+- suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari, acquisti per conto di contatti e acquisti che compensano debiti verso membri diversi, con residuo automatico in coda;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
@@ -50,9 +53,10 @@ Web app mobile-first per gestire entrate e spese personali e familiari, conti, c
 - creazione di ulteriori famiglie; l’autore ne diventa amministratore e può rinominarle e invitare membri;
 - interfaccia italiana, euro e date italiane, ottimizzata per smartphone;
 - totale aggregato degli utenti iscritti visibile sotto il logo dopo l’accesso, senza esporre profili o dati personali;
-- guida integrata raggiungibile dal menù laterale, con introduzione, indice
-  navigabile e capitoli su movimenti, condivisione, conti, anagrafiche, rate,
-  rimborsi e gestione della famiglia;
+- guida integrata raggiungibile dal menù laterale, con premessa sul rapporto fra
+  contabilità personale e condivisa, indice navigabile e dieci capitoli su
+  bacheca, composizione dei movimenti, analisi, condivisione, conti, rate,
+  rimborsi, contatti, anagrafiche, famiglie e privacy;
 - campi mobile ottimizzati per la tastiera virtuale senza zoom automatico invasivo.
 - favicon, icona iOS e manifest per salvare la web app nella schermata Home.
 
@@ -153,12 +157,13 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica completata il 16 agosto 2026: 130 test web, lint, build Vite,
+Ultima verifica completata il 28 agosto 2026: 133 test web, lint, build Vite,
 controllo della configurazione Supabase nel bundle Cloudflare, build iOS/macOS
 e 29 test unitari Apple. Il collaudo browser desktop e mobile ha confermato il
-beneficiario unico dell'acquisto multiplo, le righe personali/familiari/per
-conto terzi, il relativo flusso disponibile anche in demo e l'assenza di
-overflow orizzontale o errori console.
+menu unificato per acquisto ordinario, per conto terzi e rimborso tramite
+acquisto, disponibile sia sul movimento singolo sia su ogni voce dell'acquisto
+multiplo. Ha inoltre verificato i dieci capitoli e l'indice navigabile della
+guida, senza overflow orizzontale o errori console.
 
 Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HANDOFF.md](HANDOFF.md).
 
@@ -198,7 +203,10 @@ email, senza concedere loro accesso ai dati familiari. Una spesa personale può
 essere registrata per conto di un contatto; resta fuori dai riepiloghi del
 pagante ma modifica il suo conto, mentre il destinatario la conferma e la
 classifica nella propria contabilità senza duplicare il saldo. Lo stesso flusso
-può compensare un rimborso familiare con un acquisto. Rimuovere un amico elimina
+può compensare un rimborso familiare con un acquisto, scegliendo questa modalità
+direttamente nel nuovo movimento intero o in una singola riga di uno scontrino
+multiplo. Il destinatario è limitato ai membri con credito disponibile e la
+somma assegnata non può superarlo. Rimuovere un amico elimina
 soltanto il collegamento: lo storico resta a entrambi i partecipanti.
 
 La configurazione pubblica Supabase viene letta da file `.xcconfig`; il file

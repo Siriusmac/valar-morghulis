@@ -296,10 +296,10 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Destinazione parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     expect(onSave).toHaveBeenCalledOnce()
@@ -318,7 +318,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '60' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Prodotti animali' } })
     expect(screen.getByRole('option', { name: 'Crea “Prodotti animali”' })).toBeTruthy()
@@ -340,10 +340,10 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Destinazione parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
 
     expect(screen.getByLabelText('Importo parziale 1')).toBeTruthy()
@@ -365,7 +365,7 @@ describe('MovementForm', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '12,50' } })
-    fireEvent.change(screen.getByLabelText('Destinazione parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
     const [movement] = onSave.mock.calls[0]
@@ -392,9 +392,9 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Spesa mista' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('Destinazione parziale 1'), { target: { value: 'commissioned' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto parziale 1'), { target: { value: 'commissioned' } })
     fireEvent.change(screen.getByLabelText('Committente'), { target: { value: users[1].id } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -413,5 +413,73 @@ describe('MovementForm', () => {
     })
     expect(additions.scheduledPayments).toHaveLength(2)
     expect([movement, ...additions.scheduledPayments].reduce((sum, item) => sum + item.amount, 0)).toBe(100)
+  })
+
+  it('uses a single purchase as a reimbursement toward an eligible family member', async () => {
+    const onSave = vi.fn()
+    const onCommissionedPurchase = vi.fn().mockResolvedValue(undefined)
+    render(<MovementForm
+      data={structuredClone(defaultData)}
+      user={users[0]}
+      members={users}
+      contacts={[{ id: users[1].id, name: users[1].name, email: users[1].email, initials: users[1].initials, source: 'family' }]}
+      onCommissionedPurchase={onCommissionedPurchase}
+      onSave={onSave}
+      onCancel={vi.fn()}
+    />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '20' } })
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Scarpe per Anna' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'reimbursement' } })
+    expect((screen.getByLabelText('Rimborso a') as HTMLSelectElement).value).toBe(users[1].id)
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onCommissionedPurchase).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: users[1].id,
+      amount: 20,
+      reimbursementId: expect.any(String),
+      accountId: 'simone-bank',
+    }))
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 20,
+      shared: false,
+      excludeFromReports: true,
+      commissionedPurchaseId: expect.any(String),
+    })
+  })
+
+  it('offers reimbursement through purchase on every row of a multiple purchase', async () => {
+    const onSave = vi.fn()
+    const onCommissionedPurchase = vi.fn().mockResolvedValue(undefined)
+    render(<MovementForm
+      data={structuredClone(defaultData)}
+      user={users[0]}
+      members={users}
+      onCommissionedPurchase={onCommissionedPurchase}
+      onSave={onSave}
+      onCancel={vi.fn()}
+    />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Acquisto in compensazione' } })
+    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto parziale 1'), { target: { value: 'reimbursement' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onCommissionedPurchase).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: users[1].id,
+      amount: 30,
+      reimbursementId: expect.any(String),
+      splitId: expect.any(String),
+    }))
+    expect(onSave.mock.calls[0][0].splits[0]).toMatchObject({
+      amount: 30,
+      shared: false,
+      excludeFromReports: true,
+      commissionedPurchaseId: expect.any(String),
+    })
   })
 })

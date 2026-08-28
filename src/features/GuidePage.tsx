@@ -1,17 +1,20 @@
 import {
-  BookOpen, CalendarClock, CreditCard, LayoutDashboard, ReceiptText, Scale,
-  ShieldCheck, Tags, Users,
+  ArrowRightLeft, BookOpen, CalendarClock, ContactRound, CreditCard, HandCoins,
+  LayoutDashboard, ReceiptText, Scale, ShieldCheck, Tags, Users,
 } from 'lucide-react'
 
-// Mantieni stabili questi ID: sono le destinazioni pubbliche dell'indice della guida.
+// Gli ID già pubblicati restano stabili: indice e collegamenti esterni possono usarli come destinazioni.
 const chapters = [
-  { id: 'iniziare', label: 'Primi passi', icon: LayoutDashboard },
-  { id: 'movimenti', label: 'Spese ed entrate', icon: ReceiptText },
-  { id: 'condivisione', label: 'Movimenti condivisi', icon: Users },
+  { id: 'iniziare', label: 'Primi passi e Bacheca', icon: LayoutDashboard },
+  { id: 'movimenti', label: 'Nuovo movimento', icon: ReceiptText },
+  { id: 'analisi', label: 'Consultare e correggere i movimenti', icon: Scale },
+  { id: 'condivisione', label: 'Spese condivise e saldi', icon: Users },
   { id: 'conti', label: 'Conti e giro fondi', icon: CreditCard },
+  { id: 'rate-rimborsi', label: 'Rate e pagamenti programmati', icon: CalendarClock },
+  { id: 'rimborsi', label: 'Rimborsi in denaro o con acquisto', icon: HandCoins },
+  { id: 'contatti', label: 'Contatti e acquisti per altri', icon: ContactRound },
   { id: 'anagrafiche', label: 'Categorie, beneficiari, mittenti e tag', icon: Tags },
-  { id: 'rate-rimborsi', label: 'Rate e rimborsi', icon: CalendarClock },
-  { id: 'famiglia', label: 'Account e famiglia', icon: ShieldCheck },
+  { id: 'famiglia', label: 'Account, famiglie e privacy', icon: ShieldCheck },
 ]
 
 export function GuidePage() {
@@ -20,17 +23,25 @@ export function GuidePage() {
       <header className="page-heading guide-heading">
         <div>
           <h1>Guida</h1>
-          <p>Tutto quello che serve per gestire le finanze personali e familiari.</p>
+          <p>Finanze personali, conti condivisi e rapporti tra persone in un unico sistema coerente.</p>
         </div>
         <span className="guide-heading__icon" aria-hidden="true"><BookOpen /></span>
       </header>
 
       <section className="guide-intro" aria-labelledby="guide-intro-title">
-        <h2 id="guide-intro-title">Benvenuto in Valar Morghulis</h2>
+        <h2 id="guide-intro-title">Perché Valar Morghulis è diversa</h2>
         <p>
-          L’app riunisce in un unico posto spese, entrate, conti e impegni della famiglia.
-          Ogni movimento può restare personale oppure essere condiviso: in questo caso le
-          quote e il saldo tra i membri vengono calcolati automaticamente.
+          Esistono molte app per gestire le finanze personali e molte altre per dividere
+          un conto tra più persone. Valar Morghulis riunisce entrambe le esigenze in un
+          solo spazio: contabilità personale, conti e spese familiari, acquisti fatti per
+          altri e rimborsi tra utenti restano collegati senza confondere ciò che è privato
+          con ciò che deve essere condiviso.
+        </p>
+        <p>
+          In questo modo ogni persona conserva una contabilità completa, mentre famiglie
+          e contatti dispongono di regole trasparenti e coerenti per capire chi ha pagato,
+          per chi lo ha fatto e come il debito è stato compensato. L’app registra gli
+          accordi e aggiorna i saldi, ma non accede ai conti bancari e non trasferisce denaro.
         </p>
       </section>
 
@@ -54,116 +65,195 @@ export function GuidePage() {
 
       <div className="guide-content">
         <section id="iniziare" className="guide-chapter">
-          <ChapterHeading number="01" title="Primi passi" icon={LayoutDashboard} />
+          <ChapterHeading number="01" title="Primi passi e Bacheca" icon={LayoutDashboard} />
           <p>
-            La <strong>Bacheca</strong> mostra il saldo familiare, le spese condivise del mese,
-            gli ultimi movimenti e i tuoi conti. È il punto di partenza per capire subito
-            chi deve rimborsare chi.
+            La <strong>Bacheca</strong> mostra lo spazio attivo, il tuo ruolo, il saldo
+            familiare, gli ultimi movimenti condivisi, i tuoi conti e il grafico delle
+            spese condivise del mese. Puoi confrontare l’andamento per giorno oppure gli
+            importi anticipati da ogni persona.
           </p>
           <ul>
             <li>Usa <strong>Aggiungi movimento</strong> in alto, oppure il pulsante rotondo su smartphone.</li>
-            <li>Apri il menù laterale per passare tra movimenti, pagamenti, conti e anagrafiche.</li>
-            <li>Se appartieni a più famiglie, usa il selettore della Bacheca per cambiare i dati condivisi oppure scegliere la vista solo personale.</li>
-            <li>Su smartphone le sezioni più usate sono disponibili anche nella barra in basso.</li>
+            <li>Apri il menù laterale per raggiungere movimenti, programmati, rimborsi, conti, contatti e anagrafiche.</li>
+            <li>Se appartieni a più famiglie, cambia lo spazio attivo dalla Bacheca oppure scegli la vista solo personale.</li>
+            <li>Il saldo indica quanto devi alla famiglia o quanto devi ricevere; i conti condivisi non vengono attribuiti a un singolo membro.</li>
+            <li>Su smartphone le sezioni principali sono disponibili anche nella barra in basso.</li>
           </ul>
         </section>
 
         <section id="movimenti" className="guide-chapter">
-          <ChapterHeading number="02" title="Spese ed entrate" icon={ReceiptText} />
+          <ChapterHeading number="02" title="Nuovo movimento" icon={ReceiptText} />
           <p>
-            Quando registri un movimento scegli il tipo, l’importo, la data, il conto, la
-            categoria e, per le spese, il beneficiario. Per le entrate scegli invece il
-            mittente. Inizia a scrivere nei campi: l’app filtra i nomi già presenti e, se non
-            trova una corrispondenza, crea l’anagrafica con il testo inserito. Puoi aggiungere
-            un tag e un commento per ritrovare il movimento più facilmente.
+            La parte alta del modulo sceglie fra <strong>Spesa</strong>, <strong>Entrata</strong>
+            e <strong>Giro fondi</strong>. Per una spesa o un’entrata inserisci l’importo,
+            il conto, l’eventuale rateizzazione, beneficiario o mittente e data. Descrizione,
+            commenti e tag aiutano a riconoscere e ritrovare l’operazione.
           </p>
           <div className="guide-note">
-            <strong>Modifica o eliminazione</strong>
-            <p>Apri un movimento dall’elenco: solo il suo autore può modificarlo o eliminarlo.</p>
+            <strong>Acquisto singolo</strong>
+            <p>
+              Il menu “Tipo di acquisto” distingue un acquisto ordinario, un acquisto per
+              conto di un’altra persona e un rimborso effettuato tramite acquisto. Nel caso
+              ordinario scegli categoria, tag e l’eventuale famiglia con cui condividere la spesa.
+            </p>
+          </div>
+          <div className="guide-note">
+            <strong>Acquisto multiplo</strong>
+            <p>
+              Usa più voci quando uno stesso scontrino contiene destinazioni diverse. Ogni
+              riga ha importo, tipo di acquisto, categoria, tag e condivisione indipendenti;
+              può quindi essere personale, familiare, fatta per un contatto o usata come
+              rimborso. Il beneficiario rimane unico a monte e il residuo genera automaticamente
+              la riga successiva fino a esaurire il totale.
+            </p>
           </div>
           <p>
-            Per uno scontrino con voci diverse puoi suddividere l’importo tra più categorie.
-            Il residuo resta sulla categoria principale e ogni parziale può essere personale
-            o condiviso.
+            Se rateizzi, l’importo del movimento e delle sue voci resta sempre il totale:
+            le rate regolano soltanto gli addebiti futuri sul conto di origine.
           </p>
         </section>
 
-        <section id="condivisione" className="guide-chapter">
-          <ChapterHeading number="03" title="Movimenti condivisi" icon={Users} />
+        <section id="analisi" className="guide-chapter">
+          <ChapterHeading number="03" title="Consultare e correggere i movimenti" icon={Scale} />
           <p>
-            Attiva l’opzione <strong>Condiviso con la famiglia</strong> quando una spesa o
-            un’entrata riguarda tutti. L’importo viene ripartito in parti uguali tra i membri
-            e il saldo della Bacheca si aggiorna subito.
+            In <strong>Spese ed Entrate</strong> puoi cambiare mese e passare fra spese,
+            entrate e movimenti condivisi. I grafici mostrano importi e percentuali mensili
+            per categoria; ricerca e gruppi per giorno aiutano a trovare rapidamente una voce.
           </p>
           <ul>
-            <li>I movimenti personali restano visibili soltanto al proprietario.</li>
-            <li>I movimenti condivisi sono visibili a tutti i membri della famiglia.</li>
-            <li>Un movimento effettuato su un conto condiviso non genera debiti o crediti tra i membri.</li>
+            <li>Apri un movimento per controllarne conto, autore, categoria, tag, condivisione e parziali.</li>
+            <li>Solo l’autore può modificarlo o eliminarlo; saldi, statistiche e dati familiari vengono ricalcolati.</li>
+            <li>Su smartphone usa lo scorrimento da destra verso sinistra; su desktop le azioni restano visibili.</li>
+            <li>Eliminando la prima rata puoi rimuovere l’intero piano; le modifiche alle anagrafiche raggiungono anche le rate future.</li>
+            <li>I movimenti anteriori al saldo iniziale possono restare nelle statistiche senza modificare il conto.</li>
+          </ul>
+        </section>
+
+        <section id="condivisione" className="guide-chapter">
+          <ChapterHeading number="04" title="Spese condivise e saldi" icon={Users} />
+          <p>
+            Per condividere una spesa scegli la famiglia interessata. Se ne fai parte di
+            una sola viene proposta automaticamente; con più famiglie la destinazione deve
+            restare esplicita. Ogni quota condivisa è visibile ai membri dello spazio scelto,
+            mentre il resto del movimento rimane privato.
+          </p>
+          <ul>
+            <li>La quota viene ripartita in parti uguali fra tutti i membri della famiglia.</li>
+            <li>Una spesa pagata da un conto personale genera crediti e debiti fra i membri.</li>
+            <li>Un movimento effettuato direttamente su un conto condiviso non genera debiti o crediti personali.</li>
+            <li>In un acquisto multiplo vengono pubblicate soltanto le righe marcate come condivise.</li>
+            <li>Il saldo familiare di un acquisto rateizzato considera subito il totale e non viene duplicato alle scadenze successive.</li>
           </ul>
         </section>
 
         <section id="conti" className="guide-chapter">
-          <ChapterHeading number="04" title="Conti e giro fondi" icon={CreditCard} />
+          <ChapterHeading number="05" title="Conti e giro fondi" icon={CreditCard} />
           <p>
-            Nella pagina <strong>Conti</strong> trovi conti bancari, carte, contanti, PayPal
-            e l’eventuale conto condiviso. Il saldo deriva dal saldo iniziale e dai movimenti
-            che incidono sul conto.
+            In <strong>Conti</strong> gestisci banca, carte, contanti, PayPal e conti
+            familiari. Puoi crearli, modificarli o eliminarli senza cancellare lo storico;
+            il saldo deriva dal valore iniziale e dalle operazioni successive.
           </p>
           <ul>
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
-            <li>Apri <strong>Nuovo movimento</strong> e scegli <strong>Giro fondi</strong>, terza opzione dopo Spesa ed Entrata, per spostare denaro tra due conti senza registrare una spesa.</li>
-            <li>I movimenti precedenti alla data del saldo iniziale possono restare nelle statistiche senza modificare il saldo.</li>
-            <li>Quando crei un conto familiare scegli esplicitamente a quale famiglia appartiene. Per ogni conto personale puoi selezionare una o più famiglie alle quali rendere visibile soltanto il nome per i rimborsi; saldo, istituto e movimenti restano privati.</li>
-          </ul>
-        </section>
-
-        <section id="anagrafiche" className="guide-chapter">
-          <ChapterHeading number="05" title="Categorie, beneficiari, mittenti e tag" icon={Tags} />
-          <p>
-            Le anagrafiche rendono ordinati i movimenti e alimentano i riepiloghi. Puoi
-            crearle dalle rispettive pagine; categorie, beneficiari e mittenti possono essere
-            aggiunti anche mentre registri un movimento.
-          </p>
-          <ul>
-            <li>Le <strong>categorie</strong> raggruppano entrate e spese nei grafici mensili.</li>
-            <li>I <strong>beneficiari</strong> indicano a chi hai pagato una spesa.</li>
-            <li>I <strong>mittenti</strong> indicano da chi hai ricevuto un’entrata.</li>
-            <li>I <strong>tag</strong> collegano movimenti diversi e permettono di ottenere un bilancio dedicato.</li>
-            <li>Beneficiari e mittenti possono essere rinominati o eliminati. Prima della cancellazione puoi riassegnare i movimenti a un’altra anagrafica oppure lasciarli in <strong>Nessun beneficiario</strong> o <strong>Nessun mittente</strong>.</li>
+            <li>Per un conto familiare scegli esplicitamente la famiglia proprietaria.</li>
+            <li>Per un conto personale scegli separatamente le famiglie alle quali rendere visibile soltanto il nome come destinazione di rimborso; saldo, istituto e movimenti restano privati.</li>
+            <li>L’icona di visibilità identifica i conti pubblicati ad almeno una famiglia.</li>
+            <li>Da <strong>Nuovo movimento</strong> scegli <strong>Giro fondi</strong> per spostare denaro fra due conti senza creare una spesa.</li>
+            <li>Un trasferimento dal conto familiare a uno personale genera il debito relativo alle quote degli altri membri.</li>
           </ul>
         </section>
 
         <section id="rate-rimborsi" className="guide-chapter">
-          <ChapterHeading number="06" title="Rate e rimborsi" icon={CalendarClock} />
+          <ChapterHeading number="06" title="Rate e pagamenti programmati" icon={CalendarClock} />
           <p>
-            Una spesa può essere divisa in 3 o 5 rate. La prima viene registrata subito,
-            mentre le successive compaiono in <strong>Pagamenti programmati</strong> e diventano
-            movimenti alla scadenza.
+            Attiva <strong>Rateizza</strong> nel nuovo movimento, indica intermediario e
+            numero di rate. La prima rata incide subito sul conto; le altre vengono raccolte
+            per acquisto in <strong>Pagamenti programmati</strong>, con totale residuo,
+            rate pagate e prossime scadenze.
+          </p>
+          <ul>
+            <li>Sono disponibili piani in 3 o 5 rate e un intermediario personalizzabile.</li>
+            <li>Le scadenze future diventano automaticamente movimenti alla data prevista.</li>
+            <li>Gli arrotondamenti vengono distribuiti senza perdere centesimi.</li>
+            <li>Categorie, tag e destinazioni di un acquisto multiplo vengono preservati in ogni rata.</li>
+          </ul>
+        </section>
+
+        <section id="rimborsi" className="guide-chapter">
+          <ChapterHeading number="07" title="Rimborsi in denaro o con acquisto" icon={HandCoins} />
+          <p>
+            Dalla Bacheca puoi registrare un rimborso del debito familiare. In una famiglia
+            con più persone l’app mostra i singoli creditori: puoi sceglierne uno o più,
+            indicare importi diversi e selezionare i rispettivi conti di destinazione.
           </p>
           <div className="guide-note guide-note--green">
-            <Scale aria-hidden="true" />
+            <ArrowRightLeft aria-hidden="true" />
             <div>
-              <strong>Registrare un rimborso</strong>
-              <p>Dalla Bacheca seleziona “Registra rimborso”, indica importo e conti coinvolti. Se un conto dell’altro membro non è disponibile, sarà lui a specificarlo durante la conferma. Fino alla sua accettazione il rimborso non modifica alcun saldo. L’app registra la compensazione contabile, ma non esegue un trasferimento bancario.</p>
+              <strong>Due modi per rimborsare</strong>
+              <p>
+                Puoi registrare un rimborso in denaro oppure compensarlo con un acquisto
+                personale fatto per il creditore. La seconda opzione è disponibile anche
+                nel nuovo movimento, sia per l’acquisto intero sia per una singola voce di
+                uno scontrino multiplo, entro il credito ancora disponibile.
+              </p>
             </div>
           </div>
+          <ul>
+            <li>Ogni rimborso resta in attesa finché il destinatario non lo conferma o rifiuta.</li>
+            <li>Il destinatario può completare il proprio conto personale se non era visibile al pagatore.</li>
+            <li>Per il rimborso con acquisto, il destinatario sceglie categoria e conto per inserirlo nella propria contabilità senza un secondo addebito.</li>
+            <li>La sezione <strong>Rimborsi</strong> separa quelli <strong>Attesi</strong> da quelli <strong>Dovuti</strong>.</li>
+            <li>La notifica viene inviata soltanto alla persona interessata e apre direttamente la conferma nel client Apple.</li>
+          </ul>
+        </section>
+
+        <section id="contatti" className="guide-chapter">
+          <ChapterHeading number="08" title="Contatti e acquisti per altri" icon={ContactRound} />
+          <p>
+            La sezione <strong>Contatti</strong> raccoglie automaticamente i membri delle
+            tue famiglie e gli amici che accettano un invito. Un contatto non entra nella
+            famiglia e non può vedere i suoi dati condivisi.
+          </p>
+          <ul>
+            <li>Invita un amico tramite email, anche in occasione del primo acquisto fatto per lui.</li>
+            <li>Nel nuovo movimento scegli “Acquisto per conto di un’altra persona” e indica il committente.</li>
+            <li>Il tuo conto viene addebitato, ma la voce resta fuori dalle tue statistiche personali e familiari.</li>
+            <li>Il destinatario conferma oppure rifiuta; accettando sceglie categoria e conto per catalogare l’acquisto senza duplicare il saldo.</li>
+            <li>Seleziona un contatto per vedere i movimenti che lo coinvolgono.</li>
+            <li>Rimuovere un amico interrompe il collegamento ma conserva lo storico per entrambi.</li>
+          </ul>
+        </section>
+
+        <section id="anagrafiche" className="guide-chapter">
+          <ChapterHeading number="09" title="Categorie, beneficiari, mittenti e tag" icon={Tags} />
+          <p>
+            Le anagrafiche rendono ordinati movimenti, grafici e ricerche. Puoi crearle
+            dalle rispettive pagine; categorie, beneficiari e mittenti possono essere
+            aggiunti anche mentre registri un movimento.
+          </p>
+          <ul>
+            <li>Le <strong>categorie</strong> alimentano importi e percentuali dei grafici mensili.</li>
+            <li>I <strong>beneficiari</strong> indicano a chi hai pagato; i <strong>mittenti</strong> da chi hai ricevuto un’entrata.</li>
+            <li>I <strong>tag</strong> collegano movimenti diversi e producono un bilancio dedicato.</li>
+            <li>Seleziona una voce per vedere i relativi movimenti, il totale e la data dell’operazione più vecchia.</li>
+            <li>Puoi rinominare tutte le anagrafiche mantenendo aggiornati movimenti e rate.</li>
+            <li>Quando elimini una categoria, un beneficiario o un mittente puoi riassegnare lo storico oppure lasciarlo senza classificazione; eliminando un tag viene rimosso il solo collegamento.</li>
+          </ul>
         </section>
 
         <section id="famiglia" className="guide-chapter">
-          <ChapterHeading number="07" title="Account e famiglia" icon={ShieldCheck} />
+          <ChapterHeading number="10" title="Account, famiglie e privacy" icon={ShieldCheck} />
           <p>
-            Seleziona il tuo profilo in fondo al menù laterale per gestire credenziali e
-            famiglie. Gli amministratori possono rinominare una famiglia e invitare nuovi
-            membri; chi appartiene a più famiglie può cambiare quella attiva.
+            Seleziona il profilo per modificare nome, cognome, email e password e per
+            gestire le famiglie. Puoi iniziare con la sola contabilità personale, creare
+            più famiglie in seguito e avere un ruolo diverso in ciascuna.
           </p>
           <ul>
-            <li>Nei dati personali puoi modificare nome e cognome; il nuovo nome compare anche nella barra laterale e negli elenchi dei membri.</li>
-            <li>Puoi iniziare con la sola contabilità personale e creare una famiglia in seguito.</li>
-            <li>Ogni famiglia mantiene conti e dati condivisi separati, mentre conti e movimenti personali restano disponibili passando da una famiglia all’altra.</li>
-            <li>Gli inviti in attesa o scaduti possono essere reinviati. Un invito rifiutato deve essere eliminato dall’amministratore prima di invitare nuovamente la stessa persona.</li>
-            <li>Chi riceve un invito sceglie esplicitamente se accettarlo o rifiutarlo; dopo l’accettazione compare semplicemente tra i membri.</li>
-            <li>I dati personali restano privati; vengono condivisi soltanto i movimenti marcati come familiari.</li>
-            <li>L’amministratore può eliminare una famiglia scegliendo se conservare come personali i movimenti creati dai singoli membri oppure cancellare i dati condivisi.</li>
+            <li>Gli amministratori possono rinominare la famiglia, invitare membri e reinviare o rimuovere inviti.</li>
+            <li>Chi riceve un invito sceglie esplicitamente se accettarlo o rifiutarlo.</li>
+            <li>Lo spazio personale rimane unico passando fra le famiglie; ogni spazio condiviso conserva separatamente membri, conti e movimenti.</li>
+            <li>I dati personali restano privati: vengono condivisi soltanto record familiari, nomi dei conti autorizzati e operazioni che coinvolgono un altro utente.</li>
+            <li>L’amministratore può eliminare una famiglia conservando come personali i movimenti creati dai singoli membri oppure cancellando i dati condivisi.</li>
             <li>Prima di eliminare definitivamente l’account puoi esportare i dati in JSON, CSV o XML.</li>
             <li>Esci dall’app dal pulsante <strong>Esci</strong> nel menù laterale.</li>
           </ul>

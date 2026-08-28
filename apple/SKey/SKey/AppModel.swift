@@ -400,6 +400,20 @@ final class AppModel {
     }
 
     func createReimbursements(_ drafts: [ReimbursementDraft]) async throws -> ReimbursementSubmissionResult {
+        try await submitReimbursements(drafts, createPurchaseMovements: true)
+    }
+
+    func createPurchaseReimbursementsForExistingMovement(
+        _ drafts: [ReimbursementDraft]
+    ) async throws -> ReimbursementSubmissionResult {
+        // Il nuovo movimento contiene già l'addebito: qui persistiamo soltanto compensazione e richiesta.
+        try await submitReimbursements(drafts, createPurchaseMovements: false)
+    }
+
+    private func submitReimbursements(
+        _ drafts: [ReimbursementDraft],
+        createPurchaseMovements: Bool
+    ) async throws -> ReimbursementSubmissionResult {
         guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
         guard let currentUserID, let ledgerRepository else { throw AppModelError.clientUnavailable }
         guard !drafts.isEmpty else { return .noRegisteredDevices }
@@ -419,28 +433,32 @@ final class AppModel {
                     let familyRepository,
                     let purchaseID = draft.commissionedPurchaseID,
                     let movementID = draft.payerMovementID,
-                    let description = draft.purchaseDescription,
-                    let accountID = draft.fromAccountID,
-                    case .loaded(let snapshot) = ledgerState,
-                    let account = snapshot.account(named: accountID)
+                    let description = draft.purchaseDescription
                 else { throw AppModelError.workspaceUnavailable }
-                let category = LedgerDirectoryItem(
-                    id: "category-commissioned-\(currentUserID.uuidString.lowercased())",
-                    name: "Acquisti per conto terzi", scope: .personal,
-                    ownerID: currentUserID.uuidString.lowercased(), movementType: .expense, color: "#687078"
-                )
-                let recipientName = workspace.members.first { $0.id == draft.toID }?.displayName ?? "Contatto"
-                let counterparty = LedgerDirectoryItem(
-                    id: "beneficiary-contact-\(draft.toID.uuidString.lowercased())",
-                    name: recipientName, scope: .personal,
-                    ownerID: currentUserID.uuidString.lowercased(), movementType: nil, color: nil
-                )
-                try await ledgerRepository.createMovement(MovementDraft(
-                    id: movementID, type: .expense, amount: draft.amount, date: draft.date,
-                    description: description, comments: nil, account: account, category: category,
-                    counterparty: counterparty, isShared: false, affectsAccountBalance: nil,
-                    commissionedPurchaseID: purchaseID, excludeFromReports: true
-                ), userID: currentUserID, userDisplayName: workspace.profile.displayName, familyID: nil)
+                if createPurchaseMovements {
+                    guard
+                        let accountID = draft.fromAccountID,
+                        case .loaded(let snapshot) = ledgerState,
+                        let account = snapshot.account(named: accountID)
+                    else { throw AppModelError.workspaceUnavailable }
+                    let category = LedgerDirectoryItem(
+                        id: "category-commissioned-\(currentUserID.uuidString.lowercased())",
+                        name: "Acquisti per conto terzi", scope: .personal,
+                        ownerID: currentUserID.uuidString.lowercased(), movementType: .expense, color: "#687078"
+                    )
+                    let recipientName = workspace.members.first { $0.id == draft.toID }?.displayName ?? "Contatto"
+                    let counterparty = LedgerDirectoryItem(
+                        id: "beneficiary-contact-\(draft.toID.uuidString.lowercased())",
+                        name: recipientName, scope: .personal,
+                        ownerID: currentUserID.uuidString.lowercased(), movementType: nil, color: nil
+                    )
+                    try await ledgerRepository.createMovement(MovementDraft(
+                        id: movementID, type: .expense, amount: draft.amount, date: draft.date,
+                        description: description, comments: nil, account: account, category: category,
+                        counterparty: counterparty, isShared: false, affectsAccountBalance: nil,
+                        commissionedPurchaseID: purchaseID, excludeFromReports: true
+                    ), userID: currentUserID, userDisplayName: workspace.profile.displayName, familyID: nil)
+                }
                 try await familyRepository.createCommissionedPurchase(CommissionedPurchaseDraft(
                     id: purchaseID, recipientID: draft.toID, invitationID: nil, familyID: familyID,
                     reimbursementID: reimbursementID, payerMovementID: movementID, amount: draft.amount,

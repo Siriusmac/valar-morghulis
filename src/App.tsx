@@ -12,7 +12,7 @@ import { deleteMovementData, saveMovementData, type MovementAdditions } from './
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, type ContactData } from './lib/contacts'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, CommissionedPurchase, Contact, Movement, MovementType, PageId, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+import type { AppData, Beneficiary, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
 
 const MovementList = lazy(() => import('./components/MovementList').then((module) => ({ default: module.MovementList })))
@@ -310,20 +310,39 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast('Acquisto confermato e catalogato')
   }
   const submitCommissionedPurchase = async (draft: CommissionedPurchaseDraft) => {
-    if (!cloud) throw new Error('Accedi al cloud per inviare la richiesta.')
     let invitationId: string | undefined
-    if (!draft.recipientId && draft.inviteEmail) {
+    if (cloud && !draft.recipientId && draft.inviteEmail) {
       const result = await inviteContact(draft.inviteEmail)
       invitationId = result.invitation.id
     }
     const isFamilyMember = Boolean(draft.recipientId && appUsers.some((member) => member.id === draft.recipientId))
-    await createCommissionedPurchase({
-      id: draft.id, recipientId: draft.recipientId, invitationId,
-      familyId: isFamilyMember && !cloud.personalMode ? cloud.familyId : undefined,
-      payerMovementId: draft.movementId, amount: draft.amount,
-      purchaseDate: draft.purchaseDate, description: draft.description,
-    })
-    await refreshContacts()
+    if (cloud) {
+      await createCommissionedPurchase({
+        id: draft.id, recipientId: draft.recipientId, invitationId,
+        familyId: isFamilyMember && !cloud.personalMode ? cloud.familyId : undefined,
+        reimbursementId: draft.reimbursementId,
+        payerMovementId: draft.movementId, amount: draft.amount,
+        purchaseDate: draft.purchaseDate, description: draft.description,
+      })
+      await refreshContacts()
+    }
+    if (draft.reimbursementId && draft.recipientId) {
+      const reimbursement: Reimbursement = {
+        id: draft.reimbursementId,
+        fromId: user.id,
+        toId: draft.recipientId,
+        amount: draft.amount,
+        date: draft.purchaseDate,
+        authorId: user.id,
+        fromAccountId: draft.accountId,
+        settlementMethod: 'purchase',
+        commissionedPurchaseId: draft.id,
+        status: cloud ? 'pending' : 'confirmed',
+      }
+      setData((current) => current.reimbursements.some((item) => item.id === reimbursement.id)
+        ? current
+        : { ...current, reimbursements: [...current.reimbursements, reimbursement] })
+    }
   }
 
   const common = { data, user, onShowMovements: showMovements }
@@ -377,7 +396,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     <AppShell page={page} user={user} registeredUserCount={cloud ? cloud.registeredUserCount : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} initialType={modal.initialType} personalOnly={cloud?.personalMode} contacts={contacts} onCommissionedPurchase={modal.movement ? undefined : cloud ? submitCommissionedPurchase : async () => {}} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} otherName={appUsers.find((item) => item.id !== user.id)?.name} memberCount={appUsers.length} initial={modal.movement} initialType={modal.initialType} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'transfer' ? <Modal title="Nuovo movimento" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSelectMovement={(initialType) => setModal({ type: 'movement', initialType })} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>Totale <strong>{formatMoney(detailTotal)}</strong></span>{detailMovements.length ? <span>dal <strong>{formatDate(detailMovements[detailMovements.length - 1].date)}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} compact /></Suspense></Modal> : null}

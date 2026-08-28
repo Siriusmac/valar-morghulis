@@ -39,6 +39,11 @@
    movimento classificato dal destinatario ha `affectsAccountBalance == false`.
 10. La rimozione di un contatto non elimina acquisti o movimenti pregressi.
 11. L'esclusione dai report si applica alla singola allocazione commissionata, non alle altre righe dello stesso movimento.
+12. Un'allocazione “rimborso tramite acquisto” è una spesa commissionata con
+    `Reimbursement.settlementMethod == purchase`; riusa il movimento del conto
+    che contiene l'allocazione e non ne crea un secondo.
+13. La somma delle allocazioni di rimborso destinate allo stesso membro non può
+    superare il suo `availableCredit`, già depurato dei rimborsi pending.
 
 ## Saldo conto
 

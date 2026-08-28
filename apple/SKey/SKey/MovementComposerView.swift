@@ -35,6 +35,7 @@ struct MovementComposerView: View {
     @State private var errorMessage: String?
     @State private var submitted = false
     @State private var commissionedPurchase = false
+    @State private var reimbursementPurchase = false
     @State private var commissionedRecipientID: UUID?
     @State private var commissionedInviteEmail = ""
     @State private var draftID = UUID().uuidString.lowercased()
@@ -311,46 +312,72 @@ struct MovementComposerView: View {
     @ViewBuilder
     private func commissionSection(_ options: MovementOptions) -> some View {
         Section {
-            Toggle("Acquisto per conto di un’altra persona", isOn: $commissionedPurchase)
-                .onChange(of: commissionedPurchase) { _, enabled in
-                    if enabled {
-                        commissionedRecipientID = availableCommissionedContacts.first?.id
-                        isShared = false
-                        if selectedAccount?.familyID != nil {
-                            accountID = options.accounts.first { $0.familyID == nil }?.id ?? ""
-                        }
-                        prepareCommissionDirectory()
-                    } else {
-                        commissionedRecipientID = nil
-                        commissionedInviteEmail = ""
-                    }
+            Picker("Tipo di acquisto", selection: mainPurchaseModeBinding(options: options)) {
+                ForEach(PurchaseAllocationMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                        .disabled(mode == .reimbursement && reimbursementOptions.isEmpty)
                 }
+            }
             if commissionedPurchase {
-                Picker("Committente", selection: $commissionedRecipientID) {
-                    Text("Invita un nuovo contatto").tag(UUID?.none)
-                    ForEach(availableCommissionedContacts) { contact in
-                        Text(contact.displayName + (contact.source == .family ? " · famiglia" : ""))
-                            .tag(Optional(contact.id))
+                if reimbursementPurchase {
+                    Picker("Rimborso a", selection: $commissionedRecipientID) {
+                        Text("Scegli il membro da rimborsare").tag(UUID?.none)
+                        ForEach(reimbursementOptions) { item in
+                            if let memberID = UUID(uuidString: item.memberID) {
+                                Text("\(reimbursementMemberName(item.memberID)) · fino a \(item.availableCredit.euroFormatted)")
+                                    .tag(Optional(memberID))
+                            }
+                        }
                     }
-                }
-                .onChange(of: commissionedRecipientID) { _, recipientID in
-                    if recipientID != nil { commissionedInviteEmail = "" }
-                    prepareCommissionDirectory()
-                }
-                if commissionedRecipientID == nil {
-                    TextField("Email da invitare", text: $commissionedInviteEmail)
+                    .onChange(of: commissionedRecipientID) { _, _ in prepareCommissionDirectory() }
+                } else {
+                    Picker("Committente", selection: $commissionedRecipientID) {
+                        Text("Invita un nuovo contatto").tag(UUID?.none)
+                        ForEach(availableCommissionedContacts) { contact in
+                            Text(contact.displayName + (contact.source == .family ? " · famiglia" : ""))
+                                .tag(Optional(contact.id))
+                        }
+                    }
+                    .onChange(of: commissionedRecipientID) { _, recipientID in
+                        if recipientID != nil { commissionedInviteEmail = "" }
+                        prepareCommissionDirectory()
+                    }
+                    if commissionedRecipientID == nil {
+                        TextField("Email da invitare", text: $commissionedInviteEmail)
 #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
 #endif
-                        .autocorrectionDisabled()
+                            .autocorrectionDisabled()
+                    }
                 }
             }
         } footer: {
-            if commissionedPurchase {
+            if reimbursementPurchase {
+                Text("L’acquisto compensa il debito verso il membro scelto. Dopo la conferma, sarà lui a catalogarlo nella propria contabilità.")
+            } else if commissionedPurchase {
                 Text("Il committente riceverà la richiesta e catalogherà l’acquisto nella propria contabilità.")
             }
         }
+    }
+
+    private func mainPurchaseModeBinding(options: MovementOptions) -> Binding<PurchaseAllocationMode> {
+        Binding(
+            get: { reimbursementPurchase ? .reimbursement : commissionedPurchase ? .commissioned : .single },
+            set: { mode in
+                commissionedPurchase = mode != .single
+                reimbursementPurchase = mode == .reimbursement
+                isShared = mode == .single ? isShared : false
+                commissionedInviteEmail = ""
+                commissionedRecipientID = mode == .reimbursement
+                    ? reimbursementOptions.first.flatMap { UUID(uuidString: $0.memberID) }
+                    : mode == .commissioned ? availableCommissionedContacts.first?.id : nil
+                if mode != .single, selectedAccount?.familyID != nil {
+                    accountID = options.accounts.first { $0.familyID == nil }?.id ?? ""
+                }
+                if mode != .single { prepareCommissionDirectory() }
+            }
+        )
     }
 
     private func prepareCommissionDirectory() {
@@ -491,6 +518,25 @@ struct MovementComposerView: View {
         return contacts.values.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
 
+    private var reimbursementOptions: [ReimbursementPlanItem] {
+        guard
+            appModel.selectedFamilyID != nil,
+            case .loaded(let workspace) = appModel.workspaceState,
+            case .loaded(let snapshot) = appModel.ledgerState
+        else { return [] }
+        return LedgerCalculations.reimbursementPlan(
+            in: snapshot,
+            memberIDs: workspace.members(for: appModel.selectedFamilyID).map { $0.id.uuidString.lowercased() }
+        )
+    }
+
+    private func reimbursementMemberName(_ memberID: String) -> String {
+        guard case .loaded(let workspace) = appModel.workspaceState else { return "Membro della famiglia" }
+        return workspace.members(for: appModel.selectedFamilyID)
+            .first { $0.id.uuidString.caseInsensitiveCompare(memberID) == .orderedSame }?.displayName
+            ?? "Membro della famiglia"
+    }
+
     private var availableComposerModes: [ComposerMode] {
         movement == nil ? ComposerMode.allCases : [.expense, .income]
     }
@@ -555,7 +601,8 @@ struct MovementComposerView: View {
             && (!mainAllocationNeedsClassification || category != nil)
             && (!counterpartyRequired || counterparty != nil)
             && splitsAreValid
-            && (!commissionedPurchase || commissionedRecipientID != nil || validCommissionedInviteEmail)
+            && (!commissionedPurchase || validMainCommissionTarget)
+            && reimbursementAmountsAreValid
             && (!hasCommissionedAllocation || !descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
@@ -563,7 +610,8 @@ struct MovementComposerView: View {
         if selectedAccount == nil { return "Seleziona il conto del movimento." }
         if mainAllocationNeedsClassification, category == nil { return "Seleziona o crea una categoria." }
         if counterpartyRequired, counterparty == nil { return "Seleziona o crea un \(counterpartyLabel.lowercased())." }
-        if commissionedPurchase, commissionedRecipientID == nil, !validCommissionedInviteEmail { return "Seleziona un contatto o inserisci un indirizzo email valido." }
+        if commissionedPurchase, !validMainCommissionTarget { return reimbursementPurchase ? "Seleziona il membro della famiglia da rimborsare." : "Seleziona un contatto o inserisci un indirizzo email valido." }
+        if !reimbursementAmountsAreValid { return "L’importo usato come rimborso supera il credito disponibile del membro scelto." }
         if hasCommissionedAllocation, descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Inserisci una descrizione riconoscibile per il destinatario." }
         if splitsEnabled, splitDrafts.isEmpty { return "Aggiungi almeno un parziale." }
         if splitsEnabled, splitDrafts.contains(where: { item in
@@ -581,6 +629,34 @@ struct MovementComposerView: View {
     private var validCommissionedInviteEmail: Bool {
         let email = commissionedInviteEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         return email.contains("@") && email.contains(".")
+    }
+
+    private var validMainCommissionTarget: Bool {
+        if reimbursementPurchase {
+            guard let commissionedRecipientID else { return false }
+            return reimbursementOptions.contains {
+                $0.memberID.caseInsensitiveCompare(commissionedRecipientID.uuidString) == .orderedSame
+            }
+        }
+        return commissionedRecipientID != nil || validCommissionedInviteEmail
+    }
+
+    private var reimbursementAmountsAreValid: Bool {
+        let limits = Dictionary(uniqueKeysWithValues: reimbursementOptions.map {
+            ($0.memberID.lowercased(), $0.availableCredit)
+        })
+        var totals: [String: Money] = [:]
+        if reimbursementPurchase, let commissionedRecipientID {
+            let amount = splitsEnabled ? splitRemainder : Money(decimal: parsedAmount ?? 0)
+            totals[commissionedRecipientID.uuidString.lowercased(), default: .zero] = amount
+        }
+        for item in splitDrafts where item.isReimbursement {
+            guard let recipientID = item.commissionedRecipientID,
+                  let amount = parsedSplitAmount(item.amountText) else { continue }
+            totals[recipientID.uuidString.lowercased(), default: .zero] =
+                totals[recipientID.uuidString.lowercased(), default: .zero] + Money(decimal: amount)
+        }
+        return totals.allSatisfy { memberID, total in total <= limits[memberID, default: .zero] }
     }
 
     private var hasCommissionedAllocation: Bool {
@@ -663,6 +739,7 @@ struct MovementComposerView: View {
                         tag: loaded.tags.first { $0.id == split.tagID },
                         isShared: split.shared,
                         isCommissioned: split.commissionedPurchaseID != nil,
+                        isReimbursement: false,
                         commissionedRecipientID: nil,
                         commissionedInviteEmail: ""
                     )
@@ -712,6 +789,7 @@ struct MovementComposerView: View {
         let mainCommissioned = commissionedPurchase && splitRemainder > .zero
         let allAllocationsCommissioned = (splitRemainder == .zero || mainCommissioned)
             && splitDrafts.allSatisfy(\.isCommissioned)
+        let reimbursementDrafts = purchaseReimbursementDrafts(account: account, description: cleanDescription)
         let draft = MovementDraft(
             id: draftID,
             type: type,
@@ -734,7 +812,7 @@ struct MovementComposerView: View {
         Task {
             do {
                 if movement == nil {
-                    if mainCommissioned {
+                    if mainCommissioned, !reimbursementPurchase {
                         let invitationID = commissionedRecipientID == nil
                             ? try await appModel.inviteContact(email: commissionedInviteEmail)
                             : nil
@@ -747,7 +825,7 @@ struct MovementComposerView: View {
                             purchaseDate: Self.dayFormatter.string(from: date), description: cleanDescription
                         ))
                     }
-                    for item in splitDrafts where item.isCommissioned {
+                    for item in splitDrafts where item.isCommissioned && !item.isReimbursement {
                         guard let partialAmount = parsedSplitAmount(item.amountText) else { continue }
                         let invitationID = item.commissionedRecipientID == nil
                             ? try await appModel.inviteContact(email: item.commissionedInviteEmail)
@@ -767,6 +845,9 @@ struct MovementComposerView: View {
                             description: cleanDescription
                         ))
                     }
+                    if !reimbursementDrafts.isEmpty {
+                        _ = try await appModel.createPurchaseReimbursementsForExistingMovement(reimbursementDrafts)
+                    }
                     try await appModel.createMovement(draft)
                 } else {
                     try await appModel.updateMovement(draft)
@@ -778,6 +859,51 @@ struct MovementComposerView: View {
                 errorMessage = error.localizedDescription
                 isSaving = false
             }
+        }
+    }
+
+    private func purchaseReimbursementDrafts(
+        account: AccountSummary,
+        description: String
+    ) -> [ReimbursementDraft] {
+        guard movement == nil,
+              case .loaded(let workspace) = appModel.workspaceState
+        else { return [] }
+        var allocations: [(id: String, purchaseID: String, amount: Decimal, recipientID: UUID)] = []
+        if reimbursementPurchase, let commissionedRecipientID {
+            let amount = splitsEnabled ? splitRemainder.decimal : parsedAmount ?? 0
+            if amount > 0 {
+                allocations.append((
+                    "reimbursement-\(UUID().uuidString.lowercased())",
+                    "commissioned-purchase-\(draftID)", amount, commissionedRecipientID
+                ))
+            }
+        }
+        for item in splitDrafts where item.isReimbursement {
+            guard let amount = parsedSplitAmount(item.amountText),
+                  let recipientID = item.commissionedRecipientID else { continue }
+            allocations.append((
+                "reimbursement-\(UUID().uuidString.lowercased())",
+                "commissioned-purchase-\(item.id)", amount, recipientID
+            ))
+        }
+        let groupID = allocations.count > 1 ? "reimbursement-group-\(UUID().uuidString.lowercased())" : nil
+        return allocations.map { allocation in
+            ReimbursementDraft(
+                id: allocation.id,
+                groupID: groupID,
+                amount: allocation.amount,
+                counterpartID: allocation.recipientID,
+                fromID: workspace.profile.id,
+                toID: allocation.recipientID,
+                fromAccountID: account.id,
+                toAccountID: nil,
+                date: date,
+                settlementMethod: .purchase,
+                purchaseDescription: description,
+                commissionedPurchaseID: allocation.purchaseID,
+                payerMovementID: draftID
+            )
         }
     }
 
@@ -825,6 +951,10 @@ struct MovementComposerView: View {
             type = movementKind
             category = nil
             counterparty = nil
+            commissionedPurchase = false
+            reimbursementPurchase = false
+            commissionedRecipientID = nil
+            commissionedInviteEmail = ""
             if movementKind == .income {
                 installmentsEnabled = false
                 splitsEnabled = false
@@ -986,6 +1116,12 @@ struct MovementComposerView: View {
     }
 
     private func validCommissionTarget(_ item: MovementSplitEditorDraft) -> Bool {
+        if item.isReimbursement {
+            guard let recipientID = item.commissionedRecipientID else { return false }
+            return reimbursementOptions.contains {
+                $0.memberID.caseInsensitiveCompare(recipientID.uuidString) == .orderedSame
+            }
+        }
         if item.commissionedRecipientID != nil { return true }
         let email = item.commissionedInviteEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         return email.contains("@") && email.contains(".")
@@ -994,19 +1130,26 @@ struct MovementComposerView: View {
     private func splitModeBinding(for item: MovementSplitEditorDraft) -> Binding<PurchaseAllocationMode> {
         Binding(
             get: {
-                guard let current = splitDrafts.first(where: { $0.id == item.id }) else { return .personal }
-                if current.isCommissioned { return .commissioned }
-                return current.isShared ? .family : .personal
+                guard let current = splitDrafts.first(where: { $0.id == item.id }) else { return .single }
+                if current.isReimbursement { return .reimbursement }
+                return current.isCommissioned ? .commissioned : .single
             },
             set: { mode in
                 guard let index = splitDrafts.firstIndex(where: { $0.id == item.id }) else { return }
-                splitDrafts[index].isCommissioned = mode == .commissioned
-                splitDrafts[index].isShared = mode == .family
-                if mode != .commissioned {
+                splitDrafts[index].isCommissioned = mode != .single
+                splitDrafts[index].isReimbursement = mode == .reimbursement
+                if mode == .single {
                     splitDrafts[index].commissionedRecipientID = nil
                     splitDrafts[index].commissionedInviteEmail = ""
-                } else if selectedAccount?.familyID != nil {
-                    accountID = options?.accounts.first { $0.familyID == nil }?.id ?? ""
+                } else {
+                    splitDrafts[index].isShared = false
+                    splitDrafts[index].commissionedInviteEmail = ""
+                    splitDrafts[index].commissionedRecipientID = mode == .reimbursement
+                        ? reimbursementOptions.first.flatMap { UUID(uuidString: $0.memberID) }
+                        : availableCommissionedContacts.first?.id
+                    if selectedAccount?.familyID != nil {
+                        accountID = options?.accounts.first { $0.familyID == nil }?.id ?? ""
+                    }
                 }
             }
         )
@@ -1061,41 +1204,61 @@ struct MovementComposerView: View {
                         )
                         #endif
 
-                        Picker("Destinazione", selection: splitModeBinding(for: item)) {
+                        Picker("Tipo di acquisto", selection: splitModeBinding(for: item)) {
                             ForEach(PurchaseAllocationMode.allCases) { mode in
                                 Text(mode.title).tag(mode)
+                                    .disabled(mode == .reimbursement && reimbursementOptions.isEmpty)
                             }
                         }
 
                         if item.isCommissioned {
-                            Picker(
-                                "Committente",
-                                selection: splitFieldBinding(
-                                    id: item.id,
-                                    keyPath: \.commissionedRecipientID,
-                                    fallback: item.commissionedRecipientID
-                                )
-                            ) {
-                                Text("Invita un nuovo contatto").tag(UUID?.none)
-                                ForEach(availableCommissionedContacts) { contact in
-                                    Text(contact.displayName + (contact.source == .family ? " · famiglia" : ""))
-                                        .tag(Optional(contact.id))
-                                }
-                            }
-                            if item.commissionedRecipientID == nil {
-                                TextField(
-                                    "Email da invitare",
-                                    text: splitFieldBinding(
+                            if item.isReimbursement {
+                                Picker(
+                                    "Rimborso a",
+                                    selection: splitFieldBinding(
                                         id: item.id,
-                                        keyPath: \.commissionedInviteEmail,
-                                        fallback: item.commissionedInviteEmail
+                                        keyPath: \.commissionedRecipientID,
+                                        fallback: item.commissionedRecipientID
                                     )
-                                )
+                                ) {
+                                    Text("Scegli il membro da rimborsare").tag(UUID?.none)
+                                    ForEach(reimbursementOptions) { option in
+                                        if let memberID = UUID(uuidString: option.memberID) {
+                                            Text("\(reimbursementMemberName(option.memberID)) · fino a \(option.availableCredit.euroFormatted)")
+                                                .tag(Optional(memberID))
+                                        }
+                                    }
+                                }
+                            } else {
+                                Picker(
+                                    "Committente",
+                                    selection: splitFieldBinding(
+                                        id: item.id,
+                                        keyPath: \.commissionedRecipientID,
+                                        fallback: item.commissionedRecipientID
+                                    )
+                                ) {
+                                    Text("Invita un nuovo contatto").tag(UUID?.none)
+                                    ForEach(availableCommissionedContacts) { contact in
+                                        Text(contact.displayName + (contact.source == .family ? " · famiglia" : ""))
+                                            .tag(Optional(contact.id))
+                                    }
+                                }
+                                if item.commissionedRecipientID == nil {
+                                    TextField(
+                                        "Email da invitare",
+                                        text: splitFieldBinding(
+                                            id: item.id,
+                                            keyPath: \.commissionedInviteEmail,
+                                            fallback: item.commissionedInviteEmail
+                                        )
+                                    )
 #if os(iOS)
-                                .textInputAutocapitalization(.never)
-                                .keyboardType(.emailAddress)
+                                    .textInputAutocapitalization(.never)
+                                    .keyboardType(.emailAddress)
 #endif
-                                .autocorrectionDisabled()
+                                    .autocorrectionDisabled()
+                                }
                             }
                         } else {
 
@@ -1117,6 +1280,12 @@ struct MovementComposerView: View {
                             splitDirectoryRow(title: "Tag", value: item.tag?.name ?? "Facoltativo")
                         }
                         .buttonStyle(.plain)
+
+                        Toggle(
+                            "Spesa condivisa con la famiglia",
+                            isOn: splitFieldBinding(id: item.id, keyPath: \.isShared, fallback: item.isShared)
+                        )
+                        .disabled(selectedAccount?.familyID != nil)
                         }
                     }
                     .padding(.vertical, 4)
@@ -1135,7 +1304,7 @@ struct MovementComposerView: View {
             Text("Categorie")
         } footer: {
             if splitsEnabled {
-                Text("Ogni riga può essere personale, condivisa con la famiglia oppure effettuata per conto di un’altra persona.")
+                Text("Ogni riga può essere ordinaria, effettuata per un’altra persona oppure usata come rimborso. Le righe ordinarie possono essere condivise con la famiglia.")
             }
         }
     }
@@ -1149,6 +1318,7 @@ struct MovementComposerView: View {
             tag: nil,
             isShared: selectedAccount?.familyID != nil || isShared,
             isCommissioned: false,
+            isReimbursement: false,
             commissionedRecipientID: nil,
             commissionedInviteEmail: ""
         ))
@@ -1255,16 +1425,16 @@ struct MovementComposerView: View {
     }
 
     private enum PurchaseAllocationMode: String, CaseIterable, Identifiable {
-        case personal
-        case family
+        case single
         case commissioned
+        case reimbursement
 
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .personal: "Acquisto personale"
-            case .family: "Spesa condivisa con la famiglia"
-            case .commissioned: "Per conto di un’altra persona"
+            case .single: "Acquisto singolo"
+            case .commissioned: "Acquisto per conto di un’altra persona"
+            case .reimbursement: "Rimborso tramite acquisto"
             }
         }
     }
@@ -1289,6 +1459,7 @@ private struct MovementSplitEditorDraft: Identifiable, Equatable {
     var tag: LedgerDirectoryItem?
     var isShared: Bool
     var isCommissioned: Bool
+    var isReimbursement: Bool
     var commissionedRecipientID: UUID?
     var commissionedInviteEmail: String
 }

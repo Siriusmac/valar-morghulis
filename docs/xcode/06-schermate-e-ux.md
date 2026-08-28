@@ -27,8 +27,8 @@ Form progressivo:
 3. Conto di origine/destinazione; per le spese segue “Rateizza” con intermediario e numero rate.
 4. Beneficiario o mittente, data, descrizione e commenti.
 5. Per le spese: acquisto singolo o multiplo.
-6. Nel singolo, scelta “per conto di” oppure categoria, tag e condivisione con la famiglia attiva.
-7. Nel multiplo, il beneficiario resta unico a monte e le righe autonome contengono importo, destinazione personale/familiare/per conto terzi, categoria e tag; il residuo è sempre l'ultima riga compilabile.
+6. Nel singolo, un menu unico sceglie fra “Acquisto singolo”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. Solo l'acquisto ordinario mostra categoria, tag e condivisione con la famiglia attiva.
+7. Nel multiplo, il beneficiario resta unico a monte e ogni riga ripete lo stesso menu a tre opzioni. Le righe ordinarie aggiungono categoria, tag e condivisione; quelle conto-terzi scelgono il committente; quelle di rimborso scelgono un membro creditore. Il residuo è sempre l'ultima riga compilabile.
 
 Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
@@ -78,10 +78,13 @@ iPhone e iPad verticale, icona permanente su Mac e iPad orizzontale. Toccando
 una persona si apre lo storico degli acquisti che la coinvolgono.
 
 Nel nuovo movimento un acquisto intero o un singolo parziale può essere marcato
-“per conto di un’altra persona”. Si sceglie un contatto esistente oppure si
+“per conto di un’altra persona” oppure “rimborso tramite acquisto”. Nel primo
+caso si sceglie un contatto esistente oppure si
 inserisce l'email per invitarlo contestualmente; descrizione e conto personale
-sono obbligatori. Nello stesso movimento possono convivere righe personali,
-familiari e commissionate e la rateizzazione resta disponibile sul totale. Le richieste in
+sono obbligatori. Nel secondo si sceglie uno dei membri verso cui il pagante ha
+un debito residuo; l'importo, anche sommato ad altre righe per lo stesso membro,
+non può superare il credito disponibile. Nello stesso movimento possono convivere righe personali,
+familiari, commissionate e di rimborso e la rateizzazione resta disponibile sul totale. Le richieste in
 arrivo si confermano in Contatti scegliendo categoria e conto personali, oppure
 si rifiutano. Le push delle compensazioni familiari aprono questa stessa vista.
 
