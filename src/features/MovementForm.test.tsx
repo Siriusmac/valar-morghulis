@@ -296,10 +296,10 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'shared' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     expect(onSave).toHaveBeenCalledOnce()
@@ -311,6 +311,27 @@ describe('MovementForm', () => {
     })
   })
 
+  it('separates purchase type from expense type and only shows the family for shared expenses', () => {
+    render(<MovementForm
+      data={structuredClone(defaultData)}
+      user={users[0]}
+      familyName="Famiglia Miotto"
+      onSave={vi.fn()}
+      onCancel={vi.fn()}
+    />)
+
+    expect((screen.getByLabelText('Tipo di acquisto') as HTMLSelectElement).value).toBe('single')
+    const expenseType = screen.getByLabelText('Tipo di spesa') as HTMLSelectElement
+    expect(expenseType.value).toBe('shared')
+    const family = screen.getByLabelText('Spesa condivisa con') as HTMLSelectElement
+    expect(family.textContent).toContain('Famiglia Miotto')
+    expect(family.textContent).not.toContain('personale')
+
+    fireEvent.change(expenseType, { target: { value: 'personal' } })
+
+    expect(screen.queryByLabelText('Spesa condivisa con')).toBeNull()
+  })
+
   it('creates a missing split category and reuses the common beneficiary', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
@@ -318,7 +339,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '60' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Prodotti animali' } })
     expect(screen.getByRole('option', { name: 'Crea “Prodotti animali”' })).toBeTruthy()
@@ -340,10 +361,10 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Accessori casa' } })
-    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'shared' } })
     fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
 
     expect(screen.getByLabelText('Importo parziale 1')).toBeTruthy()
@@ -365,7 +386,7 @@ describe('MovementForm', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '12,50' } })
-    fireEvent.change(screen.getByLabelText('Spesa condivisa parziale 1'), { target: { value: 'family' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'shared' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
     const [movement] = onSave.mock.calls[0]
@@ -392,9 +413,9 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Spesa mista' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.click(screen.getByRole('button', { name: /Rateizza/ }))
-    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto parziale 1'), { target: { value: 'commissioned' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'commissioned' } })
     fireEvent.change(screen.getByLabelText('Committente'), { target: { value: users[1].id } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -430,7 +451,7 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Scarpe per Anna' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'reimbursement' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa'), { target: { value: 'reimbursement' } })
     expect((screen.getByLabelText('Rimborso a') as HTMLSelectElement).value).toBe(users[1].id)
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -463,9 +484,9 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Acquisto in compensazione' } })
-    fireEvent.change(screen.getByLabelText('Composizione acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('Tipo di acquisto parziale 1'), { target: { value: 'reimbursement' } })
+    fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'reimbursement' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())

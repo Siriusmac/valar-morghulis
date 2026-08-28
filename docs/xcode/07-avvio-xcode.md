@@ -57,7 +57,7 @@ creano o cancellano grandi quantità di dati.
 11. Creazione e modifica di conti personali o familiari.
 12. Nuova spesa in 3 o 5 rate, elenco delle scadenze e materializzazione delle
     rate dovute.
-13. Acquisto singolo o multiplo con righe personali, familiari o effettuate per
+13. Acquisto unico o multiplo con righe personali, familiari o effettuate per
     conto di un contatto, mantenendo il totale come riferimento per le rate.
 14. Sezione Rimborsi con viste distinte per importi attesi e dovuti.
 

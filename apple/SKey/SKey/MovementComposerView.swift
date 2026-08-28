@@ -253,14 +253,12 @@ struct MovementComposerView: View {
                 }
             }
 
-            if appModel.selectedFamilyID != nil, mainAllocationExists, !commissionedPurchase {
+            if type == .income, appModel.selectedFamilyID != nil, mainAllocationExists, !commissionedPurchase {
                 Section {
-                    Toggle(type == .income ? "Entrata della famiglia" : "Movimento condiviso", isOn: $isShared)
+                    Toggle("Entrata della famiglia", isOn: $isShared)
                         .disabled(selectedAccount?.familyID != nil || movement != nil)
                         .onChange(of: isShared) { _, newValue in
-                            if type == .income {
-                                updateIncomeAccount(forSharedState: newValue, options: options)
-                            }
+                            updateIncomeAccount(forSharedState: newValue, options: options)
                             normalizeDirectorySelections()
                         }
                 } footer: {
@@ -312,10 +310,16 @@ struct MovementComposerView: View {
     @ViewBuilder
     private func commissionSection(_ options: MovementOptions) -> some View {
         Section {
-            Picker("Tipo di acquisto", selection: mainPurchaseModeBinding(options: options)) {
+            Picker("Tipo di spesa", selection: mainPurchaseModeBinding(options: options)) {
                 ForEach(PurchaseAllocationMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                         .disabled(mode == .reimbursement && reimbursementOptions.isEmpty)
+                }
+            }
+            if mainPurchaseModeBinding(options: options).wrappedValue == .shared,
+               let activeFamily = appModel.activeFamily {
+                Picker("Spesa condivisa con", selection: .constant(activeFamily.id)) {
+                    Text(activeFamily.name).tag(activeFamily.id)
                 }
             }
             if commissionedPurchase {
@@ -363,19 +367,25 @@ struct MovementComposerView: View {
 
     private func mainPurchaseModeBinding(options: MovementOptions) -> Binding<PurchaseAllocationMode> {
         Binding(
-            get: { reimbursementPurchase ? .reimbursement : commissionedPurchase ? .commissioned : .single },
+            get: {
+                if reimbursementPurchase { return .reimbursement }
+                if commissionedPurchase { return .commissioned }
+                return selectedAccount?.familyID != nil || isShared ? .shared : .personal
+            },
             set: { mode in
-                commissionedPurchase = mode != .single
+                let external = mode == .commissioned || mode == .reimbursement
+                commissionedPurchase = external
                 reimbursementPurchase = mode == .reimbursement
-                isShared = mode == .single ? isShared : false
+                isShared = mode == .shared
                 commissionedInviteEmail = ""
                 commissionedRecipientID = mode == .reimbursement
                     ? reimbursementOptions.first.flatMap { UUID(uuidString: $0.memberID) }
                     : mode == .commissioned ? availableCommissionedContacts.first?.id : nil
-                if mode != .single, selectedAccount?.familyID != nil {
+                if mode != .shared, selectedAccount?.familyID != nil {
                     accountID = options.accounts.first { $0.familyID == nil }?.id ?? ""
                 }
-                if mode != .single { prepareCommissionDirectory() }
+                if external { prepareCommissionDirectory() }
+                normalizeDirectorySelections()
             }
         )
     }
@@ -1130,24 +1140,26 @@ struct MovementComposerView: View {
     private func splitModeBinding(for item: MovementSplitEditorDraft) -> Binding<PurchaseAllocationMode> {
         Binding(
             get: {
-                guard let current = splitDrafts.first(where: { $0.id == item.id }) else { return .single }
+                guard let current = splitDrafts.first(where: { $0.id == item.id }) else { return .personal }
                 if current.isReimbursement { return .reimbursement }
-                return current.isCommissioned ? .commissioned : .single
+                if current.isCommissioned { return .commissioned }
+                return selectedAccount?.familyID != nil || current.isShared ? .shared : .personal
             },
             set: { mode in
                 guard let index = splitDrafts.firstIndex(where: { $0.id == item.id }) else { return }
-                splitDrafts[index].isCommissioned = mode != .single
+                let external = mode == .commissioned || mode == .reimbursement
+                splitDrafts[index].isCommissioned = external
                 splitDrafts[index].isReimbursement = mode == .reimbursement
-                if mode == .single {
+                splitDrafts[index].isShared = mode == .shared
+                if !external {
                     splitDrafts[index].commissionedRecipientID = nil
                     splitDrafts[index].commissionedInviteEmail = ""
                 } else {
-                    splitDrafts[index].isShared = false
                     splitDrafts[index].commissionedInviteEmail = ""
                     splitDrafts[index].commissionedRecipientID = mode == .reimbursement
                         ? reimbursementOptions.first.flatMap { UUID(uuidString: $0.memberID) }
                         : availableCommissionedContacts.first?.id
-                    if selectedAccount?.familyID != nil {
+                    if mode != .shared, selectedAccount?.familyID != nil {
                         accountID = options?.accounts.first { $0.familyID == nil }?.id ?? ""
                     }
                 }
@@ -1159,7 +1171,7 @@ struct MovementComposerView: View {
     private var splitSection: some View {
         Section {
             Picker("Tipo di acquisto", selection: $splitsEnabled) {
-                Text("Acquisto singolo").tag(false)
+                Text("Acquisto unico").tag(false)
                 Text("Acquisto multiplo").tag(true)
             }
             .onChange(of: splitsEnabled) { _, enabled in
@@ -1204,7 +1216,7 @@ struct MovementComposerView: View {
                         )
                         #endif
 
-                        Picker("Tipo di acquisto", selection: splitModeBinding(for: item)) {
+                        Picker("Tipo di spesa", selection: splitModeBinding(for: item)) {
                             ForEach(PurchaseAllocationMode.allCases) { mode in
                                 Text(mode.title).tag(mode)
                                     .disabled(mode == .reimbursement && reimbursementOptions.isEmpty)
@@ -1281,11 +1293,12 @@ struct MovementComposerView: View {
                         }
                         .buttonStyle(.plain)
 
-                        Toggle(
-                            "Spesa condivisa con la famiglia",
-                            isOn: splitFieldBinding(id: item.id, keyPath: \.isShared, fallback: item.isShared)
-                        )
-                        .disabled(selectedAccount?.familyID != nil)
+                        if splitModeBinding(for: item).wrappedValue == .shared,
+                           let activeFamily = appModel.activeFamily {
+                            Picker("Spesa condivisa con", selection: .constant(activeFamily.id)) {
+                                Text(activeFamily.name).tag(activeFamily.id)
+                            }
+                        }
                         }
                     }
                     .padding(.vertical, 4)
@@ -1425,14 +1438,16 @@ struct MovementComposerView: View {
     }
 
     private enum PurchaseAllocationMode: String, CaseIterable, Identifiable {
-        case single
+        case personal
+        case shared
         case commissioned
         case reimbursement
 
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .single: "Acquisto singolo"
+            case .personal: "Spesa personale"
+            case .shared: "Spesa condivisa"
             case .commissioned: "Acquisto per conto di un’altra persona"
             case .reimbursement: "Rimborso tramite acquisto"
             }

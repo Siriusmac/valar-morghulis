@@ -19,7 +19,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 - Categoria, conto, data, descrizione, commenti e tag.
 - Beneficiario per spese; mittente per entrate.
 - Creazione contestuale di categoria, beneficiario o mittente tramite autocompletamento.
-- Acquisto singolo o multiplo; il beneficiario è unico per lo scontrino, mentre ogni parziale ha importo, categoria, tag e destinazione personale/familiare/per conto terzi indipendenti.
+- Acquisto unico o multiplo; il beneficiario è unico per lo scontrino, mentre ogni parziale ha importo, categoria, tag e tipo di spesa personale/condivisa/per conto terzi/rimborso tramite acquisto indipendenti.
 - Rateizzazione: prima rata immediata, successive programmate; gli acquisti familiari regolano subito l'intero importo condiviso.
 - Modifica ed eliminazione con aggiornamento di tutte le dipendenze e senza duplicati.
 - Operazioni antecedenti al saldo iniziale incluse nel conto oppure conservate solo per statistiche.

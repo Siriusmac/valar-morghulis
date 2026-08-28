@@ -31,7 +31,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
-- nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dalla scelta fra acquisto singolo e multiplo; il singolo e ogni parziale usano lo stesso menu “Acquisto singolo / Acquisto per conto di un’altra persona / Rimborso tramite acquisto”;
+- nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dal “Tipo di acquisto” (unico o multiplo); l’acquisto unico e ogni parziale usano “Tipo di spesa” con le opzioni personale, condivisa, per conto di un’altra persona o rimborso tramite acquisto;
 - suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari, acquisti per conto di contatti e acquisti che compensano debiti verso membri diversi, con residuo automatico in coda;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;

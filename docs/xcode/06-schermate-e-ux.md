@@ -26,9 +26,9 @@ Form progressivo:
 2. Importo.
 3. Conto di origine/destinazione; per le spese segue “Rateizza” con intermediario e numero rate.
 4. Beneficiario o mittente, data, descrizione e commenti.
-5. Per le spese: acquisto singolo o multiplo.
-6. Nel singolo, un menu unico sceglie fra “Acquisto singolo”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. Solo l'acquisto ordinario mostra categoria, tag e condivisione con la famiglia attiva.
-7. Nel multiplo, il beneficiario resta unico a monte e ogni riga ripete lo stesso menu a tre opzioni. Le righe ordinarie aggiungono categoria, tag e condivisione; quelle conto-terzi scelgono il committente; quelle di rimborso scelgono un membro creditore. Il residuo è sempre l'ultima riga compilabile.
+5. Per le spese: acquisto unico o multiplo.
+6. “Tipo di acquisto” distingue “Acquisto unico” e “Acquisto multiplo”. Nel primo e in ogni riga del secondo, “Tipo di spesa” sceglie fra “Spesa personale”, “Spesa condivisa”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. La scelta della famiglia compare solo per “Spesa condivisa” e non contiene l’opzione personale.
+7. Nel multiplo, il beneficiario resta unico a monte e ogni riga ripete lo stesso menu a quattro opzioni. Le righe personali e condivise aggiungono categoria e tag; solo quelle condivise mostrano la famiglia; quelle conto-terzi scelgono il committente; quelle di rimborso scelgono un membro creditore. Il residuo è sempre l'ultima riga compilabile.
 
 Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno

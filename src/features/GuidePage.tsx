@@ -90,18 +90,19 @@ export function GuidePage() {
             commenti e tag aiutano a riconoscere e ritrovare l’operazione.
           </p>
           <div className="guide-note">
-            <strong>Acquisto singolo</strong>
+            <strong>Acquisto unico</strong>
             <p>
-              Il menu “Tipo di acquisto” distingue un acquisto ordinario, un acquisto per
-              conto di un’altra persona e un rimborso effettuato tramite acquisto. Nel caso
-              ordinario scegli categoria, tag e l’eventuale famiglia con cui condividere la spesa.
+              “Tipo di acquisto” distingue l’acquisto unico da quello multiplo. Nel primo,
+              “Tipo di spesa” permette di scegliere fra spesa personale, spesa condivisa,
+              acquisto per conto di un’altra persona e rimborso tramite acquisto. La famiglia
+              viene scelta soltanto per una spesa condivisa.
             </p>
           </div>
           <div className="guide-note">
             <strong>Acquisto multiplo</strong>
             <p>
               Usa più voci quando uno stesso scontrino contiene destinazioni diverse. Ogni
-              riga ha importo, tipo di acquisto, categoria, tag e condivisione indipendenti;
+              riga ha importo, tipo di spesa, categoria, tag e condivisione indipendenti;
               può quindi essere personale, familiare, fatta per un contatto o usata come
               rimborso. Il beneficiario rimane unico a monte e il residuo genera automaticamente
               la riga successiva fino a esaurire il totale.

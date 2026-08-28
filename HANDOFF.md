@@ -23,8 +23,8 @@ Funzioni disponibili:
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
-- nuovo movimento con gerarchia coerente web/Apple: tipo, importo, conto e rate, beneficiario/mittente e data, quindi acquisto singolo o multiplo;
-- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; il movimento singolo e ogni riga multipla condividono il menu “Acquisto singolo / Acquisto per conto di un’altra persona / Rimborso tramite acquisto”, mentre la condivisione familiare resta una scelta separata sulle righe ordinarie;
+- nuovo movimento con gerarchia coerente web/Apple: tipo, importo, conto e rate, beneficiario/mittente e data, quindi acquisto unico o multiplo;
+- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; “Tipo di acquisto” distingue acquisto unico e multiplo, mentre “Tipo di spesa” distingue personale, condivisa, per conto di un’altra persona e rimborso tramite acquisto. La famiglia compare solo per la spesa condivisa e non include opzioni personali;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
