@@ -386,6 +386,16 @@ multiplo. Ha inoltre verificato la guida in dieci capitoli, tutte le ancore
 dell'indice e il layout a 390 px, senza overflow o errori console. La consegna
 APNs reale resta da collaudare su dispositivi firmati dopo l'attivazione server.
 
+La conferma web dei rimborsi ora interpreta anche gli errori strutturati
+PostgREST restituiti dalle RPC Supabase, così distingue un conto storico
+mancante da una catalogazione incompleta o da un collegamento acquisto-rimborso
+incoerente. Nei nuovi rimborsi tramite acquisto il record familiare viene
+pubblicato prima della richiesta commissionata e, se quest'ultima fallisce, il
+salvataggio preliminare viene annullato: la conferma server-side non riceve più
+una richiesta priva del rimborso che deve compensare. La suite web comprende 154
+test superati; lint e build Vite risultano verdi. I record storici già
+incompleti non vengono modificati automaticamente.
+
 Questo rilascio estende il commit
 `6e6072f5be932c29b0d37db406452c850bbc1693`. Nessuna migration è necessaria per
 queste correzioni. Il

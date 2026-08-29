@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { describe, expect, it } from 'vitest'
 import { afterEach, vi } from 'vitest'
 import { CloudLogin, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
-import { invitationInvokeError } from '../lib/functionErrors'
+import { functionErrorMessage, invitationInvokeError } from '../lib/functionErrors'
 
 const { rpc, updateUser } = vi.hoisted(() => ({ rpc: vi.fn(), updateUser: vi.fn() }))
 vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { updateUser } }) }))
@@ -30,6 +30,16 @@ describe('invitationInvokeError', () => {
   it('prefers an error already decoded in the response data', async () => {
     await expect(invitationInvokeError({ error: 'email_delivery_failed' }, new Error('generic')))
       .resolves.toBe('email_delivery_failed')
+  })
+})
+
+describe('functionErrorMessage', () => {
+  it('reads the structured PostgREST errors returned by Supabase RPC calls', () => {
+    expect(functionErrorMessage({
+      code: 'P0001',
+      message: 'reimbursement_accounts_required',
+      details: 'The originating account is missing',
+    })).toBe('reimbursement_accounts_required · The originating account is missing · P0001')
   })
 })
 

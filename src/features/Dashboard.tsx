@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
 import { formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
+import { functionErrorMessage } from '../lib/functionErrors'
 import type { AppData, User, PageId, Reimbursement } from '../types'
 
 interface Props {
@@ -204,7 +205,7 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
     setResponseError('')
     try { await onRespond(reimbursement.id, accepted, accepted ? selectedAccountId || undefined : undefined) }
     catch (reason) {
-      const message = reason instanceof Error ? reason.message : ''
+      const message = functionErrorMessage(reason)
       setResponseError(message.includes('reimbursement_accounts_required')
         ? 'Manca il conto della persona che ha creato il rimborso. La richiesta deve essere reinviata indicando quel conto.'
         : message || 'Non è stato possibile aggiornare il rimborso.')

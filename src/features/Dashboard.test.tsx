@@ -111,7 +111,7 @@ describe('Dashboard workspace selector', () => {
       id: 'pending-reimbursement', fromId: users[0].id, toId: users[1].id,
       amount: 25, date: '2026-07-27', authorId: users[1].id, status: 'pending',
     }]
-    const onRespond = vi.fn().mockRejectedValue(new Error('reimbursement_accounts_required'))
+    const onRespond = vi.fn().mockRejectedValue({ message: 'reimbursement_accounts_required', code: 'P0001' })
     render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onRespondReimbursement={onRespond} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Conferma/ }))

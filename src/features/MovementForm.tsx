@@ -5,6 +5,7 @@ import { MovementTypeSelector, type ComposerType } from '../components/MovementT
 import { reimbursementPlan } from '../lib/calculations'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
+import { functionErrorMessage } from '../lib/functionErrors'
 import type { AppData, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
 export interface CommissionedPurchaseDraft {
@@ -549,7 +550,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
         setRequestError('')
         for (const draft of commissionedDrafts) await onCommissionedPurchase(draft)
       } catch (reason) {
-        setRequestError(reason instanceof Error ? reason.message : 'Non è stato possibile inviare la richiesta.')
+        setRequestError(functionErrorMessage(reason, 'Non è stato possibile inviare la richiesta.'))
         setSaving(false)
         return
       } finally { setSaving(false) }

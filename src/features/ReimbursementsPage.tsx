@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ReimbursementReview } from './Dashboard'
 import { PurchaseReview } from './ContactsPage'
 import { formatMoney } from '../lib/format'
+import { functionErrorMessage } from '../lib/functionErrors'
 import { isOrdinaryCommissionedPurchase } from '../lib/commissioned'
 import type { AppData, Category, CommissionedPurchase, Contact, Reimbursement, User } from '../types'
 
@@ -64,9 +65,10 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
 }
 
 function reimbursementResponseMessage(reason: unknown) {
-  const message = reason instanceof Error ? reason.message : ''
+  const message = functionErrorMessage(reason)
   if (message.includes('reimbursement_accounts_required')) return 'Il rimborso non contiene ancora entrambi i conti necessari. Chi lo ha creato deve indicare il proprio conto e inviarlo nuovamente.'
   if (message.includes('purchase_catalog_required')) return 'Scegli la categoria prima di confermare l’acquisto.'
+  if (message.includes('reimbursement_purchase_mismatch')) return 'Questo acquisto non è più collegato correttamente al rimborso. La richiesta deve essere reinviata.'
   if (message.includes('already_resolved')) return 'Questa richiesta è già stata gestita. Aggiorna la pagina per vedere lo stato corrente.'
   return message || 'Non è stato possibile confermare il rimborso. Riprova tra poco.'
 }

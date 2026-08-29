@@ -64,7 +64,7 @@ describe('ReimbursementsPage', () => {
       amount: 20, purchaseDate: '2026-08-29', description: 'Farmaci', status: 'pending' as const, createdAt: '2026-08-29T10:00:00Z',
     }
 
-    render(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[purchase]} onRespondPurchase={vi.fn().mockRejectedValue(new Error('purchase_catalog_required'))} />)
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[purchase]} onRespondPurchase={vi.fn().mockRejectedValue({ message: 'purchase_catalog_required', code: 'P0001' })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Conferma e cataloga' }))
 
     expect((await screen.findByRole('alert')).textContent).toContain('Scegli la categoria')

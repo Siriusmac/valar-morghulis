@@ -223,25 +223,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         status: cloud ? 'pending' as const : 'confirmed' as const,
       } }
     })
-    if (cloud) {
-      try {
-        await Promise.all(prepared.flatMap((item) => item.purchaseId && item.payerMovementId ? [createCommissionedPurchase({
-          id: item.purchaseId,
-          recipientId: item.reimbursement.toId,
-          familyId: cloud.personalMode ? undefined : cloud.familyId,
-          reimbursementId: item.reimbursement.id,
-          payerMovementId: item.payerMovementId,
-          amount: item.submission.amount,
-          purchaseDate: todayISO(),
-          description: item.submission.description ?? 'Acquisto in compensazione del rimborso',
-        })] : []))
-      } catch {
-        setToast('Non è stato possibile inviare la richiesta di compensazione')
-        return
-      }
-    }
-    setData((current) => {
-      let next = { ...current, reimbursements: [...current.reimbursements, ...prepared.map((item) => item.reimbursement)] }
+    const appendPrepared = (current: AppData) => {
+      const existingIds = new Set(current.reimbursements.map((item) => item.id))
+      let next = { ...current, reimbursements: [
+        ...current.reimbursements,
+        ...prepared.map((item) => item.reimbursement).filter((item) => !existingIds.has(item.id)),
+      ] }
       for (const item of prepared) {
         if (!item.purchaseId || !item.payerMovementId || !item.submission.fromAccountId) continue
         const categoryId = `category-commissioned-${user.id}`
@@ -259,7 +246,30 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         })
       }
       return next
-    })
+    }
+    const nextData = appendPrepared(data)
+    if (cloud) {
+      try {
+        // La conferma controlla il collegamento server-side: il rimborso deve
+        // esistere prima della richiesta d'acquisto che lo referenzia.
+        await cloud.saveAppData(nextData)
+        await Promise.all(prepared.flatMap((item) => item.purchaseId && item.payerMovementId ? [createCommissionedPurchase({
+          id: item.purchaseId,
+          recipientId: item.reimbursement.toId,
+          familyId: cloud.personalMode ? undefined : cloud.familyId,
+          reimbursementId: item.reimbursement.id,
+          payerMovementId: item.payerMovementId,
+          amount: item.submission.amount,
+          purchaseDate: todayISO(),
+          description: item.submission.description ?? 'Acquisto in compensazione del rimborso',
+        })] : []))
+      } catch {
+        await cloud.saveAppData(data).catch(() => undefined)
+        setToast('Non è stato possibile inviare la richiesta di compensazione')
+        return
+      }
+    }
+    setData((current) => appendPrepared(current))
     if (cloud) await refreshContacts()
     setModal(null)
     setToast(cloud
@@ -342,29 +352,38 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       invitationId = result.invitation.id
     }
     const isFamilyMember = Boolean(draft.recipientId && appUsers.some((member) => member.id === draft.recipientId))
+    const reimbursement: Reimbursement | undefined = draft.reimbursementId && draft.recipientId ? {
+      id: draft.reimbursementId,
+      fromId: user.id,
+      toId: draft.recipientId,
+      amount: draft.amount,
+      date: draft.purchaseDate,
+      authorId: user.id,
+      fromAccountId: draft.accountId,
+      settlementMethod: 'purchase',
+      commissionedPurchaseId: draft.id,
+      status: cloud ? 'pending' : 'confirmed',
+    } : undefined
+    const dataWithReimbursement = reimbursement && !data.reimbursements.some((item) => item.id === reimbursement.id)
+      ? { ...data, reimbursements: [...data.reimbursements, reimbursement] }
+      : data
     if (cloud) {
-      await createCommissionedPurchase({
-        id: draft.id, recipientId: draft.recipientId, invitationId,
-        familyId: isFamilyMember && !cloud.personalMode ? cloud.familyId : undefined,
-        reimbursementId: draft.reimbursementId,
-        payerMovementId: draft.movementId, amount: draft.amount,
-        purchaseDate: draft.purchaseDate, description: draft.description,
-      })
+      try {
+        if (reimbursement) await cloud.saveAppData(dataWithReimbursement)
+        await createCommissionedPurchase({
+          id: draft.id, recipientId: draft.recipientId, invitationId,
+          familyId: isFamilyMember && !cloud.personalMode ? cloud.familyId : undefined,
+          reimbursementId: draft.reimbursementId,
+          payerMovementId: draft.movementId, amount: draft.amount,
+          purchaseDate: draft.purchaseDate, description: draft.description,
+        })
+      } catch (reason) {
+        if (reimbursement) await cloud.saveAppData(data).catch(() => undefined)
+        throw reason
+      }
       await refreshContacts()
     }
-    if (draft.reimbursementId && draft.recipientId) {
-      const reimbursement: Reimbursement = {
-        id: draft.reimbursementId,
-        fromId: user.id,
-        toId: draft.recipientId,
-        amount: draft.amount,
-        date: draft.purchaseDate,
-        authorId: user.id,
-        fromAccountId: draft.accountId,
-        settlementMethod: 'purchase',
-        commissionedPurchaseId: draft.id,
-        status: cloud ? 'pending' : 'confirmed',
-      }
+    if (reimbursement) {
       setData((current) => current.reimbursements.some((item) => item.id === reimbursement.id)
         ? current
         : { ...current, reimbursements: [...current.reimbursements, reimbursement] })
