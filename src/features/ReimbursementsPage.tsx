@@ -49,7 +49,7 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
         const linkedPurchase = reimbursement.settlementMethod === 'purchase'
           ? purchases.find((purchase) => purchase.id === reimbursement.commissionedPurchaseId)
           : undefined
-        if (linkedPurchase && linkedPurchase.status === 'pending' && linkedPurchase.recipientId === user.id) {
+        if (reimbursement.status === 'pending' && linkedPurchase && linkedPurchase.status === 'pending' && linkedPurchase.recipientId === user.id) {
           return <PurchaseReview key={reimbursement.id} purchase={linkedPurchase} data={data} userId={user.id} payer={contacts.find((item) => item.id === linkedPurchase.payerId)} busy={busyPurchaseId === linkedPurchase.id} onRespond={(accepted, categoryId, accountId, category) => respondToPurchase(linkedPurchase, accepted, categoryId, accountId, category)} />
         }
         if (reimbursement.settlementMethod === 'purchase' && reimbursement.status === 'pending' && reimbursement.authorId !== user.id) {

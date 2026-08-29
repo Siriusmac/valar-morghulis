@@ -316,7 +316,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const respondToPurchase = async (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string, category?: Category) => {
     if (!cloud) return
     if (!accepted) {
-      await respondToCommissionedPurchase({ id: purchase.id, accepted: false })
+      try {
+        await respondToCommissionedPurchase({ id: purchase.id, accepted: false })
+      } catch (reason) {
+        await refreshContacts()
+        throw reason
+      }
       await refreshContacts()
       setToast('Richiesta rifiutata')
       return
@@ -327,7 +332,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     const movementAccountId = settlesFamilyDebt ? debtCompensationAccountId : accountId!
     const movementId = makeId('movement')
-    await respondToCommissionedPurchase({ id: purchase.id, accepted: true, movementId, categoryId, accountId: movementAccountId })
+    try {
+      await respondToCommissionedPurchase({ id: purchase.id, accepted: true, movementId, categoryId, accountId: movementAccountId })
+    } catch (reason) {
+      await refreshContacts()
+      throw reason
+    }
     const payer = contacts.find((item) => item.id === purchase.payerId)
     const beneficiaryId = `beneficiary-contact-${purchase.payerId}`
     const beneficiary = data.beneficiaries.some((item) => item.id === beneficiaryId) ? undefined : {

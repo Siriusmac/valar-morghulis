@@ -86,7 +86,11 @@ Tipi condivisi: `movement`, `reimbursement`, `transfer`, `category`, `beneficiar
   `commissioned_purchases` restano consultabili dai partecipanti.
 - Compensazioni: `family_id` e `reimbursement_id` sono entrambi presenti oppure
   entrambi assenti; alla risposta la RPC verifica autore, partecipanti, stato e
-  identificativo della richiesta prima di aggiornare il rimborso familiare.
+  identificativo della richiesta prima di aggiornare il rimborso familiare. La
+  migration `20260829230000_repair_reimbursement_responses.sql` mantiene
+  vincolanti le identità delle parti, normalizza i soli metadati storici del
+  collegamento e consente al destinatario di rifiutare una richiesta incoerente
+  senza toccare un rimborso non corrispondente.
 - Acquisti multipli: la migration
   `20260816170000_multiple_commissioned_purchase_allocations.sql` rimuove
   l'unicità del movimento pagante in `commissioned_purchases`, così uno stesso

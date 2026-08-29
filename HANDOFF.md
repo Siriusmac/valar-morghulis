@@ -194,6 +194,14 @@ migration aggiunge le RPC protette `withdraw_family_invitation` e
 `withdraw_contact_invitation`; il successivo controllo dell'elenco migration ha
 confermato l'allineamento tra repository e progetto Supabase remoto.
 
+La migration locale `20260829230000_repair_reimbursement_responses.sql`
+recupera le compensazioni storiche nelle quali pagante, destinatario e famiglia
+sono corretti ma mancano i metadati di collegamento introdotti in seguito. Il
+destinatario può inoltre rifiutare una richiesta commissionata incoerente senza
+modificare il rimborso eventualmente indicato per errore. Questa migration è
+applicata al progetto remoto dal 29 agosto 2026; `migration list` risulta
+allineato e `db lint --linked --schema public` non segnala errori.
+
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
 nuovi utenti. Gli utenti esistenti vengono inizializzati a partire dal nome già

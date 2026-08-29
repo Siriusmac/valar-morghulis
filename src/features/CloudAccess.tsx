@@ -612,7 +612,10 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         accept_reimbursement: accepted,
         selected_account_id: selectedAccountId ?? null,
       })
-      if (responseError) throw responseError
+      if (responseError) {
+        if (responseError.message.includes('reimbursement_already_resolved')) await load(activeFamilyId)
+        throw responseError
+      }
       await load(activeFamilyId)
     },
     signOut: async () => { await supabase.auth.signOut() },

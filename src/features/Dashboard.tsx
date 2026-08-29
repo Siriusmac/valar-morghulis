@@ -208,11 +208,16 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
       const message = functionErrorMessage(reason)
       setResponseError(message.includes('reimbursement_accounts_required')
         ? 'Manca il conto della persona che ha creato il rimborso. La richiesta deve essere reinviata indicando quel conto.'
+        : message.includes('reimbursement_already_resolved')
+          ? 'Questo rimborso è già stato gestito. Aggiorna la pagina per vedere lo stato corrente.'
         : message || 'Non è stato possibile aggiornare il rimborso.')
     } finally { setBusy(false) }
   }
   if (reimbursement.status === 'rejected') return <article className="reimbursement-review reimbursement-review--rejected">
     <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
+  </article>
+  if (reimbursement.status !== 'pending') return <article className="reimbursement-review">
+    <span><Check /></span><div><strong>Rimborso confermato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
   </article>
   if (!isCounterparty) return <article className="reimbursement-review">
     <span><Clock3 /></span><div><strong>In attesa di {other?.name ?? 'conferma'}</strong><small>{formatMoney(reimbursement.amount)} · non ancora incluso nei saldi</small></div>

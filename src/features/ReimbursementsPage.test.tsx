@@ -50,6 +50,27 @@ describe('ReimbursementsPage', () => {
     expect(onRespond).not.toHaveBeenCalled()
   })
 
+  it('does not offer purchase actions when the linked reimbursement is already confirmed', () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'purchase-reimbursement', fromId: users[1].id, toId: users[0].id,
+      amount: 20, date: '2026-08-29', authorId: users[1].id, status: 'confirmed',
+      settlementMethod: 'purchase', commissionedPurchaseId: 'purchase-linked',
+    }]
+    const purchase = {
+      id: 'purchase-linked', payerId: users[1].id, recipientId: users[0].id,
+      familyId: 'family', reimbursementId: 'purchase-reimbursement',
+      payerMovementId: 'payer-movement', amount: 20, purchaseDate: '2026-08-29',
+      description: 'Farmaci', status: 'pending' as const, createdAt: '2026-08-29T10:00:00Z',
+    }
+
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[purchase]} onRespondPurchase={vi.fn()} />)
+
+    expect(screen.getByText('Rimborso confermato')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Conferma e cataloga' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rifiuta' })).toBeNull()
+  })
+
   it('shows the cloud error when purchase cataloguing fails', async () => {
     const data = structuredClone(defaultData)
     data.categories.push({ id: 'personal-category', name: 'Personale', scope: 'personal', ownerId: users[0].id, movementType: 'expense', color: '#c64e2f' })

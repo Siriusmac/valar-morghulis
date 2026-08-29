@@ -88,7 +88,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql` e
    `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql` e
    `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql` e
-   `supabase/migrations/20260829160000_withdraw_invitations.sql`;
+   `supabase/migrations/20260829160000_withdraw_invitations.sql` e
+   `supabase/migrations/20260829230000_repair_reimbursement_responses.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
