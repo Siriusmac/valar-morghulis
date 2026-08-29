@@ -18,6 +18,7 @@ protocol AccountRepository: Sendable {
     func createFamily(_ draft: CreateFamilyDraft) async throws -> UUID
     func renameFamily(_ familyID: UUID, name: String) async throws
     func inviteMember(familyID: UUID, email: String) async throws
+    func withdrawInvitation(_ invitationID: UUID) async throws
     func deleteInvitation(_ invitationID: UUID) async throws
     func deleteFamily(_ familyID: UUID, preservingAuthoredData: Bool) async throws
     func exportAccountData(userID: UUID, profile: UserProfile, families: [FamilySummary]) async throws -> Data
@@ -92,6 +93,13 @@ struct SupabaseAccountRepository: AccountRepository {
     func deleteInvitation(_ invitationID: UUID) async throws {
         try await client.rpc(
             "delete_declined_family_invitation",
+            params: DeleteInvitationParameters(invitationID: invitationID)
+        ).execute()
+    }
+
+    func withdrawInvitation(_ invitationID: UUID) async throws {
+        try await client.rpc(
+            "withdraw_family_invitation",
             params: DeleteInvitationParameters(invitationID: invitationID)
         ).execute()
     }

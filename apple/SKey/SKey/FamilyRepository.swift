@@ -4,6 +4,7 @@ import Supabase
 protocol FamilyRepository: Sendable {
     func loadWorkspace(userID: UUID) async throws -> FamilyWorkspace
     func inviteContact(email: String) async throws -> UUID
+    func withdrawContactInvitation(id: UUID) async throws
     func removeContact(id: UUID) async throws
     func createCommissionedPurchase(_ draft: CommissionedPurchaseDraft) async throws
     func respondToCommissionedPurchase(_ response: CommissionedPurchaseResponse) async throws
@@ -270,6 +271,13 @@ struct SupabaseFamilyRepository: FamilyRepository {
         return response.invitation.id
     }
 
+    func withdrawContactInvitation(id: UUID) async throws {
+        try await client.rpc(
+            "withdraw_contact_invitation",
+            params: WithdrawContactInvitationParameters(invitationID: id)
+        ).execute()
+    }
+
     func removeContact(id: UUID) async throws {
         try await client.rpc("remove_contact", params: RemoveContactParameters(contactID: id)).execute()
     }
@@ -299,6 +307,11 @@ private struct ContactInvitationFunctionResult: Decodable, Sendable { let id: UU
 private struct RemoveContactParameters: Encodable, Sendable {
     let contactID: UUID
     enum CodingKeys: String, CodingKey { case contactID = "target_contact_id" }
+}
+
+private struct WithdrawContactInvitationParameters: Encodable, Sendable {
+    let invitationID: UUID
+    enum CodingKeys: String, CodingKey { case invitationID = "target_invitation_id" }
 }
 private struct CreateCommissionedPurchaseParameters: Encodable, Sendable {
     let purchaseID: String; let recipientID: UUID?; let invitationID: UUID?; let familyID: UUID?

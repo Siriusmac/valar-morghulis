@@ -11,6 +11,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 - Registrazione/accesso con email e password, recupero password e deep link.
 - Creazione facoltativa di famiglia e conto condiviso; uso solo personale consentito.
 - Accettazione o rifiuto inviti.
+- Revoca degli inviti in attesa da parte dell'amministratore o dell'autore.
 - Più famiglie con famiglia attiva selezionabile.
 
 ### Movimenti

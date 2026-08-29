@@ -29,6 +29,7 @@ export interface FamilySession {
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
   inviteMember: (email: string) => Promise<void>
+  withdrawInvitation: (invitationId: string) => Promise<void>
   deleteInvitation: (invitationId: string) => Promise<void>
   deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
   updateProfileName: (firstName: string, lastName: string) => Promise<void>
@@ -388,6 +389,14 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       })
       const inviteError = await invitationInvokeError(data, functionError)
       if (inviteError) throw new Error(onboardingMessage(inviteError))
+      await load(activeFamilyId)
+    },
+    withdrawInvitation: async (invitationId) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
+      const { error: withdrawError } = await supabase.rpc('withdraw_family_invitation', {
+        target_invitation_id: invitationId,
+      })
+      if (withdrawError) throw withdrawError
       await load(activeFamilyId)
     },
     deleteInvitation: async (invitationId) => {

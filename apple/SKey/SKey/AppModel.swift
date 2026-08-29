@@ -519,6 +519,12 @@ final class AppModel {
         return invitationID
     }
 
+    func withdrawContactInvitation(_ invitationID: UUID) async throws {
+        guard let familyRepository else { throw AppModelError.clientUnavailable }
+        try await familyRepository.withdrawContactInvitation(id: invitationID)
+        await reloadWorkspace()
+    }
+
     func removeContact(_ contact: ContactSummary) async throws {
         guard contact.source == .friend, let familyRepository else { return }
         try await familyRepository.removeContact(id: contact.id)
@@ -579,6 +585,12 @@ final class AppModel {
     func deleteInvitation(_ invitationID: UUID) async throws {
         guard let accountRepository else { throw AppModelError.clientUnavailable }
         try await accountRepository.deleteInvitation(invitationID)
+        await reloadWorkspace()
+    }
+
+    func withdrawInvitation(_ invitationID: UUID) async throws {
+        guard let accountRepository else { throw AppModelError.clientUnavailable }
+        try await accountRepository.withdrawInvitation(invitationID)
         await reloadWorkspace()
     }
 

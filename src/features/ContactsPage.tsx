@@ -10,12 +10,13 @@ interface Props {
   invitations: ContactInvitation[]
   purchases: CommissionedPurchase[]
   onInvite: (email: string) => Promise<void>
+  onWithdrawInvitation: (invitationId: string) => Promise<void>
   onRemove: (contact: Contact) => Promise<void>
   onRespond: (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string) => Promise<void>
   onShowMovements: (title: string, filter: (movement: Movement) => boolean) => void
 }
 
-export function ContactsPage({ data, user, contacts, invitations, purchases, onInvite, onRemove, onRespond, onShowMovements }: Props) {
+export function ContactsPage({ data, user, contacts, invitations, purchases, onInvite, onWithdrawInvitation, onRemove, onRespond, onShowMovements }: Props) {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -26,6 +27,14 @@ export function ContactsPage({ data, user, contacts, invitations, purchases, onI
     event.preventDefault(); setBusy('invite'); setError('')
     try { await onInvite(email); setEmail('') }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Invito non riuscito') }
+    finally { setBusy('') }
+  }
+
+  const withdrawInvitation = async (invitation: ContactInvitation) => {
+    if (!confirm(`Ritirare l’invito inviato a ${invitation.email}? Eventuali richieste d’acquisto ancora pendenti collegate all’invito verranno annullate.`)) return
+    setBusy(invitation.id); setError('')
+    try { await onWithdrawInvitation(invitation.id) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Revoca non riuscita') }
     finally { setBusy('') }
   }
 
@@ -64,7 +73,7 @@ export function ContactsPage({ data, user, contacts, invitations, purchases, onI
 
     <section className="management-section contact-invite"><div className="section-heading"><div><h2>Invita un amico</h2><p>Riceverà un link personale per entrare nella tua cerchia.</p></div></div>
       <form className="invite-form" onSubmit={invite}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@email.it" required /></label><button className="button button--primary" disabled={Boolean(busy)}><Mail />Invia invito</button></form>
-      {invitations.filter((item) => item.status === 'pending').map((item) => <div className="contact-invitation" key={item.id}><Clock3 /><span><strong>{item.email}</strong><small>Invito valido fino al {formatDate(item.expiresAt.slice(0, 10))}</small></span></div>)}
+      {invitations.filter((item) => item.status === 'pending').map((item) => <div className="contact-invitation" key={item.id}><Clock3 /><span><strong>{item.email}</strong><small>Invito valido fino al {formatDate(item.expiresAt.slice(0, 10))}</small></span><button className="button button--ghost button--small" type="button" disabled={Boolean(busy)} onClick={() => void withdrawInvitation(item)}><Trash2 />Ritira invito</button></div>)}
       {outgoing.length ? <p className="privacy-note">{outgoing.length} {outgoing.length === 1 ? 'acquisto attende' : 'acquisti attendono'} la conferma del destinatario.</p> : null}
       {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
     </section>

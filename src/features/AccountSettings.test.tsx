@@ -8,7 +8,7 @@ import type { FamilySession } from './CloudAccess'
 const simone = { id: 'simone', name: 'Simone', email: 'simone@example.com', initials: 'S' }
 const anna = { id: 'anna', name: 'Anna', email: 'anna@example.com', initials: 'A' }
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
   return {
@@ -29,6 +29,7 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     createFamily: vi.fn().mockResolvedValue(undefined),
     renameFamily: vi.fn().mockResolvedValue(undefined),
     inviteMember: vi.fn().mockResolvedValue(undefined),
+    withdrawInvitation: vi.fn().mockResolvedValue(undefined),
     deleteInvitation: vi.fn().mockResolvedValue(undefined),
     deleteFamily: vi.fn().mockResolvedValue(undefined),
     updateProfileName: vi.fn().mockResolvedValue(undefined),
@@ -95,7 +96,7 @@ describe('AccountSettings', () => {
     expect(screen.queryByRole('button', { name: /Elimina questa famiglia/ })).toBeNull()
   })
 
-  it('resends pending invitations and removes declined ones', async () => {
+  it('resends, withdraws pending invitations and removes declined ones', async () => {
     const cloud = familySession({
       invitations: [
         { id: 'pending', email: 'inattesa@example.com', status: 'pending', createdAt: '2026-07-27T10:00:00Z', expiresAt: '2026-08-03T10:00:00Z' },
@@ -106,6 +107,10 @@ describe('AccountSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Reinvia invito/ }))
     await waitFor(() => expect(cloud.inviteMember).toHaveBeenCalledWith('inattesa@example.com'))
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: /Ritira invito/ }))
+    await waitFor(() => expect(cloud.withdrawInvitation).toHaveBeenCalledWith('pending'))
 
     fireEvent.click(screen.getByRole('button', { name: /Elimina dall’elenco/ }))
     await waitFor(() => expect(cloud.deleteInvitation).toHaveBeenCalledWith('declined'))

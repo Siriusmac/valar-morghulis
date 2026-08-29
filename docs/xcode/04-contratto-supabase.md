@@ -51,6 +51,12 @@ Mappare i codici errore SQL/RPC a errori italiani; non mostrare dettagli interni
 personale e non una membership familiare. Se l'invito nasce dal primo acquisto,
 la richiesta viene collegata automaticamente al profilo che lo accetta.
 
+`withdraw_family_invitation` richiede un amministratore della famiglia e
+accetta soltanto inviti non risolti. `withdraw_contact_invitation` richiede
+l'autore dell'invito e annulla nello stesso passaggio le richieste d'acquisto
+pending ancora prive di destinatario. Entrambe eliminano il record, rendendo
+invalido il token già inviato per email.
+
 Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Le transazioni hanno `authorId` uguale all'utente autenticato. Un nuovo rimborso è forzato server-side a `pending`; solo la controparte lo risolve e lo stato server prevale sempre.
 
 ## Caricamento
@@ -74,6 +80,8 @@ Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `c
   `set_reimbursement_account_families` sostituisce l'insieme completo delle
   famiglie selezionate dopo aver verificato proprietà del conto e membership.
 - Dopo approvazioni, inviti o eliminazioni: rilettura autorevole.
+- Dopo la revoca di un invito: rilettura autorevole; non conservare il token nel
+  client né accodare la revoca offline.
 - Contatti: eliminare solo `contact_links`; le righe di
   `commissioned_purchases` restano consultabili dai partecipanti.
 - Compensazioni: `family_id` e `reimbursement_id` sono entrambi presenti oppure

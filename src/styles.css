@@ -160,6 +160,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .family-invitation strong, .family-invitation small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .family-invitation strong { font-size: 10px; }
 .family-invitation small { color: var(--muted); font-size: 8px; }
+.family-invitation__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .family-invitation--declined { border-color: #e2c2bf; background: #fffafa; }
 .button--small { min-height: 34px; padding: 7px 10px; font-size: 9px; white-space: nowrap; }
 .button--small svg { width: 14px; }
@@ -990,7 +991,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .contact-invite { display: grid; gap: 14px; }
 .contact-invitation { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--positive-soft); }
 .contact-invitation svg { width: 20px; color: var(--positive); }
-.contact-invitation span { display: grid; }
+.contact-invitation span { min-width: 0; display: grid; flex: 1; }
 .contact-invitation small { color: var(--muted); }
 .purchase-review { grid-template-columns: 48px minmax(0, 1fr) auto; padding: 14px 0; }
 .purchase-review__body { display: grid; gap: 6px; }

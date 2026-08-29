@@ -204,6 +204,15 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
     } catch (reason) { setError(errorText(reason)) }
     finally { setInvitationBusy('') }
   }
+  const withdrawInvitation = async (invitationId: string, invitationEmail: string) => {
+    if (!confirm(`Ritirare l’invito inviato a ${invitationEmail}? Il link ricevuto non potrà più essere utilizzato.`)) return
+    setInvitationBusy(invitationId); setError(''); setMessage('')
+    try {
+      await cloud.withdrawInvitation(invitationId)
+      setMessage(`Invito ritirato per ${invitationEmail}.`)
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setInvitationBusy('') }
+  }
 
   return <section className="settings-card">
     <div className="settings-card__heading"><span><UsersRound /></span><div><h2>Amministra {cloud.familyName}</h2><p>Il tuo ruolo in questa famiglia è amministratore.</p></div></div>
@@ -224,7 +233,7 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
         <span><strong>{invitation.email}</strong><small>{invitation.status === 'declined' ? 'Invito rifiutato' : invitation.status === 'expired' ? 'Invito scaduto' : `In attesa · scade il ${formatInvitationDate(invitation.expiresAt)}`}</small></span>
         {invitation.status === 'declined'
           ? <button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void removeInvitation(invitation.id, invitation.email)}><Trash2 /> Elimina dall’elenco</button>
-          : <button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void resend(invitation.id, invitation.email)}><RefreshCw className={invitationBusy === invitation.id ? 'spin' : ''} /> Reinvia invito</button>}
+          : <span className="family-invitation__actions"><button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void resend(invitation.id, invitation.email)}><RefreshCw className={invitationBusy === invitation.id ? 'spin' : ''} /> Reinvia invito</button>{invitation.status === 'pending' ? <button type="button" className="button button--ghost button--small button--danger" disabled={Boolean(invitationBusy)} onClick={() => void withdrawInvitation(invitation.id, invitation.email)}><Trash2 /> Ritira invito</button> : null}</span>}
       </div>) : <p className="settings-card__note">Non ci sono inviti in attesa o rifiutati.</p>}
     </div>
     {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}

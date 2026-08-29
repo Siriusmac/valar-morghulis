@@ -27,6 +27,7 @@ struct AccountSettingsView: View {
     @State private var exportDocument: AccountExportDocument?
     @State private var showsExporter = false
     @State private var exportFormat = AccountExportFormat.json
+    @State private var invitationToWithdraw: FamilyInvitationSummary?
 
     var body: some View {
         Group {
@@ -52,6 +53,21 @@ struct AccountSettingsView: View {
                 message: Text(feedback.text),
                 dismissButton: .default(Text("OK"))
             )
+        }
+        .confirmationDialog("Ritirare l’invito?", isPresented: Binding(
+            get: { invitationToWithdraw != nil },
+            set: { if !$0 { invitationToWithdraw = nil } }
+        ), titleVisibility: .visible) {
+            Button("Ritira invito", role: .destructive) {
+                guard let invitation = invitationToWithdraw else { return }
+                invitationToWithdraw = nil
+                run(.invitation, success: "Invito ritirato.") {
+                    try await appModel.withdrawInvitation(invitation.id)
+                }
+            }
+            Button("Annulla", role: .cancel) { invitationToWithdraw = nil }
+        } message: {
+            Text("Il link già ricevuto non potrà più essere utilizzato.")
         }
         .fileExporter(
             isPresented: $showsExporter,
@@ -229,9 +245,16 @@ struct AccountSettingsView: View {
                                     }
                                 }
                             } else {
-                                Button("Reinvia") {
-                                    run(.invitation, success: "Invito reinviato.") {
-                                        try await appModel.inviteMember(invitation.email)
+                                HStack {
+                                    Button("Reinvia") {
+                                        run(.invitation, success: "Invito reinviato.") {
+                                            try await appModel.inviteMember(invitation.email)
+                                        }
+                                    }
+                                    if invitation.status == .pending {
+                                        Button("Ritira", role: .destructive) {
+                                            invitationToWithdraw = invitation
+                                        }
                                     }
                                 }
                             }

@@ -43,7 +43,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - sezione “Rimborsi” con viste “Attesi” e “Dovuti” separate;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
-- scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, inviti in attesa o scaduti da reinviare e inviti rifiutati da rimuovere;
+- scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, possono ritirare o reinviare gli inviti in attesa, reinviare quelli scaduti e rimuovere quelli rifiutati;
 - gestione account dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - archivio personale unico fra tutte le famiglie e selettore della vista condivisa direttamente in bacheca;
@@ -83,7 +83,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260816020000_tag_and_account_deletion.sql`,
    `supabase/migrations/20260816030000_multi_family_reimbursement_accounts.sql` e
    `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql` e
-   `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql`;
+   `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql` e
+   `supabase/migrations/20260829160000_withdraw_invitations.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
@@ -111,6 +112,11 @@ copiati nei corrispondenti template del progetto Supabase ospitato. In questo
 modo la mail propone rispettivamente “Usa il tuo account esistente” oppure
 “Crea il tuo account”, senza chiedere una seconda registrazione allo stesso
 indirizzo.
+
+La revoca elimina il record non ancora risolto e rende immediatamente
+inutilizzabile il link già consegnato. Per gli inviti ai contatti vengono
+annullate anche le richieste d’acquisto ancora pendenti e prive di destinatario;
+il movimento del pagante resta nella sua contabilità.
 
 Per le notifiche push Apple occorre inoltre abilitare la capability Push
 Notifications per l'App ID `it.valarmorghulis.skey` e impostare come segreti

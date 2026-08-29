@@ -60,7 +60,7 @@ Funzioni disponibili:
 - esportazione completa in JSON, CSV o XML e cancellazione definitiva dell’account;
 - cancellazione della famiglia con eliminazione dei dati condivisi oppure conversione in personali dei movimenti creati da ciascun autore;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
-- elenco amministrativo dei membri e degli inviti: reinvio per quelli in attesa o scaduti, rimozione obbligatoria per quelli rifiutati prima di un nuovo invito;
+- elenco amministrativo dei membri e degli inviti: revoca o reinvio per quelli in attesa, reinvio per quelli scaduti e rimozione obbligatoria per quelli rifiutati prima di un nuovo invito;
 - accettazione o rifiuto esplicito da parte del destinatario prima di entrare nella famiglia;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
@@ -184,7 +184,10 @@ procedura protetta con cui soltanto la controparte può confermare o rifiutare,
 completando il proprio conto quando necessario.
 La migrazione è stata applicata al progetto Supabase remoto il 27 luglio 2026.
 Il database remoto è allineato alle migration locali fino alla migration
-`20260816120000_contacts_and_commissioned_purchases.sql` del 16 agosto 2026.
+`20260829160000_withdraw_invitations.sql`, applicata il 29 agosto 2026. La
+migration aggiunge le RPC protette `withdraw_family_invitation` e
+`withdraw_contact_invitation`; il successivo controllo dell'elenco migration ha
+confermato l'allineamento tra repository e progetto Supabase remoto.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
@@ -350,6 +353,13 @@ per contatti diversi mantenendo un solo addebito sul conto del pagatore. È stat
 applicata al progetto remoto il 16 agosto 2026; `migration list` è allineato e
 il lint dello schema `public` non rileva errori.
 
+La revoca degli inviti è paritetica fra web e client Apple. Un amministratore
+può ritirare soltanto un invito familiare non risolto. L'autore può ritirare un
+invito a un contatto; la RPC elimina prima le richieste d'acquisto pending che
+dipendono da quell'invito e non hanno ancora un destinatario, senza cancellare
+il movimento personale del pagante. Il token eliminato non può più essere
+accettato dal link già ricevuto.
+
 Il nuovo movimento web e Apple riusa questo schema anche per la compensazione:
 il singolo e ogni parziale espongono le tre finalità dell'acquisto in un unico
 menu. “Rimborso tramite acquisto” seleziona soltanto un creditore della famiglia
@@ -357,10 +367,10 @@ attiva, crea `Reimbursement.settlementMethod = purchase` e collega il relativo
 `CommissionedPurchase` al movimento già addebitato. Non è richiesta una nuova
 migration.
 
-Verifiche concluse il 29 agosto 2026: il gate web ha confermato 139 test, lint e
+Verifiche concluse il 29 agosto 2026: il gate web ha confermato 140 test, lint e
 build Vite, inclusi i flussi distinti per inviti a utenti registrati, nuovi o
-ancora in configurazione. La precedente verifica Apple comprende build macOS,
-build generica iOS e 29 test unitari nativi superati.
+ancora in configurazione e la revoca degli inviti. La verifica Apple comprende
+build macOS, build generica iOS Simulator e 29 test unitari nativi superati.
 Il browser locale ha verificato il nuovo movimento desktop e mobile, incluso il
 menu con le tre finalità sul movimento singolo e su ogni voce dell'acquisto
 multiplo. Ha inoltre verificato la guida in dieci capitoli, tutte le ancore

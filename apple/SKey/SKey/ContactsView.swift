@@ -6,6 +6,7 @@ struct ContactsView: View {
     @State private var invitationPresented = false
     @State private var review: CommissionedPurchaseSummary?
     @State private var removing: ContactSummary?
+    @State private var invitationToWithdraw: ContactInvitationSummary?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -29,6 +30,21 @@ struct ContactsView: View {
             }
             Button("Annulla", role: .cancel) { removing = nil }
         } message: { Text("I movimenti che vi coinvolgono resteranno nella contabilità di entrambi.") }
+        .confirmationDialog("Ritirare l’invito?", isPresented: Binding(
+            get: { invitationToWithdraw != nil }, set: { if !$0 { invitationToWithdraw = nil } }
+        ), titleVisibility: .visible) {
+            Button("Ritira invito", role: .destructive) {
+                guard let invitation = invitationToWithdraw else { return }
+                invitationToWithdraw = nil
+                Task {
+                    do { try await appModel.withdrawContactInvitation(invitation.id) }
+                    catch { errorMessage = error.localizedDescription }
+                }
+            }
+            Button("Annulla", role: .cancel) { invitationToWithdraw = nil }
+        } message: {
+            Text("Il link non sarà più valido. Le richieste d’acquisto ancora pendenti collegate all’invito verranno annullate.")
+        }
         .alert("Operazione non riuscita", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "Riprova tra poco.") }
@@ -76,7 +92,14 @@ struct ContactsView: View {
                 } header: { Text("La tua cerchia") } footer: { Text("I familiari sono disponibili automaticamente e sono indicati dall’icona della famiglia.") }
                 if !workspace.contactInvitations.isEmpty {
                     Section("Inviti in attesa") {
-                        ForEach(workspace.contactInvitations) { invite in Label(invite.email, systemImage: "envelope.badge") }
+                        ForEach(workspace.contactInvitations) { invite in
+                            HStack {
+                                Label(invite.email, systemImage: "envelope.badge")
+                                Spacer()
+                                Button("Ritira", role: .destructive) { invitationToWithdraw = invite }
+                                    .buttonStyle(.borderless)
+                            }
+                        }
                     }
                 }
             }

@@ -10,7 +10,7 @@ import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
-import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, type ContactData } from './lib/contacts'
+import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { cloudAuthEnabled } from './lib/supabase'
 import type { AppData, Beneficiary, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
@@ -277,6 +277,11 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     await refreshContacts()
     setToast('Invito al contatto inviato')
   }
+  const withdrawContactInvite = async (invitationId: string) => {
+    await withdrawContactInvitation(invitationId)
+    await refreshContacts()
+    setToast('Invito ritirato')
+  }
   const deleteContact = async (contact: Contact) => {
     await removeContact(contact.id)
     await refreshContacts()
@@ -384,7 +389,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       setToast('Mittente aggiornato in tutti i movimenti')
     }} onDeleteSender={(id, replacementId) => deleteDirectory('sender', id, replacementId)} />
     : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onUpdate={(tag) => setData((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? tag : item) }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
-    : page === 'contacts' && cloud ? <ContactsPage data={data} user={user} contacts={contacts} invitations={contactData.invitations} purchases={contactData.purchases} onInvite={sendContactInvite} onRemove={deleteContact} onRespond={respondToPurchase} onShowMovements={showMovements} />
+    : page === 'contacts' && cloud ? <ContactsPage data={data} user={user} contacts={contacts} invitations={contactData.invitations} purchases={contactData.purchases} onInvite={sendContactInvite} onWithdrawInvitation={withdrawContactInvite} onRemove={deleteContact} onRespond={respondToPurchase} onShowMovements={showMovements} />
     : page === 'guide' ? <GuidePage />
     : <AccountSettings user={user} cloud={cloud} />
 

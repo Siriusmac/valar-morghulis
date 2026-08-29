@@ -87,12 +87,16 @@ non può superare il credito disponibile. Nello stesso movimento possono convive
 familiari, commissionate e di rimborso e la rateizzazione resta disponibile sul totale. Le richieste in
 arrivo si confermano in Contatti scegliendo categoria e conto personali, oppure
 si rifiutano. Le push delle compensazioni familiari aprono questa stessa vista.
+Gli inviti ancora pendenti espongono “Ritira invito” con conferma. Se l'invito
+era collegato a una richiesta d'acquisto non ancora recapitata, anche la
+richiesta viene annullata; il movimento del pagante resta registrato.
 
 ## Account e famiglie
 
 - Profilo: nome, cognome, email, password, export ed eliminazione.
 - Famiglia: nome, membri, ruoli e inviti.
-- Pending: “Reinvia”; accettati: membro; rifiutati: “Elimina dall'elenco”.
+- Pending: “Reinvia” e “Ritira”; scaduti: “Reinvia”; accettati: membro;
+  rifiutati: “Elimina dall'elenco”.
 - “Elimina famiglia” solo per admin e separato dalle azioni quotidiane.
 
 ## Design system

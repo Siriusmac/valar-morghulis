@@ -64,6 +64,13 @@ export async function inviteContact(email: string) {
   return data as { invitation: { id: string }; redirectTo: string }
 }
 
+export async function withdrawContactInvitation(invitationId: string) {
+  const { error } = await getSupabase().rpc('withdraw_contact_invitation', {
+    target_invitation_id: invitationId,
+  })
+  if (error) throw error
+}
+
 export async function removeContact(contactId: UserId) {
   const { error } = await getSupabase().rpc('remove_contact', { target_contact_id: contactId })
   if (error) throw error
