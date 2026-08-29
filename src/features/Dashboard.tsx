@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, ReceiptText, Scale, UserRound, WalletCards, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, PenLine, ReceiptText, Scale, Trash2, UserRound, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
@@ -180,12 +180,15 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   )
 }
 
-export function ReimbursementReview({ reimbursement, data, user, members, onRespond }: {
+export function ReimbursementReview({ reimbursement, data, user, members, onRespond, onRequestChange, onRespondChange, onWithdrawChange }: {
   reimbursement: Reimbursement
   data: AppData
   user: User
   members: User[]
   onRespond?: Props['onRespondReimbursement']
+  onRequestChange?: (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => Promise<void>
+  onRespondChange?: (requestId: string, accepted: boolean) => Promise<void>
+  onWithdrawChange?: (requestId: string) => Promise<void>
 }) {
   const isCounterparty = reimbursement.authorId !== user.id
   const ownsSource = reimbursement.fromId === user.id
@@ -197,6 +200,12 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
   const [selectedAccountId, setSelectedAccountId] = useState(existingAccountId ?? selectableAccounts[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [responseError, setResponseError] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editAmount, setEditAmount] = useState(() => reimbursement.amount.toFixed(2).replace('.', ','))
+  const [editDate, setEditDate] = useState(reimbursement.date)
+  const [editAccountId, setEditAccountId] = useState(existingAccountId ?? selectableAccounts[0]?.id ?? '')
+  const [changeBusy, setChangeBusy] = useState(false)
+  const [changeError, setChangeError] = useState('')
   const author = members.find((member) => member.id === reimbursement.authorId)
   const other = members.find((member) => member.id === (ownsSource ? reimbursement.toId : reimbursement.fromId))
   const respond = async (accepted: boolean) => {
@@ -213,12 +222,70 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
         : message || 'Non è stato possibile aggiornare il rimborso.')
     } finally { setBusy(false) }
   }
+  const requestChange = async (kind: 'update' | 'delete') => {
+    if (!onRequestChange) return
+    const amount = Number(editAmount.replace(',', '.'))
+    if (kind === 'update' && (!Number.isFinite(amount) || amount <= 0 || !editDate)) {
+      setChangeError('Inserisci importo e data validi.')
+      return
+    }
+    setChangeBusy(true); setChangeError('')
+    try {
+      await onRequestChange(reimbursement.id, kind === 'delete' ? { kind } : {
+        kind, amount, date: editDate,
+        selectedAccountId: reimbursement.settlementMethod === 'purchase' ? undefined : editAccountId || undefined,
+      })
+      setEditing(false)
+    } catch (reason) { setChangeError(functionErrorMessage(reason, 'Non è stato possibile inviare la rettifica.')) }
+    finally { setChangeBusy(false) }
+  }
+  const resolveChange = async (accepted: boolean) => {
+    if (!onRespondChange || !reimbursement.changeRequest) return
+    setChangeBusy(true); setChangeError('')
+    try { await onRespondChange(reimbursement.changeRequest.id, accepted) }
+    catch (reason) { setChangeError(functionErrorMessage(reason, 'Non è stato possibile rispondere alla rettifica.')) }
+    finally { setChangeBusy(false) }
+  }
+  const withdrawChange = async () => {
+    if (!onWithdrawChange || !reimbursement.changeRequest) return
+    setChangeBusy(true); setChangeError('')
+    try { await onWithdrawChange(reimbursement.changeRequest.id) }
+    catch (reason) { setChangeError(functionErrorMessage(reason, 'Non è stato possibile ritirare la rettifica.')) }
+    finally { setChangeBusy(false) }
+  }
   if (reimbursement.status === 'rejected') return <article className="reimbursement-review reimbursement-review--rejected">
     <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
   </article>
-  if (reimbursement.status !== 'pending') return <article className="reimbursement-review">
-    <span><Check /></span><div><strong>Rimborso confermato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
+  if (reimbursement.status === 'cancelled') return <article className="reimbursement-review reimbursement-review--rejected">
+    <span><Trash2 /></span><div><strong>Rimborso annullato</strong><small>{formatMoney(reimbursement.amount)} · conservato nello storico</small></div>
   </article>
+  if (reimbursement.status !== 'pending') {
+    const change = reimbursement.changeRequest
+    const requestedByMe = change?.requestedBy === user.id
+    return <article className="reimbursement-review reimbursement-review--confirmed">
+      <span><Check /></span>
+      <div><strong>Rimborso confermato</strong><small>{formatMoney(reimbursement.amount)} · {formatDate(reimbursement.date)} · registrato da {author?.name ?? 'un membro'}</small>
+        {change ? <div className="reimbursement-change-summary">
+          <b>{change.kind === 'delete' ? 'Annullamento richiesto' : 'Modifica richiesta'}</b>
+          {change.kind === 'update' ? <small>Nuovo importo {formatMoney(change.amount ?? reimbursement.amount)} · nuova data {formatDate(change.date ?? reimbursement.date)}{change.selectedAccountId ? ' · conto personale aggiornato' : ''}</small> : <small>Il rimborso resterà valido finché l’altra parte non approva.</small>}
+          <small>{requestedByMe ? 'In attesa della conferma dell’altra parte.' : `${members.find((member) => member.id === change.requestedBy)?.name ?? 'L’altra parte'} chiede la tua conferma.`}</small>
+        </div> : editing ? <div className="reimbursement-change-form">
+          <label>Importo corretto<div className="money-input"><span>€</span><input aria-label="Importo corretto" value={editAmount} inputMode="decimal" onChange={(event) => setEditAmount(event.target.value)} /></div></label>
+          <label>Data corretta<input aria-label="Data corretta" type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} /></label>
+          {reimbursement.settlementMethod !== 'purchase' ? <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<select value={editAccountId} onChange={(event) => setEditAccountId(event.target.value)}>{selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}</select></label> : <small>Categoria, beneficiario e tag della spesa restano modificabili dal destinatario nello storico movimenti.</small>}
+        </div> : null}
+        {changeError ? <small className="field-error" role="alert">{changeError}</small> : null}
+      </div>
+      <div className="reimbursement-review__actions">
+        {change ? requestedByMe
+          ? <button type="button" className="button button--ghost" disabled={changeBusy || !onWithdrawChange} onClick={() => void withdrawChange()}><X /> Ritira richiesta</button>
+          : <><button type="button" className="button button--ghost" disabled={changeBusy || !onRespondChange} onClick={() => void resolveChange(false)}><X /> Rifiuta rettifica</button><button type="button" className="button button--primary" disabled={changeBusy || !onRespondChange} onClick={() => void resolveChange(true)}><Check /> Approva rettifica</button></>
+          : editing
+            ? <><button type="button" className="button button--ghost" disabled={changeBusy} onClick={() => { setEditing(false); setChangeError('') }}><X /> Annulla</button><button type="button" className="button button--primary" disabled={changeBusy || !onRequestChange} onClick={() => void requestChange('update')}><Check /> Invia modifica</button></>
+            : <><button type="button" className="button button--ghost" disabled={!onRequestChange} onClick={() => setEditing(true)}><PenLine /> Modifica</button><button type="button" className="button button--ghost button--danger" disabled={!onRequestChange} onClick={() => void requestChange('delete')}><Trash2 /> Elimina</button></>}
+      </div>
+    </article>
+  }
   if (!isCounterparty) return <article className="reimbursement-review">
     <span><Clock3 /></span><div><strong>In attesa di {other?.name ?? 'conferma'}</strong><small>{formatMoney(reimbursement.amount)} · non ancora incluso nei saldi</small></div>
   </article>

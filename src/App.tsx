@@ -286,6 +286,21 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       throw reason
     }
   }
+  const requestReimbursementChange = async (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => {
+    if (!cloud) return
+    await cloud.requestReimbursementChange(reimbursementId, change)
+    setToast(change.kind === 'delete' ? 'Richiesta di annullamento inviata' : 'Rettifica inviata per conferma')
+  }
+  const respondToReimbursementChange = async (requestId: string, accepted: boolean) => {
+    if (!cloud) return
+    await cloud.respondToReimbursementChange(requestId, accepted)
+    setToast(accepted ? 'Rettifica approvata e saldi aggiornati' : 'Rettifica rifiutata')
+  }
+  const withdrawReimbursementChange = async (requestId: string) => {
+    if (!cloud) return
+    await cloud.withdrawReimbursementChange(requestId)
+    setToast('Richiesta di rettifica ritirata')
+  }
   const saveTransfer = (transfer: Transfer) => { setData((current) => ({ ...current, transfers: [...current.transfers, transfer] })); setModal(null); setToast('Giro fondi completato') }
   const updateAccount = (account: AppData['accounts'][number]) => {
     setData((current) => ({ ...current, accounts: current.accounts.map((item) => item.id === account.id ? account : item) }))
@@ -409,7 +424,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
-    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} />
+    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')

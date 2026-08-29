@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reconcileConfirmedCommissionedIncomes } from './commissioned'
+import { reconcileConfirmedCommissionedIncomes, reconcilePurchaseReimbursementMovements } from './commissioned'
 import { defaultData, users } from './seed'
 
 describe('commissioned purchase reimbursements', () => {
@@ -35,5 +35,37 @@ describe('commissioned purchase reimbursements', () => {
     }
 
     expect(reconcileConfirmedCommissionedIncomes(data, [purchase], users[0].id, [])).toBe(data)
+  })
+
+  it('updates the recipient statistics after an approved correction', () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'family-reimbursement', fromId: users[0].id, toId: users[1].id,
+      authorId: users[0].id, amount: 42, date: '2026-08-30', status: 'confirmed',
+      settlementMethod: 'purchase', commissionedPurchaseId: 'purchase-compensation',
+    }]
+    data.movements = [{
+      ...data.movements[0], id: 'recipient-statistics', authorId: users[1].id, memberId: users[1].id,
+      amount: 35, date: '2026-08-29', commissionedPurchaseId: 'purchase-compensation', paidByUserId: users[0].id,
+      affectsAccountBalance: false,
+    }]
+
+    const reconciled = reconcilePurchaseReimbursementMovements(data)
+    expect(reconciled.movements[0]).toMatchObject({ amount: 42, date: '2026-08-30' })
+  })
+
+  it('removes the recipient statistics after an approved cancellation', () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'family-reimbursement', fromId: users[0].id, toId: users[1].id,
+      authorId: users[0].id, amount: 35, date: '2026-08-29', status: 'cancelled',
+      settlementMethod: 'purchase', commissionedPurchaseId: 'purchase-compensation',
+    }]
+    data.movements = [{
+      ...data.movements[0], id: 'recipient-statistics', authorId: users[1].id, memberId: users[1].id,
+      commissionedPurchaseId: 'purchase-compensation', paidByUserId: users[0].id, affectsAccountBalance: false,
+    }]
+
+    expect(reconcilePurchaseReimbursementMovements(data).movements).toEqual([])
   })
 })

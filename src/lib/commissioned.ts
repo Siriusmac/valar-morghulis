@@ -8,6 +8,36 @@ export const debtCompensationAccountId = 'family-debt-compensation'
 export const debtCompensationAccountLabel = 'Compensazione debito'
 
 /**
+ * La spesa catalogata dal destinatario rappresenta la compensazione, non
+ * l'addebito reale del pagante. Una rettifica approvata ne aggiorna importo e
+ * data; un annullamento la rimuove dalle statistiche private del destinatario.
+ */
+export function reconcilePurchaseReimbursementMovements(data: AppData): AppData {
+  const reimbursements = new Map(data.reimbursements
+    .filter((item) => item.settlementMethod === 'purchase' && item.commissionedPurchaseId)
+    .map((item) => [item.commissionedPurchaseId!, item]))
+  if (!reimbursements.size) return data
+
+  let changed = false
+  const movements = data.movements.flatMap((movement) => {
+    if (!movement.paidByUserId || !movement.commissionedPurchaseId) return [movement]
+    const reimbursement = reimbursements.get(movement.commissionedPurchaseId)
+    if (!reimbursement) return [movement]
+    if (reimbursement.status === 'cancelled') {
+      changed = true
+      return []
+    }
+    if ((reimbursement.status === undefined || reimbursement.status === 'confirmed')
+      && (movement.amount !== reimbursement.amount || movement.date !== reimbursement.date)) {
+      changed = true
+      return [{ ...movement, amount: reimbursement.amount, date: reimbursement.date }]
+    }
+    return [movement]
+  })
+  return changed ? { ...data, movements } : data
+}
+
+/**
  * Una richiesta per conto terzi è anche un rimborso: finché è pending resta
  * negli attesi/dovuti; quando il destinatario la conferma, il pagante riceve
  * un'entrata personale sullo stesso conto usato per l'acquisto.

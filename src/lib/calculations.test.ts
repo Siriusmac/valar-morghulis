@@ -303,7 +303,7 @@ describe('accountBalance', () => {
     expect(accountBalance(data, 'anna-cash')).toBe(base + 25)
   })
 
-  it('does not move money between accounts for a pending or rejected reimbursement', () => {
+  it('does not move money between accounts for a pending, rejected or cancelled reimbursement', () => {
     const data = cleanData()
     const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
     data.reimbursements = [{
@@ -312,6 +312,8 @@ describe('accountBalance', () => {
     }]
     expect(accountBalance(data, 'simone-bank')).toBe(base)
     data.reimbursements[0].status = 'rejected'
+    expect(accountBalance(data, 'simone-bank')).toBe(base)
+    data.reimbursements[0].status = 'cancelled'
     expect(accountBalance(data, 'simone-bank')).toBe(base)
   })
 
@@ -350,5 +352,18 @@ describe('accountBalance', () => {
 
     expect(sharedBalance(data, 'simone', 3)).toBe(50)
     expect(sharedBalance(data, 'anna', 3)).toBe(-50)
+  })
+
+  it('removes an approved reimbursement cancellation from the family balance', () => {
+    const data = cleanData()
+    data.movements = []
+    data.reimbursements = [{
+      id: 'cancelled-settlement', fromId: 'simone', toId: 'anna', amount: 50,
+      date: '2026-08-29', authorId: 'simone', fromAccountId: 'simone-bank',
+      toAccountId: 'anna-bank', status: 'cancelled',
+    }]
+
+    expect(sharedBalance(data, 'simone')).toBe(0)
+    expect(sharedBalance(data, 'anna')).toBe(0)
   })
 })

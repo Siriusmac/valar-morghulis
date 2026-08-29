@@ -1024,10 +1024,13 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .reimbursement-review > div:nth-child(2) { display: grid; gap: 4px; }
 .reimbursement-review small { color: var(--muted); }
 .reimbursement-review label { display: grid; gap: 5px; margin-top: 8px; font-size: .78rem; font-weight: 700; }
-.reimbursement-review select { max-width: 330px; }
+.reimbursement-review select, .reimbursement-review input { max-width: 330px; }
 .reimbursement-review__actions { display: flex; gap: 8px; }
 .reimbursement-review--rejected { opacity: .72; }
 .reimbursement-review--rejected > span { color: #a93d34; background: #fff2f0; }
+.reimbursement-change-summary { display: grid; gap: 3px; margin-top: 8px; padding: 10px 12px; border-radius: 9px; background: var(--sand); }
+.reimbursement-change-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
+.reimbursement-change-form > small { grid-column: 1 / -1; }
 
 .contact-row { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; }
 .contact-row__main { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 17px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -1058,6 +1061,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .reimbursement-review { grid-template-columns: auto minmax(0, 1fr); }
   .reimbursement-review__actions { grid-column: 1 / -1; }
   .reimbursement-review__actions .button { flex: 1; }
+  .reimbursement-change-form { grid-template-columns: 1fr; }
   .purchase-review { grid-template-columns: 42px minmax(0, 1fr); }
   .purchase-review__controls { grid-template-columns: 1fr; }
   .purchase-review__controls .button { width: 100%; }

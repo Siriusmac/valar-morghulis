@@ -80,6 +80,12 @@ Tipi condivisi: `movement`, `reimbursement`, `transfer`, `category`, `beneficiar
   `set_reimbursement_account_families` sostituisce l'insieme completo delle
   famiglie selezionate dopo aver verificato proprietà del conto e membership.
 - Dopo approvazioni, inviti o eliminazioni: rilettura autorevole.
+- Rettifiche dei rimborsi confermati: `request_family_reimbursement_change`
+  crea una sola proposta pending; `respond_to_family_reimbursement_change`
+  accetta risposte soltanto dall'altro partecipante e applica la modifica in
+  modo atomico; `withdraw_family_reimbursement_change` è riservata al
+  richiedente. La sincronizzazione ordinaria tratta ogni rimborso non pending
+  come immutabile e non può eliminarlo.
 - Dopo la revoca di un invito: rilettura autorevole; non conservare il token nel
   client né accodare la revoca offline.
 - Contatti: eliminare solo `contact_links`; le righe di

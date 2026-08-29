@@ -127,6 +127,12 @@ rateali controllare importo totale, ricostruzione dei parziali commissionati,
 assenza della condivisione globale negli acquisti multipli e modifica delle date
 future. Nei rimborsi coprire sia la catalogazione tramite acquisto sia l'errore
 esplicito per una richiesta diretta storica priva del conto dell'autore.
+Per le rettifiche dei rimborsi confermati verificare entrambe le direzioni:
+richiesta, rifiuto, ritiro e approvazione. Prima dell'approvazione saldi e conti
+devono restare invariati; dopo una modifica devono usare il nuovo importo e dopo
+un annullamento devono ignorare il rimborso conservandolo nello storico. Per la
+modalità acquisto verificare anche aggiornamento o rimozione della sola copia
+statistica del destinatario.
 
 ## Gate di rilascio
 

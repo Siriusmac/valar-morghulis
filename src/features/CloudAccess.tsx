@@ -7,9 +7,10 @@ import { Brand } from '../components/Brand'
 import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
 import type { AccountExportData } from '../lib/exportData'
 import { invitationInvokeError } from '../lib/functionErrors'
+import { reconcilePurchaseReimbursementMovements } from '../lib/commissioned'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
-import type { Account, AppData, ReimbursementAccountReference, User } from '../types'
+import type { Account, AppData, ReimbursementAccountReference, ReimbursementChangeRequest, User } from '../types'
 
 export const PERSONAL_WORKSPACE_ID = 'personal'
 
@@ -45,6 +46,9 @@ export interface FamilySession {
   updateSharedAccount: (account: Account) => Promise<void>
   setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
   respondToReimbursement: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
+  requestReimbursementChange: (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => Promise<void>
+  respondToReimbursementChange: (requestId: string, accepted: boolean) => Promise<void>
+  withdrawReimbursementChange: (requestId: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -478,19 +482,40 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           .eq('family_id', activeFamilyId).eq('user_id', snapshot.profile.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       ])
       if (privateResult.error || familyPrivateResult.error) throw privateResult.error ?? familyPrivateResult.error
-      const sharedResult = activeFamilyId ? await supabase.from('family_shared_records')
-        .select('record_type, record_id, data').eq('family_id', activeFamilyId) : { data: [], error: null }
-      if (sharedResult.error) throw sharedResult.error
+      const [sharedResult, changeRequestsResult] = activeFamilyId ? await Promise.all([
+        supabase.from('family_shared_records')
+          .select('record_type, record_id, data').eq('family_id', activeFamilyId),
+        supabase.from('family_reimbursement_change_requests')
+          .select('id, reimbursement_id, requested_by, change_kind, proposed_amount, proposed_date, proposed_account_id, requested_at')
+          .eq('family_id', activeFamilyId).eq('status', 'pending'),
+      ]) : [{ data: [], error: null }, { data: [], error: null }]
+      if (sharedResult.error || changeRequestsResult.error) throw sharedResult.error ?? changeRequestsResult.error
       const privateData = mergePrivateCloudData(
         privateResult.data?.data as Partial<AppData> | null,
         familyPrivateResult.data?.data as Partial<AppData> | null,
       )
       if (!privateData && !sharedResult.data.length) return null
-      return mergeCloudPersistence(
+      const merged = mergeCloudPersistence(
         privateData,
         sharedResult.data as SharedRecord[],
         personalMode ? createPersonalStarterData(snapshot.profile.id) : createStarterData(snapshot.profile.id, snapshot.accounts),
       )
+      const requests = new Map((changeRequestsResult.data ?? []).map((row) => [row.reimbursement_id, {
+        id: row.id,
+        kind: row.change_kind,
+        requestedBy: row.requested_by,
+        requestedAt: row.requested_at,
+        amount: row.proposed_amount === null ? undefined : Number(row.proposed_amount),
+        date: row.proposed_date ?? undefined,
+        selectedAccountId: row.proposed_account_id ?? undefined,
+      } as ReimbursementChangeRequest]))
+      return reconcilePurchaseReimbursementMovements({
+        ...merged,
+        reimbursements: merged.reimbursements.map((reimbursement) => ({
+          ...reimbursement,
+          changeRequest: requests.get(reimbursement.id),
+        })),
+      })
     },
     saveAppData: async (appData) => {
       const payload = buildCloudPersistence(appData, snapshot.profile.id)
@@ -539,6 +564,12 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           event: '*',
           schema: 'public',
           table: 'family_shared_records',
+          filter: `family_id=eq.${activeFamilyId}`,
+        }, onChange)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'family_reimbursement_change_requests',
           filter: `family_id=eq.${activeFamilyId}`,
         }, onChange)
         .subscribe()
@@ -616,6 +647,36 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         if (responseError.message.includes('reimbursement_already_resolved')) await load(activeFamilyId)
         throw responseError
       }
+      await load(activeFamilyId)
+    },
+    requestReimbursementChange: async (reimbursementId, change) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: requestError } = await supabase.rpc('request_family_reimbursement_change', {
+        target_family_id: activeFamilyId,
+        target_reimbursement_id: reimbursementId,
+        target_change_kind: change.kind,
+        target_amount: change.amount ?? null,
+        target_date: change.date ?? null,
+        target_selected_account_id: change.selectedAccountId ?? null,
+      })
+      if (requestError) throw requestError
+      await load(activeFamilyId)
+    },
+    respondToReimbursementChange: async (requestId, accepted) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: responseError } = await supabase.rpc('respond_to_family_reimbursement_change', {
+        target_request_id: requestId,
+        accept_change: accepted,
+      })
+      if (responseError) throw responseError
+      await load(activeFamilyId)
+    },
+    withdrawReimbursementChange: async (requestId) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: withdrawError } = await supabase.rpc('withdraw_family_reimbursement_change', {
+        target_request_id: requestId,
+      })
+      if (withdrawError) throw withdrawError
       await load(activeFamilyId)
     },
     signOut: async () => { await supabase.auth.signOut() },

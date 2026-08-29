@@ -137,13 +137,26 @@ export interface Reimbursement {
   authorId: UserId
   fromAccountId?: string
   toAccountId?: string
-  status?: 'pending' | 'confirmed' | 'rejected'
+  status?: 'pending' | 'confirmed' | 'rejected' | 'cancelled'
   confirmedBy?: UserId
   confirmedAt?: string
   rejectedBy?: UserId
   rejectedAt?: string
   settlementMethod?: 'money' | 'purchase'
   commissionedPurchaseId?: string
+  changeRequest?: ReimbursementChangeRequest
+  cancelledBy?: UserId
+  cancelledAt?: string
+}
+
+export interface ReimbursementChangeRequest {
+  id: string
+  kind: 'update' | 'delete'
+  requestedBy: UserId
+  requestedAt: string
+  amount?: number
+  date?: string
+  selectedAccountId?: string
 }
 
 export interface Contact {

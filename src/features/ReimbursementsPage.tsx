@@ -15,9 +15,12 @@ interface Props {
   purchases?: CommissionedPurchase[]
   onRespond?: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   onRespondPurchase?: (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string, category?: Category) => Promise<void>
+  onRequestChange?: (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => Promise<void>
+  onRespondChange?: (requestId: string, accepted: boolean) => Promise<void>
+  onWithdrawChange?: (requestId: string) => Promise<void>
 }
 
-export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase }: Props) {
+export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase, onRequestChange, onRespondChange, onWithdrawChange }: Props) {
   const [section, setSection] = useState<'expected' | 'owed'>('expected')
   const [busyPurchaseId, setBusyPurchaseId] = useState<string>()
   const [responseError, setResponseError] = useState('')
@@ -55,7 +58,7 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
         if (reimbursement.settlementMethod === 'purchase' && reimbursement.status === 'pending' && reimbursement.authorId !== user.id) {
           return <CommissionedReimbursementStatus key={reimbursement.id} amount={reimbursement.amount} status={linkedPurchase?.status ?? 'pending'} label="Acquisto da catalogare" />
         }
-        return <ReimbursementReview key={reimbursement.id} reimbursement={reimbursement} data={data} user={user} members={members} onRespond={onRespond} />
+        return <ReimbursementReview key={reimbursement.id} reimbursement={reimbursement} data={data} user={user} members={members} onRespond={onRespond} onRequestChange={onRequestChange} onRespondChange={onRespondChange} onWithdrawChange={onWithdrawChange} />
       })}
       {commissioned.map((purchase) => purchase.status === 'pending' && purchase.recipientId === user.id
         ? <PurchaseReview key={purchase.id} purchase={purchase} data={data} userId={user.id} payer={contacts.find((item) => item.id === purchase.payerId)} busy={busyPurchaseId === purchase.id} onRespond={(accepted, categoryId, accountId, category) => respondToPurchase(purchase, accepted, categoryId, accountId, category)} />

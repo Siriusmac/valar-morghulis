@@ -72,11 +72,22 @@ Con `N >= 2`, quota personale `1/N`, quota degli altri `(N-1)/N`. Per una spesa 
 
 I rimborsi contano solo se confermati. Verso un conto familiare riconoscono a chi versa la sola quota degli altri. Un trasferimento da familiare a personale produce l'effetto opposto.
 
+La rettifica di un rimborso confermato è un'entità separata e verificabile. Può
+proporre una modifica o un annullamento, ma non sostituisce il record contabile
+finché la controparte non la approva. Un annullamento approvato imposta lo stato
+`cancelled`: il rimborso resta nello storico e smette di incidere sia sul saldo
+familiare sia sui conti. Una modifica approvata sostituisce importo e data e può
+aggiornare soltanto il conto appartenente al richiedente.
+
 Un rimborso con `settlementMethod = purchase` usa la richiesta di acquisto
 collegata come conferma: il rimborso regola il saldo familiare soltanto quando
 il destinatario accetta, ma non aggiunge un secondo movimento di conto al
 pagante. Il destinatario registra una copia personale classificata che non
 incide nuovamente sul saldo del proprio conto.
+Se la compensazione viene rettificata, questa copia personale mantiene la sua
+classificazione ma recepisce importo e data approvati; se viene annullata, viene
+rimossa dalle statistiche. L'addebito reale sostenuto dal pagante non viene
+modificato né eliminato.
 
 Una richiesta di rimborso diretto nuova deve contenere il conto personale del
 richiedente prima di essere inviata; la controparte seleziona il proprio conto

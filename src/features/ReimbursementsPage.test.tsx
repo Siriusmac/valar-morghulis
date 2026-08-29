@@ -71,6 +71,73 @@ describe('ReimbursementsPage', () => {
     expect(screen.queryByRole('button', { name: 'Rifiuta' })).toBeNull()
   })
 
+  it('submits a confirmed reimbursement correction for reciprocal approval', async () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'confirmed-reimbursement', fromId: users[1].id, toId: users[0].id,
+      amount: 20, date: '2026-08-29', authorId: users[1].id, status: 'confirmed',
+    }]
+    const onRequestChange = vi.fn().mockResolvedValue(undefined)
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} onRequestChange={onRequestChange} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica' }))
+    fireEvent.change(screen.getByLabelText('Importo corretto'), { target: { value: '18,50' } })
+    fireEvent.change(screen.getByLabelText('Data corretta'), { target: { value: '2026-08-28' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Invia modifica' }))
+
+    await waitFor(() => expect(onRequestChange).toHaveBeenCalledWith('confirmed-reimbursement', expect.objectContaining({
+      kind: 'update', amount: 18.5, date: '2026-08-28',
+    })))
+  })
+
+  it('lets only the other party approve or reject a pending correction', async () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'confirmed-reimbursement', fromId: users[1].id, toId: users[0].id,
+      amount: 20, date: '2026-08-29', authorId: users[1].id, status: 'confirmed',
+      changeRequest: {
+        id: 'change-one', kind: 'delete', requestedBy: users[1].id, requestedAt: '2026-08-30T08:00:00Z',
+      },
+    }]
+    const onRespondChange = vi.fn().mockResolvedValue(undefined)
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} onRespondChange={onRespondChange} />)
+
+    expect(screen.getByText('Annullamento richiesto')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Approva rettifica' }))
+    await waitFor(() => expect(onRespondChange).toHaveBeenCalledWith('change-one', true))
+  })
+
+  it('allows the requester to withdraw a pending correction', async () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'confirmed-reimbursement', fromId: users[1].id, toId: users[0].id,
+      amount: 20, date: '2026-08-29', authorId: users[1].id, status: 'confirmed',
+      changeRequest: {
+        id: 'change-one', kind: 'update', requestedBy: users[0].id, requestedAt: '2026-08-30T08:00:00Z',
+        amount: 18.5, date: '2026-08-28',
+      },
+    }]
+    const onWithdrawChange = vi.fn().mockResolvedValue(undefined)
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} onWithdrawChange={onWithdrawChange} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ritira richiesta' }))
+    await waitFor(() => expect(onWithdrawChange).toHaveBeenCalledWith('change-one'))
+  })
+
+  it('keeps an approved cancellation in history without further actions', () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'cancelled-reimbursement', fromId: users[1].id, toId: users[0].id,
+      amount: 20, date: '2026-08-29', authorId: users[1].id, status: 'cancelled',
+    }]
+
+    render(<ReimbursementsPage data={data} user={users[0]} members={users} onRequestChange={vi.fn()} />)
+
+    expect(screen.getByText('Rimborso annullato')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Modifica' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Elimina' })).toBeNull()
+  })
+
   it('shows the cloud error when purchase cataloguing fails', async () => {
     const data = structuredClone(defaultData)
     data.categories.push({ id: 'personal-category', name: 'Personale', scope: 'personal', ownerId: users[0].id, movementType: 'expense', color: '#c64e2f' })

@@ -88,6 +88,7 @@ Funzioni disponibili:
 - Un nuovo utente parte soltanto con `Contanti` e l’eventuale conto condiviso della famiglia.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Un rimborso nuovo non modifica il saldo familiare né i conti finché la controparte non lo conferma. L’autore non può auto-confermarlo.
+- Un rimborso confermato non è modificabile dalla sincronizzazione ordinaria. Ciascuna parte può proporre una variazione di importo, data e del proprio conto, oppure l'annullamento; l'effetto originale resta attivo finché l'altra parte approva. Il richiedente può ritirare la proposta e tutte le risposte restano registrate per audit.
 - I conti personali restano privati. Il proprietario sceglie separatamente per quali famiglie pubblicare soltanto nome e identificatore opaco dei conti selezionabili nei rimborsi.
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
@@ -201,6 +202,22 @@ destinatario può inoltre rifiutare una richiesta commissionata incoerente senza
 modificare il rimborso eventualmente indicato per errore. Questa migration è
 applicata al progetto remoto dal 29 agosto 2026; `migration list` risulta
 allineato e `db lint --linked --schema public` non segnala errori.
+
+La migration locale `20260830100000_confirmed_reimbursement_changes.sql`
+introduce le richieste di rettifica dei rimborsi confermati. La tabella è
+leggibile soltanto dai due partecipanti; una sola richiesta può restare pending
+per rimborso e soltanto la controparte può approvarla o rifiutarla. La normale
+sincronizzazione conserva integralmente i rimborsi già risolti e non può
+eliminarli. Un annullamento approvato conserva il record nello storico con stato
+`cancelled`; per un rimborso tramite acquisto rimuove dal successivo snapshot il
+movimento statistico del destinatario senza stornare l'acquisto reale del
+pagante. La migration è stata applicata al progetto remoto il 30 agosto 2026.
+Il lint successivo ha individuato il confronto UUID/testo sul conto familiare;
+la migration correttiva
+`20260830110000_fix_reimbursement_change_account_validation.sql` aggiunge il
+cast esplicito senza riscrivere la migration già registrata. Anche la migration
+correttiva è applicata; `migration list` è allineato e
+`db lint --linked --schema public` non segnala errori.
 
 La migrazione `20260727213000_profile_first_last_name.sql` separa nome e cognome
 nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
@@ -410,6 +427,13 @@ queste correzioni. Il
 nuovo tentativo di collaudo visuale è stato bloccato dalla policy amministrativa
 del browser integrato prima dell'accesso all'app e va quindi ripetuto quando il
 browser sarà disponibile.
+
+Il lavoro del 30 agosto 2026 aggiunge la rettifica reciproca dei rimborsi
+confermati. La suite web comprende ora 162 test superati; lint e build Vite sono
+verdi. Il browser integrato ha verificato caricamento e navigazione della pagina
+Rimborsi senza errori console o overlay, ma i dati demo non contengono un
+rimborso confermato: il ciclo reale a due utenti resta quindi da collaudare con
+account autenticati dopo il rilascio del frontend.
 
 ## Hosting Cloudflare
 

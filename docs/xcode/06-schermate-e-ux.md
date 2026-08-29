@@ -104,6 +104,13 @@ Gli inviti ancora pendenti espongono “Ritira invito” con conferma. Se l'invi
 era collegato a una richiesta d'acquisto non ancora recapitata, anche la
 richiesta viene annullata; il movimento del pagante resta registrato.
 
+Nello storico Rimborsi, un rimborso confermato espone “Modifica” ed “Elimina”.
+Entrambe le azioni inviano una rettifica alla controparte: fino alla sua
+approvazione la scheda mostra la proposta, consente al richiedente di ritirarla
+e mantiene attivi importo, saldo e conti originali. L'altra parte può approvare
+o rifiutare; un annullamento approvato resta visibile come voce storica senza
+ulteriori azioni.
+
 ## Account e famiglie
 
 - Profilo: nome, cognome, email, password, export ed eliminazione.

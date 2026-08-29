@@ -23,6 +23,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - saldo iniziale dei conti modificabile con data di riferimento;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; per un rimborso diretto chi invia la richiesta sceglie il proprio conto e chi la riceve può completare il proprio conto prima della conferma;
+- rimborsi già confermati modificabili o annullabili con una richiesta di rettifica: il valore originale resta efficace finché l'altra parte non approva, mentre richieste rifiutate o ritirate e annullamenti approvati restano nello storico;
 - scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
 - nuovo movimento aperto soltanto da quattro grandi scelte in colonna: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; dopo la scelta i tasti lasciano posto alla scheda relativa, con transizione animata sulla web app; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
@@ -89,7 +90,9 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260816120000_contacts_and_commissioned_purchases.sql` e
    `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql` e
    `supabase/migrations/20260829160000_withdraw_invitations.sql` e
-   `supabase/migrations/20260829230000_repair_reimbursement_responses.sql`;
+   `supabase/migrations/20260829230000_repair_reimbursement_responses.sql` e
+   `supabase/migrations/20260830100000_confirmed_reimbursement_changes.sql` e
+   `supabase/migrations/20260830110000_fix_reimbursement_change_account_validation.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
