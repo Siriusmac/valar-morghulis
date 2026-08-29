@@ -812,24 +812,17 @@ struct SupabaseLedgerRepository: LedgerRepository {
         // The RPC treats owned_keys as the complete set. Include both server
         // state and the local family snapshot so an incremental native save can
         // never remove unrelated records created by the same member.
-        var ownedKeys = Set(existingKeys.map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
-        ownedKeys.formUnion(transactionKeys(in: familyRoot))
+        var ownedKeys = Set(existingKeys
+            .filter { $0.recordType != "scheduled_payment" }
+            .map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
+        ownedKeys.formUnion(transactionKeys(in: familyRoot).filter { $0.type != "scheduled_payment" })
         ownedKeys.insert(SharedRecordKey(type: "movement", id: draft.id))
-        for payment in scheduledPayments {
-            if let id = payment.objectValue?["id"]?.stringValue {
-                ownedKeys.insert(SharedRecordKey(type: "scheduled_payment", id: id))
-            }
-        }
 
         let sharedMovement = familyAccount ? movement : sanitizedSharedTransaction(movement) ?? movement
         var records = [SharedRecordPayload(type: "movement", id: draft.id, data: sharedMovement)]
-        records.append(contentsOf: scheduledPayments.compactMap { payment in
-            guard let id = payment.objectValue?["id"]?.stringValue else { return nil }
-            let sharedPayment = familyAccount ? payment : sanitizedSharedTransaction(payment)
-            return sharedPayment.map {
-                SharedRecordPayload(type: "scheduled_payment", id: id, data: $0)
-            }
-        })
+        // Le rate restano nella copia privata familiare dell'autore, complete.
+        // Il primo movimento pubblica già l'intera quota condivisa e agli altri
+        // membri non serve conoscere il piano di addebito personale.
         let sharedCategories = ([mainShared ? category : nil] + splits.filter(\.shared).map(\.category))
             .compactMap { $0 }
             .reduce(into: [String: LedgerDirectoryItem]()) { $0[$1.id] = $1.familyCopyWith(movementType: draft.type) }
@@ -857,16 +850,6 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 data: try JSONValue.encode(tag)
             ))
         }
-        let publishedScheduledIDs = Set(records.compactMap { record in
-            record.type == "scheduled_payment" ? record.id : nil
-        })
-        for payment in scheduledPayments {
-            guard let id = payment.objectValue?["id"]?.stringValue,
-                  !publishedScheduledIDs.contains(id)
-            else { continue }
-            ownedKeys.remove(SharedRecordKey(type: "scheduled_payment", id: id))
-        }
-
         try await client
             .from("user_app_data")
             .upsert(UserAppDataUpsert(userID: userID, data: .object(personalRoot)), onConflict: "user_id")
@@ -1443,7 +1426,6 @@ struct SupabaseLedgerRepository: LedgerRepository {
     private func transactionKeys(in root: [String: JSONValue]) -> Set<SharedRecordKey> {
         let mappings = [
             ("movements", "movement"),
-            ("scheduledPayments", "scheduled_payment"),
             ("reimbursements", "reimbursement"),
             ("transfers", "transfer")
         ]
@@ -1463,7 +1445,6 @@ struct SupabaseLedgerRepository: LedgerRepository {
     ) -> [SharedRecordPayload] {
         let mappings = [
             ("movements", "movement"),
-            ("scheduledPayments", "scheduled_payment"),
             ("reimbursements", "reimbursement"),
             ("transfers", "transfer")
         ]
@@ -1472,7 +1453,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 guard let object = value.objectValue,
                       let id = object["id"]?.stringValue
                 else { return nil }
-                let isSplitTransaction = recordType == "movement" || recordType == "scheduled_payment"
+                let isSplitTransaction = recordType == "movement"
                 let accountID = object["accountId"]?.stringValue?.lowercased()
                 let data = isSplitTransaction && !familyAccountIDs.contains(accountID ?? "")
                     ? sanitizedSharedTransaction(value)
@@ -1744,9 +1725,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
         lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
     }
 
-    private static let transactionRecordTypes = [
-        "movement", "scheduled_payment", "reimbursement", "transfer"
-    ]
+    private static let transactionRecordTypes = ["movement", "reimbursement", "transfer"]
     private static let appDataArrayKeys = [
         "accounts", "categories", "beneficiaries", "senders", "tags", "tagReportIds",
         "movements", "scheduledPayments", "transfers", "reimbursements"

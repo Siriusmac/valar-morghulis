@@ -136,17 +136,16 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       const shared = sanitizedSharedMovement(data, item)
       return shared ? [shared] : []
     })
-  const ownSharedPayments = data.scheduledPayments
-    .filter((item) => item.authorId === userId)
-    .flatMap((item) => {
-      const shared = sanitizedSharedPayment(item)
-      return shared ? [shared] : []
-    })
+  const ownScheduledPayments = data.scheduledPayments.filter((item) => item.authorId === userId)
+  const ownFamilyPayments = ownScheduledPayments.filter((item) => sanitizedSharedPayment(item) !== null)
+  const familyPaymentIds = new Set(ownFamilyPayments.map((item) => item.id))
   const ownSharedReimbursements = data.reimbursements.filter((item) => item.authorId === userId)
   const ownSharedTransfers = data.transfers.filter((item) => item.authorId === userId && (familyAccountIds.has(item.fromAccountId) || familyAccountIds.has(item.toAccountId)))
   const familyMovementIds = new Set(ownSharedMovements.map((item) => item.id))
   const personalTagIds = new Set(data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId).map((item) => item.id))
-  const referenced = referencedDirectoryIds(ownSharedMovements, ownSharedPayments)
+  // Le rate sono un promemoria privato dell'autore. La famiglia riceve subito
+  // l'intera quota condivisa tramite il primo movimento, non il piano rateale.
+  const referenced = referencedDirectoryIds(ownSharedMovements, [])
 
   const sharedCategories = data.categories
     .filter((item) => item.scope === 'family' || referenced.categoryIds.has(item.id))
@@ -163,7 +162,6 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
 
   const sharedRecords: SharedRecordPayload[] = [
     ...ownSharedMovements.map((item) => ({ type: 'movement' as const, id: item.id, data: item })),
-    ...ownSharedPayments.map((item) => ({ type: 'scheduled_payment' as const, id: item.id, data: item })),
     ...ownSharedReimbursements.map((item) => ({ type: 'reimbursement' as const, id: item.id, data: item })),
     ...ownSharedTransfers.map((item) => ({ type: 'transfer' as const, id: item.id, data: item })),
     ...sharedCategories.map((item) => ({ type: 'category' as const, id: item.id, data: item })),
@@ -182,7 +180,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       tags: data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId),
       tagReportIds: data.tagReportIds.filter((id) => personalTagIds.has(id)),
       movements: ownMovements.filter((item) => !familyMovementIds.has(item.id)),
-      scheduledPayments: data.scheduledPayments.filter((item) => item.authorId === userId && !item.shared),
+      scheduledPayments: ownScheduledPayments.filter((item) => !familyPaymentIds.has(item.id)),
       transfers: data.transfers.filter((item) => item.authorId === userId && !familyAccountIds.has(item.fromAccountId) && !familyAccountIds.has(item.toAccountId)),
       reimbursements: [],
     },
@@ -195,7 +193,8 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       tags: [],
       tagReportIds: [],
       movements: ownMovements.filter((item) => familyMovementIds.has(item.id)),
-      scheduledPayments: ownSharedPayments,
+      // Mantieni la rata completa nella copia privata familiare dell'autore.
+      scheduledPayments: ownFamilyPayments,
       transfers: ownSharedTransfers,
       reimbursements: ownSharedReimbursements,
     },

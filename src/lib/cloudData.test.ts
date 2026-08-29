@@ -59,7 +59,7 @@ describe('family cloud persistence', () => {
     expect(payload.familyPrivateData.movements[0]).toEqual(movement)
   })
 
-  it('publishes only shared partials of a future installment', () => {
+  it('keeps the full future installment private to its author', () => {
     const data = structuredClone(defaultData)
     data.scheduledPayments = [{
       ...data.scheduledPayments[0],
@@ -69,9 +69,12 @@ describe('family cloud persistence', () => {
     }]
 
     const payload = buildCloudPersistence(data, 'simone')
-    const payment = payload.sharedRecords.find((item) => item.type === 'scheduled_payment')?.data as { amount: number; categoryId: string; beneficiaryId?: string }
-
-    expect(payment).toMatchObject({ amount: 10, categoryId: 'accessori-casa', beneficiaryId: 'eurospar' })
+    expect(payload.sharedRecords.some((item) => item.type === 'scheduled_payment')).toBe(false)
+    expect(payload.familyPrivateData.scheduledPayments[0]).toMatchObject({
+      amount: 30,
+      splits: [{ amount: 10, categoryId: 'accessori-casa', beneficiaryId: 'eurospar', shared: true }],
+    })
+    expect(payload.ownedKeys.some((item) => item.type === 'scheduled_payment')).toBe(false)
   })
 
   it('keeps the author full copy when private and shared records have the same id', () => {

@@ -40,7 +40,9 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
 - spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata e pagamenti successivi programmati;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
+- piano rateale privato e visibile soltanto all'autore, sempre calcolato sul totale dello scontrino anche quando contiene quote personali, condivise o acquistate per altri;
 - sezione “Rimborsi” con viste “Attesi” e “Dovuti” separate;
+- acquisti per conto terzi presenti anche in “Rimborsi”: il destinatario li cataloga tra i dovuti e, dopo la conferma, il pagante vede un'entrata di rimborso tra gli attesi e nella propria contabilità;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, possono ritirare o reinviare gli inviti in attesa, reinviare quelli scaduti e rimuovere quelli rifiutati;

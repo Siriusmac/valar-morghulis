@@ -37,6 +37,10 @@
 8. `affectsAccountBalance == false` conserva il record solo per statistiche.
 9. Una spesa su commissione del pagante ha `excludeFromReports == true`; il
    movimento classificato dal destinatario ha `affectsAccountBalance == false`.
+   Se la richiesta ordinaria viene confermata, il pagante riceve sul conto di
+   origine una sola entrata personale “Rimborsi ricevuti”, identificata in modo
+   deterministico dalla richiesta. Le richieste usate per un rimborso familiare
+   tramite acquisto non generano questa entrata aggiuntiva.
 10. La rimozione di un contatto non elimina acquisti o movimenti pregressi.
 11. L'esclusione dai report si applica alla singola allocazione commissionata, non alle altre righe dello stesso movimento.
 12. Un'allocazione “rimborso tramite acquisto” è una spesa commissionata con
@@ -76,6 +80,9 @@ incide nuovamente sul saldo del proprio conto.
 - Spesa personale: saldo solo per rate pagate.
 - Spesa familiare: debito condiviso sull'intero importo subito; rate future con regolazione condivisa zero.
 - La ripartizione delle rate parte sempre dal totale e distribuisce ogni allocazione senza perdere centesimi; una riga commissionata conserva collegamento ed esclusione in ogni rata.
+- Il piano completo e le singole scadenze sono privati dell'autore; non vengono
+  pubblicati come `scheduled_payment` familiari e sono mostrati soltanto nel suo
+  elenco “Pagamenti programmati”.
 
 ## Casi obbligatori
 

@@ -57,7 +57,7 @@ l'autore dell'invito e annulla nello stesso passaggio le richieste d'acquisto
 pending ancora prive di destinatario. Entrambe eliminano il record, rendendo
 invalido il token già inviato per email.
 
-Tipi condivisi: `movement`, `scheduled_payment`, `reimbursement`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Le transazioni hanno `authorId` uguale all'utente autenticato. Un nuovo rimborso è forzato server-side a `pending`; solo la controparte lo risolve e lo stato server prevale sempre.
+Tipi condivisi: `movement`, `reimbursement`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Lo schema accetta ancora `scheduled_payment` per compatibilità con record storici, ma i client non lo pubblicano più: il piano rateale completo resta nei dati privati dell'autore. Le transazioni hanno `authorId` uguale all'utente autenticato. Un nuovo rimborso è forzato server-side a `pending`; solo la controparte lo risolve e lo stato server prevale sempre.
 
 ## Caricamento
 

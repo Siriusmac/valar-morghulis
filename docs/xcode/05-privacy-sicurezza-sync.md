@@ -6,7 +6,8 @@ I dati personali sono visibili all'utente; gli altri membri ricevono solo le por
 
 ### Condivisibili
 
-- Porzione condivisa di movimenti e rate.
+- Porzione condivisa dei movimenti; per un acquisto rateizzato comprende subito
+  l'intera quota familiare dello scontrino.
 - Directory familiari necessarie a interpretarla.
 - Girofondi con un conto familiare.
 - Rimborsi e stato.
@@ -18,6 +19,8 @@ I dati personali sono visibili all'utente; gli altri membri ricevono solo le por
 - Numeri carta, IBAN, credenziali e dettagli bancari.
 - Conti non pubblicati per i rimborsi.
 - Token Auth o snapshot nei log.
+- Piano e scadenze dei pagamenti rateali: restano nella copia privata
+  dell'autore anche quando il movimento contiene quote condivise.
 
 ## Credenziali
 

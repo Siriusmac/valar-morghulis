@@ -5,7 +5,7 @@ import type { AppData, ScheduledPayment, User } from '../types'
 
 export function ScheduledPaymentsPage({ data, user }: { data: AppData; user: User }) {
   const groups = useMemo(() => {
-    const visible = data.scheduledPayments.filter((item) => item.status === 'scheduled' && (item.authorId === user.id || item.shared))
+    const visible = data.scheduledPayments.filter((item) => item.status === 'scheduled' && item.authorId === user.id)
     const grouped = new Map<string, ScheduledPayment[]>()
     for (const payment of visible) grouped.set(payment.planId, [...(grouped.get(payment.planId) ?? []), payment])
     return [...grouped.values()].map((items) => items.toSorted((a, b) => a.dueDate.localeCompare(b.dueDate))).toSorted((a, b) => a[0].dueDate.localeCompare(b[0].dueDate))

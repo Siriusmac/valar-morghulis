@@ -160,7 +160,7 @@ private struct ContactInvitationView: View {
     }
 }
 
-private struct CommissionedPurchaseReviewView: View {
+struct CommissionedPurchaseReviewView: View {
     let appModel: AppModel
     let purchase: CommissionedPurchaseSummary
     @Environment(\.dismiss) private var dismiss

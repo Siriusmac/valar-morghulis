@@ -434,6 +434,7 @@ struct ReimbursementReviewCard: View {
     @State private var selectedAccountID = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showsPurchaseReview = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -446,22 +447,36 @@ struct ReimbursementReviewCard: View {
             Text(subtitle).font(.footnote).foregroundStyle(.secondary)
 
             if isCounterparty, reimbursement.status == .pending {
-                if ownAccountID == nil {
-                    Picker("Il tuo conto", selection: $selectedAccountID) {
-                        Text("Seleziona un conto").tag("")
-                        ForEach(snapshot.accounts.filter { $0.familyID == nil }) { account in
-                            Text(account.name).tag(account.id)
+                if reimbursement.settlementMethod == .purchase {
+                    if linkedPurchase != nil {
+                        Button("Conferma e cataloga", systemImage: "checkmark") {
+                            showsPurchaseReview = true
                         }
-                    }
-                }
-                HStack {
-                    Button("Rifiuta", role: .destructive) { respond(accepted: false) }
-                    Button("Conferma", systemImage: "checkmark") { respond(accepted: true) }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
-                        .disabled(ownAccountID == nil && selectedAccountID.isEmpty)
+                    } else {
+                        Text("La richiesta d’acquisto collegata non è disponibile. Aggiorna la schermata e riprova.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    if ownAccountID == nil {
+                        Picker("Il tuo conto", selection: $selectedAccountID) {
+                            Text("Seleziona un conto").tag("")
+                            ForEach(snapshot.accounts.filter { $0.familyID == nil }) { account in
+                                Text(account.name).tag(account.id)
+                            }
+                        }
+                    }
+                    HStack {
+                        Button("Rifiuta", role: .destructive) { respond(accepted: false) }
+                        Button("Conferma", systemImage: "checkmark") { respond(accepted: true) }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+                            .disabled(ownAccountID == nil && selectedAccountID.isEmpty)
+                    }
+                    .disabled(isSaving)
                 }
-                .disabled(isSaving)
             }
 
             if isSaving { ProgressView() }
@@ -476,11 +491,20 @@ struct ReimbursementReviewCard: View {
         } message: {
             Text(errorMessage ?? "Riprova tra poco.")
         }
+        .sheet(isPresented: $showsPurchaseReview) {
+            if let linkedPurchase {
+                CommissionedPurchaseReviewView(appModel: appModel, purchase: linkedPurchase)
+            }
+        }
     }
 
     private var currentUserID: String { snapshot.currentUserID }
     private var isCounterparty: Bool {
         reimbursement.authorID.caseInsensitiveCompare(currentUserID) != .orderedSame
+    }
+    private var linkedPurchase: CommissionedPurchaseSummary? {
+        guard let purchaseID = reimbursement.commissionedPurchaseID else { return nil }
+        return workspace.commissionedPurchases.first { $0.id == purchaseID }
     }
     private var ownAccountID: String? {
         reimbursement.fromID.caseInsensitiveCompare(currentUserID) == .orderedSame
@@ -504,7 +528,12 @@ struct ReimbursementReviewCard: View {
         return isCounterparty ? "\(authorName) ha registrato un rimborso" : "In attesa di \(otherName)"
     }
     private var subtitle: String {
-        reimbursement.status == .rejected
+        if reimbursement.settlementMethod == .purchase, reimbursement.status == .pending {
+            return isCounterparty
+                ? "Scegli categoria e conto personale per confermare l’acquisto."
+                : "L’acquisto sarà compensato dopo la catalogazione del destinatario."
+        }
+        return reimbursement.status == .rejected
             ? "Il rimborso non è incluso nei saldi."
             : "Verifica il conto prima di confermare."
     }

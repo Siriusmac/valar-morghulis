@@ -52,7 +52,9 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   const memberExpenseMaximum = Math.max(...memberExpenseTotals.map((item) => item.total), 0)
   const membersMonthlyTotal = memberExpenseTotals.reduce((total, item) => total + item.total, 0)
   const reimbursementUpdates = data.reimbursements.filter((item) =>
-    (item.status === 'pending' || item.status === 'rejected') && (item.fromId === user.id || item.toId === user.id))
+    item.settlementMethod !== 'purchase'
+      && (item.status === 'pending' || item.status === 'rejected')
+      && (item.fromId === user.id || item.toId === user.id))
 
   return (
     <div className="page dashboard-page">

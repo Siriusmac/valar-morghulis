@@ -1,20 +1,37 @@
 import { HandCoins } from 'lucide-react'
 import { useState } from 'react'
 import { ReimbursementReview } from './Dashboard'
-import type { AppData, Reimbursement, User } from '../types'
+import { PurchaseReview } from './ContactsPage'
+import { formatMoney } from '../lib/format'
+import { isOrdinaryCommissionedPurchase } from '../lib/commissioned'
+import type { AppData, CommissionedPurchase, Contact, Reimbursement, User } from '../types'
 
 interface Props {
   data: AppData
   user: User
   members: User[]
+  contacts?: Contact[]
+  purchases?: CommissionedPurchase[]
   onRespond?: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
+  onRespondPurchase?: (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string) => Promise<void>
 }
 
-export function ReimbursementsPage({ data, user, members, onRespond }: Props) {
+export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase }: Props) {
   const [section, setSection] = useState<'expected' | 'owed'>('expected')
+  const [busyPurchaseId, setBusyPurchaseId] = useState<string>()
   const reimbursements = data.reimbursements
     .filter((item) => section === 'expected' ? item.toId === user.id : item.fromId === user.id)
     .toSorted((left, right) => right.date.localeCompare(left.date))
+  const commissioned = purchases
+    .filter(isOrdinaryCommissionedPurchase)
+    .filter((item) => section === 'expected' ? item.payerId === user.id : item.recipientId === user.id)
+    .toSorted((left, right) => right.purchaseDate.localeCompare(left.purchaseDate))
+  const respondToPurchase = async (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string) => {
+    if (!onRespondPurchase) return
+    setBusyPurchaseId(purchase.id)
+    try { await onRespondPurchase(purchase, accepted, categoryId, accountId) }
+    finally { setBusyPurchaseId(undefined) }
+  }
 
   return <div className="page reimbursements-page">
     <div className="page-heading"><div><h1>Rimborsi</h1><p>Controlla i rimborsi che attendi e quelli che devi corrispondere.</p></div></div>
@@ -22,15 +39,31 @@ export function ReimbursementsPage({ data, user, members, onRespond }: Props) {
       <button type="button" role="tab" aria-selected={section === 'expected'} className={section === 'expected' ? 'active' : ''} onClick={() => setSection('expected')}>Attesi</button>
       <button type="button" role="tab" aria-selected={section === 'owed'} className={section === 'owed' ? 'active' : ''} onClick={() => setSection('owed')}>Dovuti</button>
     </div>
-    {reimbursements.length ? <div className="reimbursement-review-list">
-      {reimbursements.map((reimbursement: Reimbursement) => <ReimbursementReview
-        key={reimbursement.id}
-        reimbursement={reimbursement}
-        data={data}
-        user={user}
-        members={members}
-        onRespond={onRespond}
-      />)}
+    {reimbursements.length || commissioned.length ? <div className="reimbursement-review-list">
+      {reimbursements.map((reimbursement: Reimbursement) => {
+        const linkedPurchase = reimbursement.settlementMethod === 'purchase'
+          ? purchases.find((purchase) => purchase.id === reimbursement.commissionedPurchaseId)
+          : undefined
+        if (linkedPurchase && linkedPurchase.status === 'pending' && linkedPurchase.recipientId === user.id) {
+          return <PurchaseReview key={reimbursement.id} purchase={linkedPurchase} data={data} userId={user.id} payer={contacts.find((item) => item.id === linkedPurchase.payerId)} busy={busyPurchaseId === linkedPurchase.id} onRespond={(accepted, categoryId, accountId) => respondToPurchase(linkedPurchase, accepted, categoryId, accountId)} />
+        }
+        if (reimbursement.settlementMethod === 'purchase' && reimbursement.status === 'pending' && reimbursement.authorId !== user.id) {
+          return <CommissionedReimbursementStatus key={reimbursement.id} amount={reimbursement.amount} status={linkedPurchase?.status ?? 'pending'} label="Acquisto da catalogare" />
+        }
+        return <ReimbursementReview key={reimbursement.id} reimbursement={reimbursement} data={data} user={user} members={members} onRespond={onRespond} />
+      })}
+      {commissioned.map((purchase) => purchase.status === 'pending' && purchase.recipientId === user.id
+        ? <PurchaseReview key={purchase.id} purchase={purchase} data={data} userId={user.id} payer={contacts.find((item) => item.id === purchase.payerId)} busy={busyPurchaseId === purchase.id} onRespond={(accepted, categoryId, accountId) => respondToPurchase(purchase, accepted, categoryId, accountId)} />
+        : <CommissionedReimbursementStatus key={purchase.id} amount={purchase.amount} status={purchase.status} label={purchase.description} />)}
     </div> : <div className="empty-state"><HandCoins /><h3>Nessun rimborso {section === 'expected' ? 'atteso' : 'dovuto'}</h3><p>I movimenti compariranno qui quando verranno registrati.</p></div>}
   </div>
+}
+
+function CommissionedReimbursementStatus({ amount, status, label }: {
+  amount: number
+  status: CommissionedPurchase['status']
+  label: string
+}) {
+  const state = status === 'pending' ? 'In attesa di conferma' : status === 'confirmed' ? 'Confermato e registrato' : 'Rifiutato'
+  return <article className={`reimbursement-review ${status === 'rejected' ? 'reimbursement-review--rejected' : ''}`}><span><HandCoins /></span><div><strong>{label}</strong><small>{formatMoney(amount)} · {state}</small></div></article>
 }

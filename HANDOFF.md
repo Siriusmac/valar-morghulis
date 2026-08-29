@@ -29,11 +29,12 @@ Funzioni disponibili:
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
+- piano rateale completo conservato soltanto nei dati privati dell'autore: non viene pubblicato come record familiare e “Pagamenti programmati” mostra sempre l'intera rata, non la quota condivisa;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
-- pagina “Rimborsi” con segmenti “Attesi” (`toId`) e “Dovuti” (`fromId`) su web e client Apple;
+- pagina “Rimborsi” con segmenti “Attesi” e “Dovuti” su web e client Apple; include anche gli acquisti ordinari per conto terzi, attesi dal pagante e dovuti dal destinatario;
 - compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
 - rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
-- spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo;
+- spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo; alla conferma il pagante riceve una sola entrata personale “Rimborsi ricevuti” sul conto di origine, con ID deterministico per impedire duplicazioni;
 - il record familiare confermato o rifiutato prevale sulla copia privata precedente dell’autore, evitando che un rimborso approvato torni a risultare “in attesa” dopo il login;
 - pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
 - completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
@@ -75,11 +76,13 @@ Funzioni disponibili:
 - Un movimento su conto condiviso è visibile a tutta la famiglia ma non genera debito o credito.
 - Nei movimenti suddivisi, i parziali vengono sottratti dalla categoria principale; soltanto i parziali marcati come condivisi partecipano al saldo familiare. Il conto registra comunque una sola operazione per l’importo totale.
 - Acquisto multiplo e rateizzazione possono convivere: ogni parziale viene ripartito proporzionalmente sulle rate, preservando i centesimi, la categoria, il tag e la destinazione; il beneficiario resta quello unico dell'acquisto. La rateizzazione usa sempre il totale dell'acquisto.
+- Il piano rateale appartiene al solo autore e non viene sincronizzato nei record condivisi: gli altri membri vedono il movimento e la quota familiare completa, non le scadenze del conto personale del pagante.
 - Le sole allocazioni “per conto di” sono escluse da statistiche e saldo familiare del pagante; le altre righe dello stesso movimento continuano a produrre i normali effetti personali o familiari.
 - Anche una singola allocazione di un acquisto multiplo può compensare un rimborso: genera un rimborso `purchase` e una richiesta commissionata collegati allo stesso addebito, senza creare un secondo movimento sul conto del pagante. Il totale assegnato a ogni creditore non può superarne il credito disponibile.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
+- Una richiesta ordinaria per conto terzi resta nei rimborsi attesi/dovuti finché il destinatario non la conferma o rifiuta; la conferma genera in modo idempotente l'entrata di rimborso del pagante. Una richiesta collegata a `settlementMethod = purchase` regola invece il solo rimborso familiare e non genera quell'entrata aggiuntiva.
 - Un nuovo utente parte soltanto con `Contanti` e l’eventuale conto condiviso della famiglia.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Un rimborso nuovo non modifica il saldo familiare né i conti finché la controparte non lo conferma. L’autore non può auto-confermarlo.

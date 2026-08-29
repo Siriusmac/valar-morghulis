@@ -238,7 +238,20 @@ final class AppModel {
                 memberCount: memberCount
             )
             guard requestedFamilyID == selectedFamilyID else { return }
-            ledgerState = .loaded(snapshot)
+            let addedIncome = try await reconcileConfirmedCommissionedIncomes(
+                workspace: workspace,
+                snapshot: snapshot,
+                userID: currentUserID
+            )
+            let resolvedSnapshot = addedIncome
+                ? try await ledgerRepository.loadLedgerSnapshot(
+                    userID: currentUserID,
+                    familyID: requestedFamilyID,
+                    memberCount: memberCount
+                )
+                : snapshot
+            guard requestedFamilyID == selectedFamilyID else { return }
+            ledgerState = .loaded(resolvedSnapshot)
         } catch is CancellationError {
             return
         } catch {
@@ -258,6 +271,58 @@ final class AppModel {
             userID: currentUserID,
             familyID: selectedFamilyID
         )
+    }
+
+    private func reconcileConfirmedCommissionedIncomes(
+        workspace: FamilyWorkspace,
+        snapshot: LedgerSnapshot,
+        userID: UUID
+    ) async throws -> Bool {
+        guard let ledgerRepository else { return false }
+        let userKey = userID.uuidString.lowercased()
+        var knownMovementIDs = Set(snapshot.movements.map(\.id))
+        var changed = false
+
+        for purchase in workspace.commissionedPurchases where
+            purchase.payerID == userID && purchase.status == .confirmed && purchase.reimbursementID == nil
+        {
+            let incomeID = "commissioned-reimbursement-\(purchase.id)"
+            guard !knownMovementIDs.contains(incomeID),
+                  let source = snapshot.movements.first(where: { $0.id == purchase.payerMovementID }),
+                  let account = snapshot.account(named: source.accountID)
+            else { continue }
+
+            let recipientName = purchase.recipientID.flatMap { recipientID in
+                workspace.contacts.first { $0.id == recipientID }?.displayName
+                    ?? workspace.members.first { $0.id == recipientID }?.displayName
+            } ?? "Contatto"
+            let category = LedgerDirectoryItem(
+                id: "category-commissioned-reimbursement-\(userKey)",
+                name: "Rimborsi ricevuti", scope: .personal, ownerID: userKey,
+                movementType: .income, color: "#3f7650"
+            )
+            let sender = LedgerDirectoryItem(
+                id: "sender-contact-\(purchase.recipientID?.uuidString.lowercased() ?? purchase.id)",
+                name: recipientName, scope: .personal, ownerID: userKey,
+                movementType: nil, color: nil
+            )
+            try await ledgerRepository.createMovement(MovementDraft(
+                id: incomeID,
+                type: .income,
+                amount: purchase.amount.decimal,
+                date: Self.dayFormatter.date(from: purchase.purchaseDate) ?? Date(),
+                description: "Rimborso · \(purchase.description)",
+                comments: "Acquisto per conto terzi \(purchase.id)",
+                account: account,
+                category: category,
+                counterparty: sender,
+                isShared: false,
+                affectsAccountBalance: nil
+            ), userID: userID, userDisplayName: workspace.profile.displayName, familyID: nil)
+            knownMovementIDs.insert(incomeID)
+            changed = true
+        }
+        return changed
     }
 
     func createMovement(_ draft: MovementDraft) async throws {

@@ -11,6 +11,7 @@ import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } 
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
+import { reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { cloudAuthEnabled } from './lib/supabase'
 import type { AppData, Beneficiary, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
@@ -145,19 +146,36 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 2600); return () => window.clearTimeout(timer) }, [toast])
   const refreshContacts = useCallback(async () => {
     if (!cloud) return
-    try { setContactData(await loadContactData(cloud.user.id)) }
+    try {
+      const nextContactData = await loadContactData(cloud.user.id)
+      const nextContacts = mergeContacts(
+        familyContacts(appUsers, cloud.user.id, cloud.familyName),
+        nextContactData.friends,
+      )
+      setContactData(nextContactData)
+      setData((current) => reconcileConfirmedCommissionedIncomes(
+        current,
+        nextContactData.purchases,
+        cloud.user.id,
+        nextContacts,
+      ))
+    }
     catch { setToast('Non è stato possibile aggiornare i contatti') }
-  }, [cloud])
+  }, [appUsers, cloud])
   useEffect(() => {
     const timer = window.setTimeout(() => { void refreshContacts() }, 0)
     return () => window.clearTimeout(timer)
   }, [refreshContacts])
   useEffect(() => {
-    if (page !== 'contacts' || !cloud) return
+    if ((page !== 'contacts' && page !== 'reimbursements') || !cloud) return
     const timer = window.setTimeout(() => { void refreshContacts() }, 0)
     return () => window.clearTimeout(timer)
   }, [cloud, page, refreshContacts])
   const user = useMemo(() => appUsers.find((item) => item.id === userId), [appUsers, userId])
+  const contacts = useMemo(() => mergeContacts(
+    familyContacts(appUsers, userId ?? '', cloud?.familyName ?? 'Famiglia demo'),
+    cloud ? contactData.friends : [],
+  ), [appUsers, cloud, contactData.friends, userId])
   const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setUserId(id) }
   const logout = () => {
     if (cloud) { void cloud.signOut(); return }
@@ -268,10 +286,6 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast('Saldo iniziale aggiornato')
   }
   const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number) => setModal({ type: 'details', title, filter, amount })
-  const contacts = mergeContacts(
-    familyContacts(appUsers, user.id, cloud?.familyName ?? 'Famiglia demo'),
-    cloud ? contactData.friends : [],
-  )
   const sendContactInvite = async (email: string) => {
     await inviteContact(email)
     await refreshContacts()
@@ -359,7 +373,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} />
-    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} onRespond={cloud ? respondToReimbursement : undefined} />
+    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')

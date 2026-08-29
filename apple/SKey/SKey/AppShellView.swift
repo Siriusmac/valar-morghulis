@@ -305,7 +305,7 @@ private struct ScheduledPaymentsView: View {
             case .loaded(let snapshot):
                 let scheduled = snapshot.scheduledPayments.filter {
                     $0.status == .scheduled
-                        && ($0.authorID.caseInsensitiveCompare(snapshot.currentUserID) == .orderedSame || $0.shared)
+                        && $0.authorID.caseInsensitiveCompare(snapshot.currentUserID) == .orderedSame
                 }
                 let groups = Self.groups(from: scheduled)
                 List {
