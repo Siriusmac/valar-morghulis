@@ -304,7 +304,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .lookup-field { position: relative; display: grid; gap: 7px; color: var(--ink); font-size: 11px; font-weight: 600; }
 .lookup-field__control { position: relative; display: block; }
 .lookup-field__control > svg { position: absolute; left: 12px; top: 50%; width: 15px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
-.expense-form .lookup-field__control input { padding-left: 36px; }
+.lookup-field__control input { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px 0 36px; background: white; color: var(--ink); font-size: 13px; }
 .lookup-field__menu { position: absolute; z-index: 12; inset: 68px 0 auto; display: grid; max-height: 210px; overflow-y: auto; padding: 5px; border: 1px solid #d5d1cb; border-radius: 6px; background: white; box-shadow: 0 12px 28px rgba(30, 38, 46, .13); }
 .lookup-field__menu button { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; border-radius: 4px; padding: 6px 9px; background: transparent; color: var(--ink); text-align: left; font-size: 12px; cursor: pointer; }
 .lookup-field__menu button:hover, .lookup-field__menu button[aria-selected="true"] { background: var(--sand); }
@@ -396,10 +396,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .movement-row__amount--income { color: var(--positive); }
 .movement-list--compact .movement-row { grid-template-columns: 38px minmax(145px, 1fr) 105px 105px 90px; }
 .movement-list--compact .scope-label, .movement-list--compact .movement-row time, .movement-list--compact .row-actions { display: none; }
-.movement-type { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-.movement-type button { min-height: 78px; display: grid; align-content: center; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-align: left; cursor: pointer; }
-.movement-type button strong { font-size: 12px; }
-.movement-type button small { color: var(--muted); font-size: 9px; font-weight: 400; line-height: 1.35; }
+.composer-choice { width: min(560px, 100%); margin: 0 auto; }
+.movement-type { display: grid; grid-template-columns: 1fr; gap: 11px; }
+.movement-type button { min-height: 96px; display: grid; align-content: center; gap: 6px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); text-align: left; cursor: pointer; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+.movement-type button:hover { transform: translateY(-1px); border-color: #c7c1b8; }
+.movement-type button strong { font: 600 24px/1.05 'Newsreader', Georgia, serif; }
+.movement-type button small { color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.45; }
 .movement-type button.active { color: var(--accent); border-color: #d9b3a7; background: var(--accent-soft); }
 .movement-type button.movement-type__income.active { color: var(--positive); border-color: #b9c9b7; background: var(--positive-soft); }
 .movement-type button.movement-type__transfer.active { color: #3b5f8a; border-color: #bed0e4; background: #eaf2fb; }
@@ -512,6 +514,13 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .installment-box--active .installment-toggle > i { background: #b57b1d; }
 .installment-box--active .installment-toggle > i span { transform: translateX(17px); }
 .installment-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 14px 14px 64px; }
+.installment-schedule { display: grid; gap: 8px; margin: 0 14px 14px 64px; padding-top: 13px; border-top: 1px solid #dfceb0; }
+.installment-schedule > strong { font-size: 12px; }
+.installment-schedule > small { margin-top: -5px; color: var(--muted); font-size: 9px; }
+.installment-schedule > label { min-height: 48px; display: grid; grid-template-columns: 1fr 150px; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid #e5d6b7; border-radius: 6px; background: rgba(255,255,255,.72); }
+.installment-schedule > label > span { display: grid; gap: 2px; font-size: 10px; font-weight: 700; }
+.installment-schedule > label > span small { color: var(--muted); font-size: 9px; font-weight: 400; }
+.installment-schedule input { width: 100%; }
 
 .scheduled-list { display: grid; gap: 24px; }
 .scheduled-plan { border: 1px solid var(--line); background: rgba(255,255,255,.55); border-radius: 9px; overflow: hidden; }
@@ -675,6 +684,14 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } }
+@keyframes composer-choice-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes composer-fields-in { from { opacity: 0; transform: translateX(18px); } }
+.composer-choice--enter { animation: composer-choice-in .2s ease both; }
+.composer-fields--enter { animation: composer-fields-in .24s cubic-bezier(.2,.75,.3,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .composer-choice--enter, .composer-fields--enter { animation: none; }
+  .movement-type button { transition: none; }
+}
 
 @media (max-width: 1000px) {
   .app-shell { grid-template-columns: 84px minmax(0,1fr); }
@@ -839,6 +856,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .roman-participant { grid-template-columns: 1fr auto; }
   .roman-participant__compensation, .roman-participant > small { grid-column: 1 / -1; }
   .installment-fields { grid-template-columns: 1fr; padding-left: 14px; }
+  .installment-schedule { margin-left: 14px; }
+  .installment-schedule > label { grid-template-columns: 1fr; }
   .tag-report-toolbar { align-items: stretch; flex-direction: column; }
   .tag-report-toolbar .button { align-self: flex-start; }
   .report-picker { grid-template-columns: 1fr; }
@@ -1022,6 +1041,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .purchase-review__body { display: grid; gap: 6px; }
 .purchase-review__controls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto; align-items: end; gap: 10px; margin-top: 7px; }
 .purchase-review__controls label { display: grid; gap: 5px; min-width: 0; font-size: 11px; font-weight: 600; }
+.purchase-review__controls .lookup-field { min-width: 0; gap: 5px; }
 .purchase-review__controls select { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
 .purchase-review__controls output { display: flex; align-items: center; width: 100%; min-height: 43px; border: 1px solid var(--line); border-radius: 5px; padding: 0 12px; background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 500; }
 .purchase-review__controls .button { min-height: 43px; white-space: nowrap; }

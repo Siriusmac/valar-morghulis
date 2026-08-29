@@ -7,6 +7,7 @@ export interface MovementAdditions {
   beneficiaries?: Beneficiary[]
   sender?: Sender
   tag?: Tag
+  tags?: Tag[]
   scheduledPayments?: ScheduledPayment[]
 }
 
@@ -16,8 +17,14 @@ export function saveMovementData(current: AppData, movement: Movement, additions
   const matchesMovement = (item: Movement) => item.id === movement.id
     || (item.authorId === movement.authorId && item.createdAt === movement.createdAt)
   const previous = current.movements.find(matchesMovement)
-  let scheduledPayments = additions.scheduledPayments?.length
-    ? [...current.scheduledPayments, ...additions.scheduledPayments]
+  const replacesInstallmentPlan = Boolean(previous?.installmentPlanId && previous.installmentNumber === 1 && additions.scheduledPayments)
+  let scheduledPayments = additions.scheduledPayments
+    ? replacesInstallmentPlan
+      ? [
+          ...current.scheduledPayments.filter((payment) => payment.planId !== previous!.installmentPlanId || payment.status === 'paid'),
+          ...additions.scheduledPayments.filter((payment) => payment.status === 'scheduled'),
+        ]
+      : [...current.scheduledPayments, ...additions.scheduledPayments]
     : current.scheduledPayments
 
   // Le modifiche anagrafiche alla prima rata restano coerenti anche sulle rate non ancora scadute.
@@ -48,7 +55,7 @@ export function saveMovementData(current: AppData, movement: Movement, additions
     categories: appendUnique(current.categories, [additions.category, ...(additions.categories ?? [])]),
     beneficiaries: appendUnique(current.beneficiaries, [additions.beneficiary, ...(additions.beneficiaries ?? [])]),
     senders: additions.sender ? [...current.senders, additions.sender] : current.senders,
-    tags: additions.tag ? [...current.tags, additions.tag] : current.tags,
+    tags: appendUnique(current.tags, [additions.tag, ...(additions.tags ?? [])]),
     scheduledPayments,
     movements: previous
       ? replaceMovementAndRemoveDuplicates(current.movements, movement, matchesMovement)

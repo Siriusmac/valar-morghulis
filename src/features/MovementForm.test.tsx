@@ -13,19 +13,28 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+const chooseExpense = () => fireEvent.click(screen.getByRole('button', { name: 'Spesa' }))
+
 describe('MovementForm', () => {
   it('offers the four simplified choices only for a new movement', () => {
     const onSelectTransfer = vi.fn()
     const data = structuredClone(defaultData)
-    const { rerender } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+    const { unmount } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Giro fondi' }))
-    expect(onSelectTransfer).toHaveBeenCalledOnce()
+    expect(screen.queryByLabelText('Importo')).toBeNull()
     expect(screen.getByRole('button', { name: 'Paga alla romana' })).toBeTruthy()
     expect(screen.getByText('Dividi in parti uguali una spesa occasionale tra più persone.')).toBeTruthy()
+    chooseExpense()
+    expect(screen.getByLabelText('Importo')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Paga alla romana' })).toBeNull()
 
     const existing = data.movements[0]
-    rerender(<MovementForm data={data} user={users[0]} initial={existing} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+    unmount()
+    const transfer = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Giro fondi' }))
+    expect(onSelectTransfer).toHaveBeenCalledOnce()
+    transfer.unmount()
+    render(<MovementForm data={data} user={users[0]} initial={existing} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
     expect(screen.queryByRole('button', { name: 'Giro fondi' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Paga alla romana' })).toBeNull()
   })
@@ -44,6 +53,7 @@ describe('MovementForm', () => {
         onCancel={vi.fn()}
       />,
     )
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-07-10' } })
 
@@ -55,10 +65,11 @@ describe('MovementForm', () => {
   it('creates and selects a new beneficiary from the movement form', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Nuovo negozio' } })
-    expect(screen.getByRole('option', { name: 'Crea “Nuovo negozio”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Aggiungi “Nuovo negozio”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '25' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -70,6 +81,7 @@ describe('MovementForm', () => {
 
   it('filters categories while typing and offers to create a missing one', () => {
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    chooseExpense()
 
     const input = screen.getByLabelText('Categoria') as HTMLInputElement
     expect(input.value).toBe('')
@@ -79,7 +91,24 @@ describe('MovementForm', () => {
     expect(screen.getByRole('option', { name: 'Alimentari' })).toBeTruthy()
 
     fireEvent.change(input, { target: { value: 'Categoria speciale' } })
-    expect(screen.getByRole('option', { name: 'Crea “Categoria speciale”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Aggiungi “Categoria speciale”' })).toBeTruthy()
+  })
+
+  it('uses the same searchable menu for tags and creates a missing tag', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Tag'), { target: { value: 'Cena amici' } })
+    expect(screen.getByRole('option', { name: 'Aggiungi “Cena amici”' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '25' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(additions.tag.name).toBe('Cena amici')
+    expect(movement.tagId).toBe(additions.tag.id)
   })
 
   it('hides the beneficiary for an income and creates a selectable sender', () => {
@@ -93,7 +122,7 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Stipendio' } })
     fireEvent.change(screen.getByLabelText('Mittente'), { target: { value: 'Cliente prova' } })
-    expect(screen.getByRole('option', { name: 'Crea “Cliente prova”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Aggiungi “Cliente prova”' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '1200' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -132,6 +161,7 @@ describe('MovementForm', () => {
   it('keeps new movements private in the personal-only workspace', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} personalOnly onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
     expect(screen.getByText('In questa vista i movimenti restano privati e non partecipano a saldi familiari.')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
@@ -145,16 +175,38 @@ describe('MovementForm', () => {
     const initial = defaultData.movements.find((movement) => movement.id === 'seed-installment-1')!
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Accessori aggiornati · rata 1/3' } })
+    expect((screen.getByLabelText('Importo totale') as HTMLInputElement).value).toBe('120')
+    expect(screen.queryByRole('button', { name: 'Entrata' })).toBeNull()
+    expect((screen.getByLabelText('Data rata 2') as HTMLInputElement).value).toBe('2026-08-12')
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Accessori aggiornati' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
     const [movement] = onSave.mock.calls[0]
     expect(movement.installmentPlanId).toBe('seed-plan')
     expect(movement.installmentNumber).toBe(1)
     expect(movement.installmentCount).toBe(3)
+    expect(movement.description).toBe('Accessori aggiornati · rata 1/3')
   })
 
-  it('ricalcola il totale condiviso usando il nuovo importo della prima rata', () => {
+  it('shows future installments while creating a plan and saves custom dates', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '90' } })
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pagamento a rate/ }))
+
+    expect(screen.getByText('Rata 2 di 3')).toBeTruthy()
+    expect(screen.getByText('Rata 3 di 3')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Data rata 2'), { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave.mock.calls[0][1].scheduledPayments[0].dueDate).toBe('2026-10-05')
+    expect(onSave.mock.calls[0][1].scheduledPayments.map((payment: { amount: number }) => payment.amount)).toEqual([30, 30])
+  })
+
+  it('modifica il totale del piano rateale, non soltanto la prima rata', () => {
     const onSave = vi.fn()
     const data = structuredClone(defaultData)
     const initial = { ...data.movements.find((movement) => movement.id === 'seed-installment-1')!, shared: true, sharedSettlementAmount: 120 }
@@ -162,10 +214,11 @@ describe('MovementForm', () => {
     data.scheduledPayments = data.scheduledPayments.map((payment) => ({ ...payment, shared: true }))
     render(<MovementForm data={data} user={users[0]} initial={initial} onSave={onSave} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('Importo totale'), { target: { value: '50' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
-    expect(onSave.mock.calls[0][0].sharedSettlementAmount).toBe(130)
+    expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 16.66, sharedSettlementAmount: 50 })
+    expect(onSave.mock.calls[0][1].scheduledPayments.map((payment: { amount: number }) => payment.amount)).toEqual([16.66, 16.68])
   })
 
   it('non conta due volte una rata già materializzata', () => {
@@ -212,6 +265,7 @@ describe('MovementForm', () => {
       savedData = saveMovementData(savedData, movement, additions)
     })
     render(<MovementForm data={savedData} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-07-10' } })
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '90' } })
@@ -295,6 +349,7 @@ describe('MovementForm', () => {
   it('adds category partials with an independent shared setting', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
@@ -322,6 +377,7 @@ describe('MovementForm', () => {
       onSave={vi.fn()}
       onCancel={vi.fn()}
     />)
+    chooseExpense()
 
     expect((screen.getByLabelText('Tipo di acquisto') as HTMLSelectElement).value).toBe('single')
     const expenseType = screen.getByLabelText('Tipo di spesa') as HTMLSelectElement
@@ -338,6 +394,7 @@ describe('MovementForm', () => {
   it('creates a missing split category and reuses the common beneficiary', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '60' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
@@ -345,7 +402,7 @@ describe('MovementForm', () => {
     fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Prodotti animali' } })
-    expect(screen.getByRole('option', { name: 'Crea “Prodotti animali”' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Aggiungi “Prodotti animali”' })).toBeTruthy()
     expect(screen.queryByLabelText('Beneficiario parziale 1')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -360,6 +417,7 @@ describe('MovementForm', () => {
   it('keeps category splits when an expense is paid in installments', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
@@ -399,6 +457,23 @@ describe('MovementForm', () => {
     ])
   })
 
+  it('reconstructs total split amounts and preserves commissioned rows while editing a plan', () => {
+    const data = structuredClone(defaultData)
+    const initial = data.movements.find((movement) => movement.id === 'seed-installment-1')!
+    initial.splits = [{ id: 'commissioned-split', amount: 10, categoryId: 'accessori-casa', beneficiaryId: 'amazon', shared: false, commissionedPurchaseId: 'purchase-existing', excludeFromReports: true }]
+    data.scheduledPayments = data.scheduledPayments.map((payment) => ({
+      ...payment,
+      splits: [{ ...initial.splits![0], amount: 10 }],
+    }))
+
+    render(<MovementForm data={data} user={users[0]} initial={initial} onSave={vi.fn()} onCancel={vi.fn()} />)
+
+    expect((screen.getByLabelText('Importo parziale 1') as HTMLInputElement).value).toBe('30')
+    expect(screen.getByLabelText('Acquisto per conto di').textContent).toBe('Amazon')
+    expect(screen.queryByLabelText('Condivisione del movimento')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Entrata' })).toBeNull()
+  })
+
   it('creates a mixed purchase with a commissioned partial and keeps the total for installments', async () => {
     const onSave = vi.fn()
     const onCommissionedPurchase = vi.fn().mockResolvedValue(undefined)
@@ -410,6 +485,7 @@ describe('MovementForm', () => {
       onSave={onSave}
       onCancel={vi.fn()}
     />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
@@ -451,6 +527,7 @@ describe('MovementForm', () => {
       onSave={onSave}
       onCancel={vi.fn()}
     />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Scarpe per Anna' } })
@@ -489,7 +566,6 @@ describe('MovementForm', () => {
       onSave={onSave}
       onCancel={vi.fn()}
     />)
-
     fireEvent.click(screen.getByRole('button', { name: 'Paga alla romana' }))
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Trattoria' } })
@@ -539,6 +615,7 @@ describe('MovementForm', () => {
       onSave={onSave}
       onCancel={vi.fn()}
     />)
+    chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Acquisto in compensazione' } })

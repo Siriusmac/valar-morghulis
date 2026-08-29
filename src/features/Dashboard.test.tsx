@@ -104,4 +104,18 @@ describe('Dashboard workspace selector', () => {
 
     await waitFor(() => expect(onRespond).toHaveBeenCalledWith('pending-reimbursement', true, 'simone-cash'))
   })
+
+  it('explains an incomplete direct reimbursement instead of failing silently', async () => {
+    const data = structuredClone(defaultData)
+    data.reimbursements = [{
+      id: 'pending-reimbursement', fromId: users[0].id, toId: users[1].id,
+      amount: 25, date: '2026-07-27', authorId: users[1].id, status: 'pending',
+    }]
+    const onRespond = vi.fn().mockRejectedValue(new Error('reimbursement_accounts_required'))
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onRespondReimbursement={onRespond} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Conferma/ }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Manca il conto')
+  })
 })

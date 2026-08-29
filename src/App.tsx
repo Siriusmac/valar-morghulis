@@ -13,7 +13,7 @@ import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directori
 import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+import type { AppData, Beneficiary, Category, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
 import type { ComposerType } from './components/MovementTypeSelector'
 
@@ -271,8 +271,9 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     try {
       await cloud.respondToReimbursement(reimbursementId, accepted, selectedAccountId)
       setToast(accepted ? 'Rimborso confermato e saldi aggiornati' : 'Rimborso rifiutato')
-    } catch {
+    } catch (reason) {
       setToast('Non è stato possibile aggiornare il rimborso')
+      throw reason
     }
   }
   const saveTransfer = (transfer: Transfer) => { setData((current) => ({ ...current, transfers: [...current.transfers, transfer] })); setModal(null); setToast('Giro fondi completato') }
@@ -302,7 +303,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     await refreshContacts()
     setToast(`${contact.name} rimosso dai contatti. I movimenti sono rimasti disponibili.`)
   }
-  const respondToPurchase = async (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string) => {
+  const respondToPurchase = async (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string, category?: Category) => {
     if (!cloud) return
     if (!accepted) {
       await respondToCommissionedPurchase({ id: purchase.id, accepted: false })
@@ -330,7 +331,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       ...(settlesFamilyDebt ? { affectsAccountBalance: false } : {}),
       commissionedPurchaseId: purchase.id, paidByUserId: purchase.payerId,
       createdAt: new Date().toISOString(),
-    }, { beneficiary }))
+    }, { beneficiary, category }))
     await refreshContacts()
     setToast(settlesFamilyDebt ? 'Acquisto confermato e debito compensato' : 'Acquisto confermato e catalogato')
   }
@@ -423,7 +424,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'transfer' ? <Modal title="Nuovo movimento" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSelectMovement={(composerType) => setModal(composerType === 'roman' ? { type: 'movement', initialComposerType: 'roman' } : { type: 'movement', initialType: composerType as MovementType })} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
+    {modal?.type === 'transfer' ? <Modal title="Nuovo movimento" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>Totale <strong>{formatMoney(detailTotal)}</strong></span>{detailMovements.length ? <span>dal <strong>{formatDate(detailMovements[detailMovements.length - 1].date)}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} compact /></Suspense></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
@@ -569,7 +570,10 @@ function TwoMemberReimbursementForm({ data, userId, members, accountReferences, 
   const destinationAccount = data.accounts.find((item) => item.id === toAccountId)
   const label = balance < 0 ? `Tu rimborsi ${other.name}` : `${other.name} rimborsa te`
   const canUsePurchase = balance < 0
-  const canSubmit = Boolean(counterpartId && (settlementMethod === 'money' || (fromAccountId && purchaseDescription.trim())))
+  const authorAccountId = debtorId === userId ? fromAccountId : toAccountId
+  const numericAmount = Number(amount.replace(',', '.'))
+  const canSubmit = Boolean(counterpartId && numericAmount > 0 && numericAmount <= Math.abs(balance) + 0.001
+    && (settlementMethod === 'money' ? authorAccountId : fromAccountId && purchaseDescription.trim()))
   const selectCounterpart = (nextCounterpartId: string) => {
     setCounterpartId(nextCounterpartId)
     const nextDebtorId = balance < 0 ? userId : nextCounterpartId
@@ -579,7 +583,7 @@ function TwoMemberReimbursementForm({ data, userId, members, accountReferences, 
   }
   return <form className="reimbursement-form" onSubmit={(event) => {
     event.preventDefault()
-    const value = Number(amount.replace(',', '.'))
+    const value = numericAmount
     if (value > 0 && canSubmit) void onSubmit([{ amount: value, fromAccountId, toAccountId: settlementMethod === 'money' ? toAccountId : undefined, counterpartId, settlementMethod, description: purchaseDescription.trim() || undefined }])
   }}>
     <span className="reimbursement-form__icon"><Scale /></span>

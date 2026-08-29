@@ -18,6 +18,8 @@ describe('ScheduledPaymentsPage', () => {
     render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={onEdit} onDelete={onDelete} />)
 
     expect(screen.getByText(/iniziato il 12 lug 2026/)).toBeTruthy()
+    expect(screen.getByText('Importo totale')).toBeTruthy()
+    expect(screen.getByText(/120,00/)).toBeTruthy()
     expect(screen.getAllByText('Rata completa')).toHaveLength(2)
     expect(screen.getAllByText(/40,00/)).toHaveLength(2)
 

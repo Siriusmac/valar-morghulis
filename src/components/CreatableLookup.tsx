@@ -114,7 +114,7 @@ export function CreatableLookup({ label, value, options, placeholder, onChange, 
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => { setOpen(false); setActiveIndex(-1) }}
       >
-        <Plus /><span>Crea “{value.trim()}”</span>
+        <Plus /><span>Aggiungi “{value.trim()}”</span>
       </button> : null}
       {!matches.length && !normalized ? <small>Nessun elemento disponibile.</small> : null}
     </span> : null}

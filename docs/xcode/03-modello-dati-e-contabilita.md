@@ -78,6 +78,12 @@ il destinatario accetta, ma non aggiunge un secondo movimento di conto al
 pagante. Il destinatario registra una copia personale classificata che non
 incide nuovamente sul saldo del proprio conto.
 
+Una richiesta di rimborso diretto nuova deve contenere il conto personale del
+richiedente prima di essere inviata; la controparte seleziona il proprio conto
+in conferma. Le richieste storiche prive del conto dell'autore non possono
+essere completate dalla controparte, perché quel conto resta privato, e devono
+essere rifiutate e reinviate correttamente.
+
 ## Rate
 
 - Prima rata immediata, successive programmate nello stesso giorno dei mesi seguenti, adeguato alla fine mese.
@@ -88,6 +94,10 @@ incide nuovamente sul saldo del proprio conto.
 - Il piano completo e le singole scadenze sono privati dell'autore; non vengono
   pubblicati come `scheduled_payment` familiari e sono mostrati soltanto nel suo
   elenco “Pagamenti programmati”.
+- Creazione e modifica lavorano sull'importo totale del piano, non sull'importo
+  della singola rata. L'editor ricostruisce i parziali originali, conserva gli
+  ID delle richieste commissionate e sostituisce in modo coerente le rate future
+  quando importo, ripartizione o date vengono cambiati.
 
 ## Casi obbligatori
 

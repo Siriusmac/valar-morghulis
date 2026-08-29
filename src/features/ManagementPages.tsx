@@ -1,5 +1,6 @@
 import { Building2, Check, CreditCard, Edit3, Eye, Landmark, LockKeyhole, Plus, Send, Share2, Tag as TagIcon, Trash2, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
+import { CreatableLookup } from '../components/CreatableLookup'
 import { DonutChart } from '../components/DonutChart'
 import { accountBalance, movementAllocations, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
@@ -93,6 +94,7 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
   const [editingName, setEditingName] = useState('')
   const [deletingId, setDeletingId] = useState('')
   const [replacementId, setReplacementId] = useState('')
+  const [replacementQuery, setReplacementQuery] = useState('')
   const categories = data.categories.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const unassignedMovements = visibleMovements(data, user.id).filter((movement) =>
     movementAllocations(movement).some((allocation) => !allocation.categoryId))
@@ -124,10 +126,10 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
   )
   return <DirectoryPage title="Categorie" subtitle="Categorie distinte per spese ed entrate." addLabel="Nuova categoria" showForm={showForm} setShowForm={setShowForm}>
     {showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(event) => setMovementType(event.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
-    {deletingItem ? <form className="directory-delete-form" onSubmit={(event) => { event.preventDefault(); onDelete(deletingItem.id, replacementId || undefined); setDeletingId(''); setReplacementId('') }}>
+    {deletingItem ? <form className="directory-delete-form" onSubmit={(event) => { event.preventDefault(); const match = replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === replacementQuery.trim().toLocaleLowerCase('it-IT')); const created = replacementQuery.trim() && !match ? { id: makeId('category'), name: replacementQuery.trim(), scope: deletingItem.scope, ownerId: deletingItem.scope === 'personal' ? user.id : undefined, movementType: deletingItem.movementType, color: deletingItem.color } : undefined; if (created) onAdd(created); onDelete(deletingItem.id, (created?.id ?? match?.id ?? replacementId) || undefined); setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>
       <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa categoria.` : 'Questa categoria non è utilizzata.'}</p></div>
-      <label>Attribuisci i movimenti a<select aria-label="Attribuisci i movimenti a" value={replacementId} onChange={(event) => setReplacementId(event.target.value)} autoFocus><option value="">Senza categoria</option>{replacements.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
+      <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder="Senza categoria" onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} />
+      <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}
     <div className="directory-grid">{unassignedMovements.length ? <article className="directory-unassigned directory-selectable" tabIndex={0} onClick={() => onShowMovements('Movimenti · Senza categoria', (movement) => movementAllocations(movement).some((allocation) => !allocation.categoryId), (movement) => movementAllocations(movement).filter((allocation) => !allocation.categoryId).reduce((sum, allocation) => sum + allocation.amount, 0))} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onShowMovements('Movimenti · Senza categoria', (movement) => movementAllocations(movement).some((allocation) => !allocation.categoryId), (movement) => movementAllocations(movement).filter((allocation) => !allocation.categoryId).reduce((sum, allocation) => sum + allocation.amount, 0)) }}><span className="directory-icon"><Landmark /></span><div><strong>Senza categoria</strong><small>{unassignedMovements.length} {unassignedMovements.length === 1 ? 'movimento' : 'movimenti'}</small></div><div className="directory-actions"><Eye /></div></article> : null}{categories.map((item) => <article className="directory-selectable" key={item.id} tabIndex={0} onClick={() => editingId !== item.id && showCategoryMovements(item)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && editingId !== item.id) showCategoryMovements(item) }}>
       <span className="category-dot" style={{ background: item.color }} />
@@ -153,6 +155,7 @@ export function BeneficiariesPage({
   const [editingId, setEditingId] = useState(''); const [editingName, setEditingName] = useState('')
   const [deletingId, setDeletingId] = useState('')
   const [replacementId, setReplacementId] = useState('')
+  const [replacementQuery, setReplacementQuery] = useState('')
   const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id))
   const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const items = section === 'beneficiaries' ? beneficiaries : senders
@@ -168,6 +171,7 @@ export function BeneficiariesPage({
     setEditingName('')
     setDeletingId('')
     setReplacementId('')
+    setReplacementQuery('')
     setName('')
   }
   const submit = (event: React.FormEvent) => {
@@ -197,11 +201,18 @@ export function BeneficiariesPage({
   const confirmDeletion = (event: React.FormEvent) => {
     event.preventDefault()
     if (!deletingItem) return
-    const replacement = replacementId || undefined
+    const match = replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === replacementQuery.trim().toLocaleLowerCase('it-IT'))
+    const created = replacementQuery.trim() && !match ? { id: makeId(singular), name: replacementQuery.trim(), scope: deletingItem.scope, ownerId: deletingItem.scope === 'personal' ? user.id : undefined } : undefined
+    if (created) {
+      if (section === 'beneficiaries') onAddBeneficiary(created)
+      else onAddSender(created)
+    }
+    const replacement = (created?.id ?? match?.id ?? replacementId) || undefined
     if (section === 'beneficiaries') onDeleteBeneficiary(deletingItem.id, replacement)
     else onDeleteSender(deletingItem.id, replacement)
     setDeletingId('')
     setReplacementId('')
+    setReplacementQuery('')
   }
   const showDirectoryMovements = (item: Beneficiary | Sender) => onShowMovements(
     `Movimenti · ${item.name}`,
@@ -220,7 +231,7 @@ export function BeneficiariesPage({
     {showForm ? <InlineForm title={`Nuovo ${singular}`} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input aria-label={`Nome nuovo ${singular}`} value={name} onChange={(e) => setName(e.target.value)} placeholder={section === 'beneficiaries' ? 'Es. Lidl, Amazon' : 'Es. Datore di lavoro, INPS'} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
     {deletingItem ? <form className="directory-delete-form" onSubmit={confirmDeletion}>
       <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa anagrafica.` : 'Questa anagrafica non è utilizzata.'}</p></div>
-      <label>Attribuisci i movimenti a<select value={replacementId} onChange={(event) => setReplacementId(event.target.value)} autoFocus><option value="">{section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'}</option>{replacements.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder={section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'} onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} />
       <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}
     <div className="directory-grid">
@@ -243,6 +254,7 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
   const [editingName, setEditingName] = useState('')
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportTagId, setReportTagId] = useState('')
+  const [reportTagQuery, setReportTagQuery] = useState('')
   const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const visible = visibleMovements(data, user.id)
   const reportTags = data.tagReportIds.map((id) => tags.find((item) => item.id === id)).filter((item): item is Tag => Boolean(item))
@@ -262,10 +274,14 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
   }
   const addReport = (event: React.FormEvent) => {
     event.preventDefault()
-    const selected = reportTagId || availableReports[0]?.id
+    const match = availableReports.find((item) => item.name.toLocaleLowerCase('it-IT') === reportTagQuery.trim().toLocaleLowerCase('it-IT'))
+    const created = reportTagQuery.trim() && !match ? { id: makeId('tag'), name: reportTagQuery.trim(), scope, ownerId: scope === 'personal' ? user.id : undefined, color: '#c64e2f' } : undefined
+    if (created) onAdd(created)
+    const selected = (created?.id ?? match?.id ?? reportTagId) || availableReports[0]?.id
     if (!selected) return
     onAddReport(selected)
     setReportTagId('')
+    setReportTagQuery('')
     setShowReportForm(false)
   }
   const showTagMovements = (tag: Tag) => onShowMovements(
@@ -280,8 +296,8 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
       <div>{editingId === tag.id ? <input aria-label={`Nome tag ${tag.name}`} className="directory-edit-input" value={editingName} onClick={(event) => event.stopPropagation()} onChange={(event) => setEditingName(event.target.value)} onKeyDown={(event) => { event.stopPropagation(); if (event.key === 'Enter') saveName(tag) }} autoFocus /> : <strong>{tag.name}</strong>}<small>{tag.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div>
       <div className="directory-actions" onClick={(event) => event.stopPropagation()}>{editingId === tag.id ? <><button className="icon-button" title="Salva nome" onClick={() => saveName(tag)}><Check /></button><button className="icon-button" title="Annulla modifica" onClick={() => setEditingId('')}><X /></button></> : <button className="icon-button" title="Modifica nome" onClick={() => { setEditingId(tag.id); setEditingName(tag.name) }}><Edit3 /></button>}<button className="icon-button" title="Vedi movimenti" onClick={() => showTagMovements(tag)}><Eye /></button></div>
     </article>)}</div>
-    <div className="tag-report-toolbar"><div><h2>Righe di riepilogo</h2><p>I tag restano sempre disponibili nei nuovi movimenti.</p></div><button className="button button--ghost" onClick={() => setShowReportForm(true)} disabled={!availableReports.length}><Plus />Aggiungi riepilogo</button></div>
-    {showReportForm ? <form className="report-picker" onSubmit={addReport}><label>Tag da mostrare<select value={reportTagId} onChange={(event) => setReportTagId(event.target.value)} autoFocus>{availableReports.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="button button--ghost" type="button" onClick={() => setShowReportForm(false)}>Annulla</button><button className="button button--primary" type="submit"><Plus />Aggiungi riga</button></form> : null}
+    <div className="tag-report-toolbar"><div><h2>Righe di riepilogo</h2><p>I tag restano sempre disponibili nei nuovi movimenti.</p></div><button className="button button--ghost" onClick={() => setShowReportForm(true)}><Plus />Aggiungi riepilogo</button></div>
+    {showReportForm ? <form className="report-picker" onSubmit={addReport}><CreatableLookup label="Tag da mostrare" value={reportTagQuery} options={availableReports} placeholder="Inserisci tag" onChange={(value) => { setReportTagQuery(value); setReportTagId(availableReports.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /><button className="button button--ghost" type="button" onClick={() => setShowReportForm(false)}>Annulla</button><button className="button button--primary" type="submit"><Plus />Aggiungi riga</button></form> : null}
     <div className="tag-reports">{reportTags.map((tag) => { const tagged = visible.filter((item) => movementAllocations(item).some((allocation) => allocation.tagId === tag.id)); const expenses = tagged.filter((item) => item.type === 'expense'); const incomes = tagged.filter((item) => item.type === 'income'); const amountForTag = (item: AppData['movements'][number]) => movementAllocations(item).filter((allocation) => allocation.tagId === tag.id && !allocation.excludeFromReports).reduce((sum, allocation) => sum + allocation.amount, 0); const spent = expenses.reduce((sum, item) => sum + amountForTag(item), 0); const earned = incomes.reduce((sum, item) => sum + amountForTag(item), 0); return <section key={tag.id}><div className="tag-report__heading"><span className="directory-icon"><TagIcon /></span><div><h2>{tag.name}</h2><p>Bilancio {formatMoney(earned - spent)} · Spese {formatMoney(spent)}</p></div><div className="tag-report__actions"><button className="detail-button" onClick={() => showTagMovements(tag)}><Eye />Movimenti</button><button className="icon-button icon-button--danger" title="Rimuovi riga di riepilogo" onClick={() => onRemoveReport(tag.id)}><Trash2 /></button></div></div><DonutChart title="Spese per categoria" data={tagTotalsByCategory(data, expenses, tag.id)} tone="expense" compact /></section> })}</div>
   </DirectoryPage>
 }

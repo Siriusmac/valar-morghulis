@@ -121,6 +121,13 @@ non coinvolti ricevano l'avviso e che nessun importo compaia nella notifica.
 
 Preparare famiglie staging da 1, 2 e 3 membri. Inserire ogni scenario dal web e leggerlo su Apple, poi invertire. Confrontare ID, saldo conti, credito/debito, grafici, rate/rimborsi e visibilità personale.
 
+Verificare inoltre che il nuovo movimento mostri inizialmente soltanto i quattro
+tasti verticali e che la scelta li sostituisca con il modulo. Per i piani
+rateali controllare importo totale, ricostruzione dei parziali commissionati,
+assenza della condivisione globale negli acquisti multipli e modifica delle date
+future. Nei rimborsi coprire sia la catalogazione tramite acquisto sia l'errore
+esplicito per una richiesta diretta storica priva del conto dell'autore.
+
 ## Gate di rilascio
 
 - Suite Swift e web verdi.

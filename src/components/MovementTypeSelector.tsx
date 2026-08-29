@@ -10,7 +10,7 @@ const options: Array<{ value: ComposerType; title: string; description: string; 
 ]
 
 export function MovementTypeSelector({ value, onChange, includeTransfer = true }: {
-  value: ComposerType
+  value?: ComposerType
   onChange: (value: ComposerType) => void
   includeTransfer?: boolean
 }) {

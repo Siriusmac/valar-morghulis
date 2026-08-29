@@ -7,6 +7,7 @@ struct MovementComposerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var options: MovementOptions?
     @State private var composerMode = ComposerMode.expense
+    @State private var hasSelectedComposerMode = false
     @State private var type = MovementKind.expense
     @State private var amountText = ""
     @State private var date = Date()
@@ -47,6 +48,7 @@ struct MovementComposerView: View {
         self.appModel = appModel
         self.movement = movement
         _composerMode = State(initialValue: movement?.type == .income ? .income : .expense)
+        _hasSelectedComposerMode = State(initialValue: movement != nil)
         _type = State(initialValue: movement?.type ?? .expense)
         _amountText = State(initialValue: movement.map {
             NSDecimalNumber(decimal: $0.amount.decimal).stringValue.replacingOccurrences(of: ".", with: ",")
@@ -66,6 +68,8 @@ struct MovementComposerView: View {
                 if isLoading {
                     ProgressView("Caricamento…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let options, movement == nil, !hasSelectedComposerMode {
+                    composerModeSelection(options)
                 } else if let options {
                     movementForm(options)
                 } else {
@@ -86,8 +90,10 @@ struct MovementComposerView: View {
                         .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva") { save() }
-                        .disabled(isLoading || isSaving)
+                    if movement != nil || hasSelectedComposerMode {
+                        Button("Salva") { save() }
+                            .disabled(isLoading || isSaving)
+                    }
                 }
             }
             .task { await loadOptions() }
@@ -126,11 +132,42 @@ struct MovementComposerView: View {
         }
     }
 
+    private func composerModeSelection(_ options: MovementOptions) -> some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(availableComposerModes, id: \.self) { mode in
+                    Button {
+                        composerMode = mode
+                        changeComposerMode(mode, options: options)
+                        hasSelectedComposerMode = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(mode.label)
+                                .font(.title2.weight(.semibold))
+                            Text(mode.description)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(mode.tint)
+                    .accessibilityLabel(mode.label)
+                }
+            }
+            .frame(maxWidth: 560)
+            .padding(20)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
     private func standardMovementForm(_ options: MovementOptions) -> some View {
         Form {
             Section {
-                composerModePicker(options: options)
-
                 amountField
             } header: {
                 Text("Movimento")
@@ -307,44 +344,6 @@ struct MovementComposerView: View {
         }
         .formStyle(.grouped)
         .scrollDismissesKeyboard(.interactively)
-    }
-
-    @ViewBuilder
-    private func composerModePicker(options: MovementOptions) -> some View {
-        if movement == nil {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(availableComposerModes, id: \.self) { mode in
-                    Button {
-                        composerMode = mode
-                        changeComposerMode(mode, options: options)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(mode.label).font(.subheadline.weight(.semibold))
-                            Text(mode.description)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(composerMode == mode ? mode.tint : .secondary)
-                    .accessibilityLabel(mode.label)
-                }
-            }
-        } else {
-            Picker("Tipo", selection: $composerMode) {
-                ForEach(availableComposerModes, id: \.self) { mode in
-                    Text(mode.label).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: composerMode) { _, newMode in
-                changeComposerMode(newMode, options: options)
-            }
-        }
     }
 
     @ViewBuilder
@@ -527,8 +526,6 @@ struct MovementComposerView: View {
     private func transferForm(_ options: MovementOptions) -> some View {
         Form {
             Section {
-                composerModePicker(options: options)
-
                 amountField
 
                 DatePicker("Data", selection: $date, displayedComponents: .date)

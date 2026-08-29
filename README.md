@@ -22,12 +22,12 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
 - saldo iniziale dei conti modificabile con data di riferimento;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
-- rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; il conto personale mancante può essere completato da chi lo possiede;
+- rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; per un rimborso diretto chi invia la richiesta sceglie il proprio conto e chi la riceve può completare il proprio conto prima della conferma;
 - scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
-- nuovo movimento aperto da quattro scelte descritte: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
+- nuovo movimento aperto soltanto da quattro grandi scelte in colonna: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; dopo la scelta i tasti lasciano posto alla scheda relativa, con transizione animata sulla web app; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
-- categorie, beneficiari e mittenti ricercabili mentre si scrive e creati automaticamente quando il nome non esiste; tag creabili durante l'uso;
+- categorie, beneficiari, mittenti e tag ricercabili mentre si scrive attraverso lo stesso menu; quando il nome non esiste compare il comando “Aggiungi …” e la voce viene creata con il movimento;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
@@ -39,7 +39,8 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
-- spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata e pagamenti successivi programmati;
+- spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata, anteprima delle scadenze modificabili e pagamenti successivi programmati;
+- modifica di un piano rateale basata sull'importo totale dell'acquisto, con la stessa struttura della creazione e conservazione di categorie, acquisti per conto terzi e date delle rate;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - piano rateale privato e visibile soltanto all'autore, sempre calcolato sul totale dello scontrino anche quando contiene quote personali, condivise o acquistate per altri;
 - sezione “Rimborsi” con viste “Attesi” e “Dovuti” separate;
@@ -174,14 +175,17 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica web completata il 29 agosto 2026: 139 test, lint e build Vite.
+Ultima verifica web completata il 29 agosto 2026: 153 test, lint e build Vite.
 I test coprono anche la distinzione fra account esistente, account nuovo e
-account creato da un invito ma non ancora completato. La precedente verifica
-Apple comprende build iOS/macOS e 29 test unitari. Il collaudo browser desktop e mobile ha confermato il
-menu unificato per acquisto ordinario, per conto terzi e rimborso tramite
-acquisto, disponibile sia sul movimento singolo sia su ogni voce dell'acquisto
-multiplo. Ha inoltre verificato i dieci capitoli e l'indice navigabile della
-guida, senza overflow orizzontale o errori console.
+account creato da un invito ma non ancora completato, i rimborsi diretti o
+tramite acquisto, la modifica dei piani rateali sul totale e i menu ricercabili
+uniformi per categorie, beneficiari, mittenti e tag. La verifica Apple comprende
+build iOS/macOS e 30 test unitari. Il precedente collaudo browser desktop e
+mobile ha confermato il menu unificato per acquisto ordinario, per conto terzi e
+rimborso tramite acquisto, disponibile sia sul movimento singolo sia su ogni
+voce dell'acquisto multiplo. Il nuovo controllo visuale dei menu ricercabili è
+rimasto bloccato dalla policy amministrativa del browser integrato e va ripetuto
+quando l'accesso sarà nuovamente disponibile.
 
 Per lo stato tecnico, le decisioni di prodotto e i prossimi passi consulta [HANDOFF.md](HANDOFF.md).
 

@@ -17,13 +17,11 @@ function submitAmount(amount: string) {
 }
 
 describe('TransferForm', () => {
-  it('keeps the three movement choices and can return to an expense', () => {
-    const onSelectMovement = vi.fn()
-    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={vi.fn()} onCancel={vi.fn()} onSelectMovement={onSelectMovement} />)
+  it('shows only the transfer fields after the movement choice', () => {
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={vi.fn()} onCancel={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: 'Giro fondi' }).className).toContain('active')
-    fireEvent.click(screen.getByRole('button', { name: 'Spesa' }))
-    expect(onSelectMovement).toHaveBeenCalledWith('expense')
+    expect(screen.queryByRole('button', { name: 'Giro fondi' })).toBeNull()
+    expect(screen.getByLabelText('Dal conto')).toBeTruthy()
   })
 
   it.each(['NaN', 'Infinity'])('rifiuta un importo non finito: %s', (amount) => {

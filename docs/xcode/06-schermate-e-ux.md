@@ -22,7 +22,7 @@ la barra inferiore rappresenta destinazioni, non comandi.
 
 Form progressivo:
 
-1. In creazione quattro tasti con spiegazione breve: Spesa, Entrata, Giro fondi e Paga alla romana. In modifica restano soltanto i tipi persistiti compatibili.
+1. In creazione la prima schermata contiene soltanto quattro grandi tasti in una singola colonna, invariata su ogni layout, con spiegazione breve: Spesa, Entrata, Giro fondi e Paga alla romana. Dopo la scelta i tasti scompaiono e compare il modulo relativo. La web app usa una transizione animata; il client Apple cambia schermata senza animazioni dedicate. In modifica il tipo non è selezionabile e non compare il comando incoerente “Entrata”.
 2. Importo.
 3. Conto di origine/destinazione; per le spese segue “Pagamento a rate” con intermediario e numero rate.
 4. Beneficiario o mittente, data, descrizione e commenti.
@@ -40,7 +40,11 @@ Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
 personale aggiorna il debito verso la famiglia in base al numero dei membri.
 
-Per autocomplete usare campo testuale, risultati filtrati e azione “Crea …”, non un picker statico. Mostrare sempre il residuo dei parziali. In modifica, “Salva” conserva l'ID; “Elimina movimento” è separato e distruttivo.
+Per categoria, beneficiario, mittente e tag usare lo stesso campo testuale e lo
+stesso foglio di stile: i risultati vengono filtrati mentre si scrive e, quando
+non esiste una corrispondenza esatta, compare l'azione “Aggiungi …”. Non usare
+picker statici per queste anagrafiche. Mostrare sempre il residuo dei parziali.
+In modifica, “Salva” conserva l'ID; “Elimina movimento” è separato e distruttivo.
 
 Usare controlli nativi, focus state e scrolling automatico: l'intero controllo attivo resta visibile sopra la tastiera.
 
@@ -74,7 +78,10 @@ movimenti senza cancellarli. Lo storico è una destinazione esplicita nello stac
 del dettaglio, evitando doppi passaggi o liste ripetute nello split view iPad.
 
 Le rate sono raggruppate per piano mostrando pagate/mancanti, singole scadenze,
-conto e importo residuo.
+conto e importo totale dell'acquisto. L'editor del piano riusa la stessa scheda
+della creazione: ricostruisce l'importo totale, le categorie e le destinazioni
+originali di ogni parziale, nasconde la condivisione globale nell'acquisto
+multiplo e permette di modificare le date delle rate future.
 
 ## Contatti e acquisti su commissione
 

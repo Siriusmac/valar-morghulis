@@ -372,15 +372,26 @@ attiva, crea `Reimbursement.settlementMethod = purchase` e collega il relativo
 `CommissionedPurchase` al movimento già addebitato. Non è richiesta una nuova
 migration.
 
-Verifiche concluse il 29 agosto 2026: il gate web ha confermato 140 test, lint e
-build Vite, inclusi i flussi distinti per inviti a utenti registrati, nuovi o
-ancora in configurazione e la revoca degli inviti. La verifica Apple comprende
-build macOS, build generica iOS Simulator e 29 test unitari nativi superati.
+Verifiche concluse il 29 agosto 2026: il gate web ha confermato 153 test, lint e
+build Vite. Sono coperti anche il nuovo selettore iniziale a quattro tasti, gli
+errori espliciti dei rimborsi, l'importo totale dei piani rateali, la
+ricostruzione dei parziali commissionati, la modifica delle scadenze e i menu
+ricercabili uniformi per categorie, controparti e tag. La
+verifica Apple comprende 30 test unitari nativi superati; il runner UI macOS è
+stato interrotto dall'ambiente prima dell'avvio e non costituisce un esito dei
+test dell'app.
 Il browser locale ha verificato il nuovo movimento desktop e mobile, incluso il
 menu con le tre finalità sul movimento singolo e su ogni voce dell'acquisto
 multiplo. Ha inoltre verificato la guida in dieci capitoli, tutte le ancore
 dell'indice e il layout a 390 px, senza overflow o errori console. La consegna
 APNs reale resta da collaudare su dispositivi firmati dopo l'attivazione server.
+
+Questo rilascio estende il commit
+`6e6072f5be932c29b0d37db406452c850bbc1693`. Nessuna migration è necessaria per
+queste correzioni. Il
+nuovo tentativo di collaudo visuale è stato bloccato dalla policy amministrativa
+del browser integrato prima dell'accesso all'app e va quindi ripetuto quando il
+browser sarà disponibile.
 
 ## Hosting Cloudflare
 

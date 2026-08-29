@@ -195,13 +195,20 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
   const existingAccountId = ownsSource ? reimbursement.fromAccountId : reimbursement.toAccountId
   const [selectedAccountId, setSelectedAccountId] = useState(existingAccountId ?? selectableAccounts[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
+  const [responseError, setResponseError] = useState('')
   const author = members.find((member) => member.id === reimbursement.authorId)
   const other = members.find((member) => member.id === (ownsSource ? reimbursement.toId : reimbursement.fromId))
   const respond = async (accepted: boolean) => {
     if (!onRespond || (accepted && !selectedAccountId)) return
     setBusy(true)
-    await onRespond(reimbursement.id, accepted, accepted ? selectedAccountId || undefined : undefined)
-    setBusy(false)
+    setResponseError('')
+    try { await onRespond(reimbursement.id, accepted, accepted ? selectedAccountId || undefined : undefined) }
+    catch (reason) {
+      const message = reason instanceof Error ? reason.message : ''
+      setResponseError(message.includes('reimbursement_accounts_required')
+        ? 'Manca il conto della persona che ha creato il rimborso. La richiesta deve essere reinviata indicando quel conto.'
+        : message || 'Non è stato possibile aggiornare il rimborso.')
+    } finally { setBusy(false) }
   }
   if (reimbursement.status === 'rejected') return <article className="reimbursement-review reimbursement-review--rejected">
     <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
@@ -216,6 +223,7 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
         <option value="">Seleziona un conto</option>
         {selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}
       </select></label>
+      {responseError ? <small className="field-error" role="alert">{responseError}</small> : null}
     </div>
     <div className="reimbursement-review__actions">
       <button type="button" className="button button--ghost" disabled={busy} onClick={() => void respond(false)}><X /> Rifiuta</button>
