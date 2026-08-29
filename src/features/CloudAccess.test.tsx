@@ -3,15 +3,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { afterEach, vi } from 'vitest'
-import { CloudLogin, InvitationDecision } from './CloudAccess'
+import { CloudLogin, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
 import { invitationInvokeError } from '../lib/functionErrors'
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
-vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc }) }))
+const { rpc, updateUser } = vi.hoisted(() => ({ rpc: vi.fn(), updateUser: vi.fn() }))
+vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { updateUser } }) }))
 
 afterEach(() => {
   cleanup()
   rpc.mockReset()
+  updateUser.mockReset()
 })
 
 describe('invitationInvokeError', () => {
@@ -53,6 +54,24 @@ describe('InvitationDecision', () => {
 
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('decline_family_invitation', { invitation_token: 'token-two' }))
     expect(onResolved).toHaveBeenCalledWith(null)
+  })
+})
+
+describe('InvitationPasswordSetup', () => {
+  it('completes a pending invited account after setting its password', async () => {
+    const onCompleted = vi.fn()
+    updateUser.mockResolvedValue({ error: null })
+    render(<InvitationPasswordSetup onCompleted={onCompleted} />)
+
+    fireEvent.change(screen.getByLabelText('Nuova password'), { target: { value: 'password-sicura' } })
+    fireEvent.change(screen.getByLabelText('Conferma password'), { target: { value: 'password-sicura' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledWith({
+      password: 'password-sicura',
+      data: { skey_invitation_pending: false },
+    }))
+    expect(onCompleted).toHaveBeenCalledOnce()
   })
 })
 

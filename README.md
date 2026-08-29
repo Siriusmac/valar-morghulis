@@ -104,6 +104,14 @@ supabase functions deploy invite-contact
 supabase secrets set APP_URL=https://www.valarmorghulis.it
 ```
 
+Gli inviti usano due flussi separati: il template Supabase Auth **Magic Link**
+per chi possiede già un account e il template **Invite user** per chi deve
+crearlo. I contenuti HTML versionati in `supabase/email-templates/` vanno
+copiati nei corrispondenti template del progetto Supabase ospitato. In questo
+modo la mail propone rispettivamente “Usa il tuo account esistente” oppure
+“Crea il tuo account”, senza chiedere una seconda registrazione allo stesso
+indirizzo.
+
 Per le notifiche push Apple occorre inoltre abilitare la capability Push
 Notifications per l'App ID `it.valarmorghulis.skey` e impostare come segreti
 della funzione `APNS_KEY_ID`, `APNS_TEAM_ID` e `APNS_PRIVATE_KEY` (contenuto
@@ -157,9 +165,10 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica completata il 28 agosto 2026: 133 test web, lint, build Vite,
-controllo della configurazione Supabase nel bundle Cloudflare, build iOS/macOS
-e 29 test unitari Apple. Il collaudo browser desktop e mobile ha confermato il
+Ultima verifica web completata il 29 agosto 2026: 139 test, lint e build Vite.
+I test coprono anche la distinzione fra account esistente, account nuovo e
+account creato da un invito ma non ancora completato. La precedente verifica
+Apple comprende build iOS/macOS e 29 test unitari. Il collaudo browser desktop e mobile ha confermato il
 menu unificato per acquisto ordinario, per conto terzi e rimborso tramite
 acquisto, disponibile sia sul movimento singolo sia su ogni voce dell'acquisto
 multiplo. Ha inoltre verificato i dieci capitoli e l'indice navigabile della

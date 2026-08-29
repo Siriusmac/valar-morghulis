@@ -110,7 +110,10 @@ Funzioni disponibili:
   operativa responsive in dieci capitoli sulle funzioni dell’app.
 - `src/lib/supabase.ts`: client Supabase attivato soltanto tramite variabili Vite.
 - `supabase/migrations/`: schema, funzioni transazionali, indici e policy RLS.
-- `supabase/functions/invite-family-member/`: invio degli inviti email.
+- `supabase/functions/invite-family-member/`: invio degli inviti email con
+  accesso diretto per utenti registrati e creazione guidata per i nuovi utenti.
+- `supabase/email-templates/`: sorgenti dei template ospitati Supabase Auth per
+  distinguere chiaramente l’uso di un account esistente dalla sua creazione.
 - `src/types.ts`: modello dati condiviso.
 - `public/`: logo, icone e manifest della web app.
 - `docs/xcode/`: specifiche per architettura, parità funzionale, modello dati,
@@ -149,7 +152,7 @@ orizzontale a 390 px.
 Prossimi passi:
 
 1. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
-2. rifinire i template email e introdurre limiti anti-abuso;
+2. introdurre limiti anti-abuso sugli inviti email;
 3. aggiungere test end-to-end autenticati per esportazione e cancellazioni distruttive;
 4. definire l’API stabile per le future app native iOS e macOS.
 
@@ -354,9 +357,10 @@ attiva, crea `Reimbursement.settlementMethod = purchase` e collega il relativo
 `CommissionedPurchase` al movimento già addebitato. Non è richiesta una nuova
 migration.
 
-Verifiche concluse il 28 agosto 2026: build macOS riuscita, build generica iOS
-riuscita e 29 test unitari nativi superati. Il gate web ha confermato 133 test,
-lint, build Vite e presenza della configurazione Supabase nel bundle Cloudflare.
+Verifiche concluse il 29 agosto 2026: il gate web ha confermato 139 test, lint e
+build Vite, inclusi i flussi distinti per inviti a utenti registrati, nuovi o
+ancora in configurazione. La precedente verifica Apple comprende build macOS,
+build generica iOS e 29 test unitari nativi superati.
 Il browser locale ha verificato il nuovo movimento desktop e mobile, incluso il
 menu con le tre finalità sul movimento singolo e su ogni voce dell'acquisto
 multiplo. Ha inoltre verificato la guida in dieci capitoli, tutte le ancore

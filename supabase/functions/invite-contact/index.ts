@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { invitationAuthPlan, type InvitationAccountState } from '../_shared/invitation-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,14 @@ Deno.serve(async (request) => {
       .select('user_id_a').eq('user_id_a', first).eq('user_id_b', second).maybeSingle()
     if (existing) return json({ error: 'contact_already_exists' }, 409)
   }
+  let accountState: InvitationAccountState = 'new-account'
+  if (invitedProfile) {
+    const { data: invitedAuth, error: invitedAuthError } = await adminClient.auth.admin.getUserById(invitedProfile.id)
+    if (invitedAuthError) return json({ error: 'invited_account_lookup_failed' }, 502)
+    accountState = invitedAuth.user.user_metadata?.skey_invitation_pending === true
+      ? 'pending-account'
+      : 'existing-account'
+  }
 
   const { data: existingInvitation, error: existingError } = await userClient
     .from('contact_invitations')
@@ -55,11 +64,16 @@ Deno.serve(async (request) => {
   if (result.error) return json({ error: result.error.message }, 400)
 
   const invitation = result.data
-  const redirectTo = `${appUrl.replace(/\/$/, '')}/?contactInvite=${invitation.token}&setup=password`
-  const { error: mailError } = await adminClient.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
-  })
+  const authPlan = invitationAuthPlan(appUrl, invitation.token, 'contact', accountState)
+  const { error: mailError } = authPlan.delivery === 'magic-link'
+    ? await adminClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: authPlan.redirectTo, shouldCreateUser: false },
+    })
+    : await adminClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo: authPlan.redirectTo,
+      data: { skey_invitation_pending: true },
+    })
   if (mailError) {
     console.error('contact_invite_email_delivery_failed', { code: mailError.code, status: mailError.status })
     if (existingInvitation) {
@@ -72,7 +86,7 @@ Deno.serve(async (request) => {
     }
     return json({ error: 'email_delivery_failed' }, 502)
   }
-  return json({ invitation, redirectTo, resent: Boolean(existingInvitation) })
+  return json({ invitation, redirectTo: authPlan.redirectTo, accountFlow: authPlan.accountState, resent: Boolean(existingInvitation) })
 })
 
 function json(payload: unknown, status = 200) {

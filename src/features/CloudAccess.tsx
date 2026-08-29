@@ -675,7 +675,7 @@ function ContactInvitationDecision({ token, onResolved }: { token: string; onRes
   </div></AccessLayout>
 }
 
-function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
+export function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
   const supabase = getSupabase()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -686,7 +686,10 @@ function InvitationPasswordSetup({ onCompleted }: { onCompleted: () => void }) {
     event.preventDefault(); setError('')
     if (password !== confirmation) { setError('Le password non coincidono.'); return }
     setBusy(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+      data: { skey_invitation_pending: false },
+    })
     setBusy(false)
     if (updateError) setError(authMessage(updateError.message))
     else onCompleted()
