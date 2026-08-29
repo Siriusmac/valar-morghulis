@@ -20,6 +20,8 @@ struct MovementComposerView: View {
     @State private var isShared = false
     @State private var splitsEnabled = false
     @State private var splitDrafts: [MovementSplitEditorDraft] = []
+    @State private var romanContactID: UUID?
+    @State private var romanParticipants: [RomanParticipantDraft] = []
     @State private var splitDirectorySheet: SplitDirectorySheetContext?
     @State private var affectsAccountBalance = false
     @State private var installmentsEnabled = false
@@ -127,15 +129,7 @@ struct MovementComposerView: View {
     private func standardMovementForm(_ options: MovementOptions) -> some View {
         Form {
             Section {
-                Picker("Tipo", selection: $composerMode) {
-                    ForEach(availableComposerModes, id: \.self) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: composerMode) { _, newMode in
-                    changeComposerMode(newMode, options: options)
-                }
+                composerModePicker(options: options)
 
                 amountField
             } header: {
@@ -148,18 +142,22 @@ struct MovementComposerView: View {
             }
 
             Section {
-                Picker(type == .expense ? "Conto di addebito" : "Conto di destinazione", selection: $accountID) {
-                    Text("Seleziona un conto").tag("")
-                    ForEach(usableAccounts(in: options)) { account in
-                        Text(accountLabel(account)).tag(account.id)
+                if isDebtCompensationMovement {
+                    LabeledContent("Origine contabile", value: CommissionedPurchaseAccounting.debtCompensationAccountLabel)
+                } else {
+                    Picker(type == .expense ? "Conto di addebito" : "Conto di destinazione", selection: $accountID) {
+                        Text("Seleziona un conto").tag("")
+                        ForEach(usableAccounts(in: options)) { account in
+                            Text(accountLabel(account)).tag(account.id)
+                        }
+                    }
+                    .onChange(of: accountID) { _, _ in
+                        if type == .income { isShared = selectedAccount?.familyID != nil }
+                        normalizeDirectorySelections(); normalizeSplitSelections(); updateBalanceImpact()
                     }
                 }
-                .onChange(of: accountID) { _, _ in
-                    if type == .income { isShared = selectedAccount?.familyID != nil }
-                    normalizeDirectorySelections(); normalizeSplitSelections(); updateBalanceImpact()
-                }
 
-                if movement == nil, type == .expense {
+                if movement == nil, type == .expense, composerMode != .roman {
                     Toggle("Pagamento a rate", isOn: $installmentsEnabled)
                     if installmentsEnabled {
                         Picker("Intermediario", selection: $installmentProvider) {
@@ -212,9 +210,13 @@ struct MovementComposerView: View {
             }
 
             if type == .expense {
-                splitSection
-                if movement == nil, mainAllocationExists {
-                    commissionSection(options)
+                if composerMode == .roman, movement == nil {
+                    romanSplitSection
+                } else {
+                    splitSection
+                    if movement == nil, mainAllocationExists {
+                        commissionSection(options)
+                    }
                 }
             }
 
@@ -305,6 +307,121 @@ struct MovementComposerView: View {
         }
         .formStyle(.grouped)
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    @ViewBuilder
+    private func composerModePicker(options: MovementOptions) -> some View {
+        if movement == nil {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ForEach(availableComposerModes, id: \.self) { mode in
+                    Button {
+                        composerMode = mode
+                        changeComposerMode(mode, options: options)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(mode.label).font(.subheadline.weight(.semibold))
+                            Text(mode.description)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(composerMode == mode ? mode.tint : .secondary)
+                    .accessibilityLabel(mode.label)
+                }
+            }
+        } else {
+            Picker("Tipo", selection: $composerMode) {
+                ForEach(availableComposerModes, id: \.self) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: composerMode) { _, newMode in
+                changeComposerMode(newMode, options: options)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var romanSplitSection: some View {
+        Section {
+            Picker("Aggiungi contatto", selection: $romanContactID) {
+                Text("Scegli un contatto").tag(UUID?.none)
+                ForEach(availableRomanContacts) { contact in
+                    Text(contact.displayName + (contact.source == .family ? " · famiglia" : ""))
+                        .tag(Optional(contact.id))
+                }
+            }
+
+            Button {
+                guard let romanContactID else { return }
+                romanParticipants.append(RomanParticipantDraft(contactID: romanContactID))
+                self.romanContactID = nil
+            } label: {
+                Label("Aggiungi", systemImage: "person.badge.plus")
+            }
+            .disabled(romanContactID == nil)
+
+            if romanParticipants.isEmpty {
+                Text("Aggiungi almeno una persona. La tua quota viene ricalcolata automaticamente.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(romanParticipants.enumerated()), id: \.element.id) { index, participant in
+                    let contact = availableCommissionedContacts.first { $0.id == participant.contactID }
+                    let share = romanShares.indices.contains(index + 1) ? romanShares[index + 1] : .zero
+                    let credit = reimbursementOptions.first {
+                        $0.memberID.caseInsensitiveCompare(participant.contactID.uuidString) == .orderedSame
+                    }?.availableCredit ?? .zero
+                    let canCompensate = contact?.source == .family && share > .zero && credit >= share
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(contact?.displayName ?? "Contatto").font(.subheadline.weight(.semibold))
+                                Text("Quota: \(share.euroFormatted)").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(role: .destructive) {
+                                romanParticipants.removeAll { $0.id == participant.id }
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Rimuovi \(contact?.displayName ?? "contatto")")
+                        }
+
+                        if contact?.source == .family {
+                            Toggle("Scala la quota dal debito", isOn: romanCompensationBinding(for: participant.id))
+                                .disabled(!canCompensate && !participant.compensateDebt)
+                            Text(canCompensate
+                                 ? "Credito disponibile: \(credit.euroFormatted)"
+                                 : "Il debito disponibile non copre questa quota.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Riceverà una normale richiesta di rimborso.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                LabeledContent("La tua quota", value: romanShares.first?.euroFormatted ?? Money.zero.euroFormatted)
+                Text("\(romanParticipants.count + 1) quote totali")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Paga alla romana")
+        } footer: {
+            Text("La spesa viene addebitata per intero al tuo conto. Ogni contatto confermerà e catalogherà soltanto la propria quota.")
+        }
     }
 
     @ViewBuilder
@@ -410,15 +527,7 @@ struct MovementComposerView: View {
     private func transferForm(_ options: MovementOptions) -> some View {
         Form {
             Section {
-                Picker("Tipo", selection: $composerMode) {
-                    ForEach(availableComposerModes, id: \.self) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: composerMode) { _, newMode in
-                    changeComposerMode(newMode, options: options)
-                }
+                composerModePicker(options: options)
 
                 amountField
 
@@ -508,7 +617,14 @@ struct MovementComposerView: View {
     }
 
     private var selectedAccount: AccountSummary? {
-        options?.accounts.first { $0.id == accountID }
+        if accountID == CommissionedPurchaseAccounting.debtCompensationAccountID {
+            return CommissionedPurchaseAccounting.debtCompensationAccount
+        }
+        return options?.accounts.first { $0.id == accountID }
+    }
+
+    private var isDebtCompensationMovement: Bool {
+        movement?.accountID == CommissionedPurchaseAccounting.debtCompensationAccountID
     }
 
     private var selectedDestinationAccount: AccountSummary? {
@@ -526,6 +642,54 @@ struct MovementComposerView: View {
             )
         }
         return contacts.values.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+
+    private var availableRomanContacts: [ContactSummary] {
+        let selected = Set(romanParticipants.map(\.contactID))
+        return availableCommissionedContacts.filter { !selected.contains($0.id) }
+    }
+
+    private var romanShares: [Money] {
+        guard let amount = parsedAmount else {
+            return Array(repeating: .zero, count: romanParticipants.count + 1)
+        }
+        return LedgerCalculations.installmentAmounts(total: amount, count: romanParticipants.count + 1)
+    }
+
+    private var romanSplitDrafts: [MovementSplitEditorDraft] {
+        romanParticipants.enumerated().map { index, participant in
+            let share = romanShares.indices.contains(index + 1) ? romanShares[index + 1] : .zero
+            return MovementSplitEditorDraft(
+                id: "roman-\(participant.contactID.uuidString.lowercased())",
+                amountText: NSDecimalNumber(decimal: share.decimal).stringValue.replacingOccurrences(of: ".", with: ","),
+                category: nil,
+                beneficiary: nil,
+                tag: nil,
+                isShared: false,
+                isCommissioned: true,
+                isReimbursement: participant.compensateDebt,
+                commissionedRecipientID: participant.contactID,
+                commissionedInviteEmail: ""
+            )
+        }
+    }
+
+    private var activeSplitDrafts: [MovementSplitEditorDraft] {
+        composerMode == .roman ? romanSplitDrafts : splitDrafts
+    }
+
+    private var activeSplitsEnabled: Bool {
+        composerMode == .roman || splitsEnabled
+    }
+
+    private func romanCompensationBinding(for id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { romanParticipants.first { $0.id == id }?.compensateDebt ?? false },
+            set: { value in
+                guard let index = romanParticipants.firstIndex(where: { $0.id == id }) else { return }
+                romanParticipants[index].compensateDebt = value
+            }
+        )
     }
 
     private var reimbursementOptions: [ReimbursementPlanItem] {
@@ -623,8 +787,8 @@ struct MovementComposerView: View {
         if commissionedPurchase, !validMainCommissionTarget { return reimbursementPurchase ? "Seleziona il membro della famiglia da rimborsare." : "Seleziona un contatto o inserisci un indirizzo email valido." }
         if !reimbursementAmountsAreValid { return "L’importo usato come rimborso supera il credito disponibile del membro scelto." }
         if hasCommissionedAllocation, descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Inserisci una descrizione riconoscibile per il destinatario." }
-        if splitsEnabled, splitDrafts.isEmpty { return "Aggiungi almeno un parziale." }
-        if splitsEnabled, splitDrafts.contains(where: { item in
+        if activeSplitsEnabled, activeSplitDrafts.isEmpty { return composerMode == .roman ? "Aggiungi almeno un contatto." : "Aggiungi almeno un parziale." }
+        if activeSplitsEnabled, activeSplitDrafts.contains(where: { item in
             parsedSplitAmount(item.amountText) == nil
                 || (item.isCommissioned ? !validCommissionTarget(item) : item.category == nil)
         }) {
@@ -657,10 +821,10 @@ struct MovementComposerView: View {
         })
         var totals: [String: Money] = [:]
         if reimbursementPurchase, let commissionedRecipientID {
-            let amount = splitsEnabled ? splitRemainder : Money(decimal: parsedAmount ?? 0)
+            let amount = activeSplitsEnabled ? splitRemainder : Money(decimal: parsedAmount ?? 0)
             totals[commissionedRecipientID.uuidString.lowercased(), default: .zero] = amount
         }
-        for item in splitDrafts where item.isReimbursement {
+        for item in activeSplitDrafts where item.isReimbursement {
             guard let recipientID = item.commissionedRecipientID,
                   let amount = parsedSplitAmount(item.amountText) else { continue }
             totals[recipientID.uuidString.lowercased(), default: .zero] =
@@ -670,11 +834,11 @@ struct MovementComposerView: View {
     }
 
     private var hasCommissionedAllocation: Bool {
-        commissionedPurchase || splitDrafts.contains(where: \.isCommissioned)
+        commissionedPurchase || activeSplitDrafts.contains(where: \.isCommissioned)
     }
 
     private var mainAllocationExists: Bool {
-        type != .expense || !splitsEnabled || splitRemainder > .zero
+        type != .expense || !activeSplitsEnabled || splitRemainder > .zero
     }
 
     private var mainAllocationNeedsClassification: Bool {
@@ -683,8 +847,8 @@ struct MovementComposerView: View {
 
     private var counterpartyRequired: Bool {
         if type == .income { return true }
-        if !splitsEnabled { return !commissionedPurchase }
-        return splitDrafts.contains { !$0.isCommissioned }
+        if !activeSplitsEnabled { return !commissionedPurchase }
+        return activeSplitDrafts.contains { !$0.isCommissioned }
             || (splitRemainder > .zero && !commissionedPurchase)
     }
 
@@ -731,9 +895,11 @@ struct MovementComposerView: View {
             let loaded = try await appModel.loadMovementOptions()
             options = loaded
             if let movement {
-                accountID = usableAccounts(in: loaded).contains { $0.id == movement.accountID }
+                accountID = movement.accountID == CommissionedPurchaseAccounting.debtCompensationAccountID
                     ? movement.accountID
-                    : usableAccounts(in: loaded).first?.id ?? ""
+                    : usableAccounts(in: loaded).contains { $0.id == movement.accountID }
+                        ? movement.accountID
+                        : usableAccounts(in: loaded).first?.id ?? ""
                 category = loaded.categories.first { $0.id == movement.categoryID }
                 let counterpartyID = movement.type == .expense ? movement.beneficiaryID : movement.senderID
                 let candidates = movement.type == .expense ? loaded.beneficiaries : loaded.senders
@@ -798,7 +964,7 @@ struct MovementComposerView: View {
         let cleanComments = comments.trimmingCharacters(in: .whitespacesAndNewlines)
         let mainCommissioned = commissionedPurchase && splitRemainder > .zero
         let allAllocationsCommissioned = (splitRemainder == .zero || mainCommissioned)
-            && splitDrafts.allSatisfy(\.isCommissioned)
+            && activeSplitDrafts.allSatisfy(\.isCommissioned)
         let reimbursementDrafts = purchaseReimbursementDrafts(account: account, description: cleanDescription)
         let draft = MovementDraft(
             id: draftID,
@@ -813,10 +979,11 @@ struct MovementComposerView: View {
             tag: tag,
             isShared: effectivelyShared,
             splits: resolvedSplits,
-            affectsAccountBalance: isBeforeOpeningBalance ? affectsAccountBalance : nil,
+            affectsAccountBalance: isDebtCompensationMovement ? false : isBeforeOpeningBalance ? affectsAccountBalance : nil,
             installment: installmentDraft,
-            commissionedPurchaseID: mainCommissioned ? "commissioned-purchase-\(draftID)" : nil,
-            excludeFromReports: allAllocationsCommissioned
+            commissionedPurchaseID: mainCommissioned ? "commissioned-purchase-\(draftID)" : movement?.commissionedPurchaseID,
+            paidByUserID: movement?.paidByUserID.flatMap(UUID.init(uuidString:)),
+            excludeFromReports: allAllocationsCommissioned || movement?.excludeFromReports == true
         )
 
         Task {
@@ -835,7 +1002,7 @@ struct MovementComposerView: View {
                             purchaseDate: Self.dayFormatter.string(from: date), description: cleanDescription
                         ))
                     }
-                    for item in splitDrafts where item.isCommissioned && !item.isReimbursement {
+                    for item in activeSplitDrafts where item.isCommissioned && !item.isReimbursement {
                         guard let partialAmount = parsedSplitAmount(item.amountText) else { continue }
                         let invitationID = item.commissionedRecipientID == nil
                             ? try await appModel.inviteContact(email: item.commissionedInviteEmail)
@@ -881,7 +1048,7 @@ struct MovementComposerView: View {
         else { return [] }
         var allocations: [(id: String, purchaseID: String, amount: Decimal, recipientID: UUID)] = []
         if reimbursementPurchase, let commissionedRecipientID {
-            let amount = splitsEnabled ? splitRemainder.decimal : parsedAmount ?? 0
+            let amount = activeSplitsEnabled ? splitRemainder.decimal : parsedAmount ?? 0
             if amount > 0 {
                 allocations.append((
                     "reimbursement-\(UUID().uuidString.lowercased())",
@@ -889,7 +1056,7 @@ struct MovementComposerView: View {
                 ))
             }
         }
-        for item in splitDrafts where item.isReimbursement {
+        for item in activeSplitDrafts where item.isReimbursement {
             guard let amount = parsedSplitAmount(item.amountText),
                   let recipientID = item.commissionedRecipientID else { continue }
             allocations.append((
@@ -965,6 +1132,18 @@ struct MovementComposerView: View {
             reimbursementPurchase = false
             commissionedRecipientID = nil
             commissionedInviteEmail = ""
+            if mode == .roman {
+                installmentsEnabled = false
+                splitsEnabled = false
+                splitDrafts = []
+                isShared = false
+                if selectedAccount?.familyID != nil {
+                    accountID = options.accounts.first { $0.familyID == nil }?.id ?? ""
+                }
+            } else {
+                romanParticipants = []
+                romanContactID = nil
+            }
             if movementKind == .income {
                 installmentsEnabled = false
                 splitsEnabled = false
@@ -975,6 +1154,8 @@ struct MovementComposerView: View {
             installmentsEnabled = false
             splitsEnabled = false
             splitDrafts = []
+            romanParticipants = []
+            romanContactID = nil
             if accountID.isEmpty {
                 accountID = options.accounts.first?.id ?? ""
             }
@@ -1019,7 +1200,7 @@ struct MovementComposerView: View {
     }
 
     private func usableAccounts(in options: MovementOptions) -> [AccountSummary] {
-        if commissionedPurchase || splitDrafts.contains(where: \.isCommissioned) {
+        if commissionedPurchase || activeSplitDrafts.contains(where: \.isCommissioned) {
             return options.accounts.filter { $0.familyID == nil }
         }
         guard let movement else { return options.accounts }
@@ -1046,9 +1227,9 @@ struct MovementComposerView: View {
     }
 
     private var resolvedSplits: [MovementSplitDraft]? {
-        guard splitsEnabled else { return nil }
+        guard activeSplitsEnabled else { return nil }
         let familyAccount = selectedAccount?.familyID != nil
-        return splitDrafts.compactMap { item in
+        return activeSplitDrafts.compactMap { item in
             guard let amount = parsedSplitAmount(item.amountText) else { return nil }
             let category = item.isCommissioned ? commissionCategory : item.category
             guard let category else { return nil }
@@ -1066,7 +1247,7 @@ struct MovementComposerView: View {
     }
 
     private var splitTotal: Money {
-        splitDrafts.reduce(.zero) { total, item in
+        activeSplitDrafts.reduce(.zero) { total, item in
             total + Money(decimal: parsedSplitAmount(item.amountText) ?? 0)
         }
     }
@@ -1076,9 +1257,9 @@ struct MovementComposerView: View {
     }
 
     private var splitsAreValid: Bool {
-        guard splitsEnabled else { return true }
-        guard !splitDrafts.isEmpty,
-              splitDrafts.allSatisfy({ item in
+        guard activeSplitsEnabled else { return true }
+        guard !activeSplitDrafts.isEmpty,
+              activeSplitDrafts.allSatisfy({ item in
                   parsedSplitAmount(item.amountText) != nil
                       && (item.isCommissioned ? validCommissionTarget(item) : item.category != nil)
               }),
@@ -1116,7 +1297,7 @@ struct MovementComposerView: View {
     }
 
     private var commissionBeneficiaryFallback: LedgerDirectoryItem? {
-        guard let item = splitDrafts.first(where: \.isCommissioned) else { return nil }
+        guard let item = activeSplitDrafts.first(where: \.isCommissioned) else { return nil }
         return commissionBeneficiary(for: item)
     }
 
@@ -1419,18 +1600,38 @@ struct MovementComposerView: View {
         case expense
         case income
         case transfer
+        case roman
 
         var label: String {
             switch self {
             case .expense: "Spesa"
             case .income: "Entrata"
             case .transfer: "Giro fondi"
+            case .roman: "Paga alla romana"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .expense: "Acquisto unico o multiplo per te, la famiglia o un altro utente."
+            case .income: "Entrata personale o della famiglia."
+            case .transfer: "Sposta fondi da un conto a un altro."
+            case .roman: "Dividi una spesa occasionale in parti uguali."
+            }
+        }
+
+        var tint: Color {
+            switch self {
+            case .expense: .red
+            case .income: .green
+            case .transfer: .blue
+            case .roman: .orange
             }
         }
 
         var movementKind: MovementKind? {
             switch self {
-            case .expense: .expense
+            case .expense, .roman: .expense
             case .income: .income
             case .transfer: nil
             }
@@ -1477,6 +1678,12 @@ private struct MovementSplitEditorDraft: Identifiable, Equatable {
     var isReimbursement: Bool
     var commissionedRecipientID: UUID?
     var commissionedInviteEmail: String
+}
+
+private struct RomanParticipantDraft: Identifiable, Equatable {
+    let contactID: UUID
+    var compensateDebt = false
+    var id: UUID { contactID }
 }
 
 private struct SplitDirectorySheetContext: Identifiable {

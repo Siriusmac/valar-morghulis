@@ -1,11 +1,11 @@
 import { ArrowLeftRight } from 'lucide-react'
 import { useState } from 'react'
-import { MovementTypeSelector } from '../components/MovementTypeSelector'
+import { MovementTypeSelector, type ComposerType } from '../components/MovementTypeSelector'
 import { accountBalance } from '../lib/calculations'
 import { formatMoney, makeId, todayISO } from '../lib/format'
-import type { AppData, MovementType, Transfer, User } from '../types'
+import type { AppData, Transfer, User } from '../types'
 
-export function TransferForm({ data, user, memberCount = 2, onSubmit, onCancel, onSelectMovement }: { data: AppData; user: User; memberCount?: number; onSubmit: (transfer: Transfer) => void; onCancel: () => void; onSelectMovement?: (type: MovementType) => void }) {
+export function TransferForm({ data, user, memberCount = 2, onSubmit, onCancel, onSelectMovement }: { data: AppData; user: User; memberCount?: number; onSubmit: (transfer: Transfer) => void; onCancel: () => void; onSelectMovement?: (type: ComposerType) => void }) {
   const accounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const [fromAccountId, setFrom] = useState(accounts[0]?.id ?? ''); const [toAccountId, setTo] = useState(accounts[1]?.id ?? ''); const [amount, setAmount] = useState(''); const [date, setDate] = useState(todayISO()); const [description, setDescription] = useState('Giro fondi')
   const fromAccount = accounts.find((item) => item.id === fromAccountId)

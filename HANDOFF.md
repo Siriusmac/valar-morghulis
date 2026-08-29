@@ -23,7 +23,7 @@ Funzioni disponibili:
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
-- nuovo movimento con gerarchia coerente web/Apple: tipo, importo, conto e rate, beneficiario/mittente e data, quindi acquisto unico o multiplo;
+- nuovo movimento con quattro scelte descritte e coerenti web/Apple: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; segue la gerarchia importo, conto, beneficiario/mittente e data;
 - suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; “Tipo di acquisto” distingue acquisto unico e multiplo, mentre “Tipo di spesa” distingue personale, condivisa, per conto di un’altra persona e rimborso tramite acquisto. La famiglia compare solo per la spesa condivisa e non include opzioni personali;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
@@ -35,6 +35,7 @@ Funzioni disponibili:
 - compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
 - rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
 - spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo; alla conferma il pagante riceve una sola entrata personale “Rimborsi ricevuti” sul conto di origine, con ID deterministico per impedire duplicazioni;
+- “Paga alla romana” registra un unico addebito del totale e calcola in centesimi la quota del pagante e una quota per ogni contatto. Le quote dei contatti riusano le richieste commissionate; per un familiare la quota può invece essere collegata a un rimborso `purchase` solo se il credito disponibile la copre interamente;
 - il record familiare confermato o rifiutato prevale sulla copia privata precedente dell’autore, evitando che un rimborso approvato torni a risultare “in attesa” dopo il login;
 - pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
 - completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
@@ -79,6 +80,7 @@ Funzioni disponibili:
 - Il piano rateale appartiene al solo autore e non viene sincronizzato nei record condivisi: gli altri membri vedono il movimento e la quota familiare completa, non le scadenze del conto personale del pagante.
 - Le sole allocazioni “per conto di” sono escluse da statistiche e saldo familiare del pagante; le altre righe dello stesso movimento continuano a produrre i normali effetti personali o familiari.
 - Anche una singola allocazione di un acquisto multiplo può compensare un rimborso: genera un rimborso `purchase` e una richiesta commissionata collegati allo stesso addebito, senza creare un secondo movimento sul conto del pagante. Il totale assegnato a ogni creditore non può superarne il credito disponibile.
+- Nel pagamento alla romana le quote commissionate restano fuori dai report del pagante; soltanto la sua quota usa categoria e tag scelti, mentre il conto registra il totale una sola volta.
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.

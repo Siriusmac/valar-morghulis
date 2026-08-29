@@ -530,7 +530,7 @@ struct ReimbursementReviewCard: View {
     private var subtitle: String {
         if reimbursement.settlementMethod == .purchase, reimbursement.status == .pending {
             return isCounterparty
-                ? "Scegli categoria e conto personale per confermare l’acquisto."
+                ? "Scegli la categoria per confermare l’acquisto; il valore compenserà il debito senza usare un conto."
                 : "L’acquisto sarà compensato dopo la catalogazione del destinatario."
         }
         return reimbursement.status == .rejected

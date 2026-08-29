@@ -14,17 +14,20 @@ afterEach(() => {
 })
 
 describe('MovementForm', () => {
-  it('offers fund transfer as the third choice only for a new movement', () => {
+  it('offers the four simplified choices only for a new movement', () => {
     const onSelectTransfer = vi.fn()
     const data = structuredClone(defaultData)
     const { rerender } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Giro fondi' }))
     expect(onSelectTransfer).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Paga alla romana' })).toBeTruthy()
+    expect(screen.getByText('Dividi in parti uguali una spesa occasionale tra più persone.')).toBeTruthy()
 
     const existing = data.movements[0]
     rerender(<MovementForm data={data} user={users[0]} initial={existing} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
     expect(screen.queryByRole('button', { name: 'Giro fondi' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Paga alla romana' })).toBeNull()
   })
 
   it('asks how a movement before the opening balance date affects the account', () => {
@@ -467,6 +470,61 @@ describe('MovementForm', () => {
       shared: false,
       excludeFromReports: true,
       commissionedPurchaseId: expect.any(String),
+    })
+  })
+
+  it('splits an occasional expense equally and can compensate a family debt', async () => {
+    const onSave = vi.fn()
+    const onCommissionedPurchase = vi.fn().mockResolvedValue(undefined)
+    const friend = { id: 'friend-luca', name: 'Luca', email: 'luca@example.test', initials: 'LU', source: 'friend' as const }
+    render(<MovementForm
+      data={structuredClone(defaultData)}
+      user={users[0]}
+      members={users}
+      contacts={[
+        { id: users[1].id, name: users[1].name, email: users[1].email, initials: users[1].initials, source: 'family' },
+        friend,
+      ]}
+      onCommissionedPurchase={onCommissionedPurchase}
+      onSave={onSave}
+      onCancel={vi.fn()}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Paga alla romana' }))
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Trattoria' } })
+    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Cena insieme' } })
+    fireEvent.change(screen.getByLabelText('Categoria della tua quota'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Aggiungi contatto'), { target: { value: users[1].id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi' }))
+    expect(screen.getAllByText('€ 15,00', { selector: 'strong' }).length).toBeGreaterThan(0)
+    fireEvent.change(screen.getByLabelText('Aggiungi contatto'), { target: { value: friend.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi' }))
+    fireEvent.click(screen.getByLabelText(`Scala dal debito per ${users[1].name}`))
+
+    expect(screen.getAllByText('€ 10,00', { selector: 'strong' }).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onCommissionedPurchase).toHaveBeenCalledTimes(2)
+    expect(onCommissionedPurchase).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: users[1].id,
+      amount: 10,
+      reimbursementId: expect.any(String),
+    }))
+    expect(onCommissionedPurchase).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: friend.id,
+      amount: 10,
+      reimbursementId: undefined,
+    }))
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 30,
+      accountId: 'simone-bank',
+      shared: false,
+      splits: [
+        expect.objectContaining({ amount: 10, excludeFromReports: true }),
+        expect.objectContaining({ amount: 10, excludeFromReports: true }),
+      ],
     })
   })
 

@@ -175,13 +175,22 @@ struct CommissionedPurchaseReviewView: View {
             if let options {
                 Section("Catalogazione personale") {
                     Picker("Categoria", selection: $categoryID) { ForEach(options.categories.filter { $0.scope == .personal && $0.movementType == .expense }) { Text($0.name).tag($0.id) } }
-                    Picker("Conto", selection: $accountID) { ForEach(options.accounts.filter { $0.familyID == nil }) { Text($0.name).tag($0.id) } }
-                    Text("Il movimento entra nelle statistiche ma non modifica il saldo: il pagamento è già stato sostenuto dal contatto.").font(.footnote).foregroundStyle(.secondary)
+                    if isPurchaseReimbursement {
+                        LabeledContent("Origine contabile", value: CommissionedPurchaseAccounting.debtCompensationAccountLabel)
+                        Text("L’acquisto entra nelle statistiche e compensa per intero il debito del pagante, senza usare un conto.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Picker("Conto", selection: $accountID) { ForEach(options.accounts.filter { $0.familyID == nil }) { Text($0.name).tag($0.id) } }
+                        Text("Il movimento entra nelle statistiche e viene addebitato al conto scelto per rimborsare chi ha effettuato l’acquisto.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }.navigationTitle("Conferma acquisto").toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Rifiuta", role: .destructive) { respond(accepted: false) } }
-            ToolbarItem(placement: .confirmationAction) { Button("Conferma") { respond(accepted: true) }.disabled(saving || categoryID.isEmpty || accountID.isEmpty) }
+            ToolbarItem(placement: .confirmationAction) { Button("Conferma") { respond(accepted: true) }.disabled(saving || categoryID.isEmpty || (!isPurchaseReimbursement && accountID.isEmpty)) }
         }.task { await load() } }
         .alert("Operazione non riuscita", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "Riprova.") }
     }
@@ -191,13 +200,18 @@ struct CommissionedPurchaseReviewView: View {
     private func respond(accepted: Bool) {
         Task { saving = true; do {
             if !accepted { try await appModel.respondToCommissionedPurchase(.init(id: purchase.id, accepted: false, movementID: nil, categoryID: nil, accountID: nil)); dismiss(); return }
-            guard let options, let category = options.categories.first(where: { $0.id == categoryID }), let account = options.accounts.first(where: { $0.id == accountID }) else { return }
+            guard let options, let category = options.categories.first(where: { $0.id == categoryID }) else { return }
+            let account = isPurchaseReimbursement
+                ? CommissionedPurchaseAccounting.debtCompensationAccount
+                : options.accounts.first(where: { $0.id == accountID })
+            guard let account else { return }
             let movementID = UUID().uuidString.lowercased()
             let counterparty = LedgerDirectoryItem(id: "beneficiary-contact-\(purchase.payerID.uuidString.lowercased())", name: "Acquisto per mio conto", scope: .personal, ownerID: nil, movementType: nil, color: nil)
-            try await appModel.createMovement(MovementDraft(id: movementID, type: .expense, amount: purchase.amount.decimal, date: Self.dayFormatter.date(from: purchase.purchaseDate) ?? Date(), description: purchase.description, comments: nil, account: account, category: category, counterparty: counterparty, isShared: false, affectsAccountBalance: false, commissionedPurchaseID: purchase.id, paidByUserID: purchase.payerID))
-            try await appModel.respondToCommissionedPurchase(.init(id: purchase.id, accepted: true, movementID: movementID, categoryID: categoryID, accountID: accountID)); dismiss()
+            try await appModel.createMovement(MovementDraft(id: movementID, type: .expense, amount: purchase.amount.decimal, date: Self.dayFormatter.date(from: purchase.purchaseDate) ?? Date(), description: purchase.description, comments: nil, account: account, category: category, counterparty: counterparty, isShared: false, affectsAccountBalance: isPurchaseReimbursement ? false : nil, commissionedPurchaseID: purchase.id, paidByUserID: purchase.payerID))
+            try await appModel.respondToCommissionedPurchase(.init(id: purchase.id, accepted: true, movementID: movementID, categoryID: categoryID, accountID: account.id)); dismiss()
         } catch { errorMessage = error.localizedDescription; saving = false } }
     }
+    private var isPurchaseReimbursement: Bool { purchase.reimbursementID != nil }
     private static let dayFormatter: DateFormatter = { let value = DateFormatter(); value.locale = Locale(identifier: "en_US_POSIX"); value.calendar = .current; value.dateFormat = "yyyy-MM-dd"; return value }()
 }
 

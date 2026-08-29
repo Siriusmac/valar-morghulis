@@ -25,7 +25,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; il conto personale mancante può essere completato da chi lo possiede;
 - scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
-- conti personali e condivisi, contanti e giro fondi tra conti dalla terza scelta di “Nuovo movimento”; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
+- nuovo movimento aperto da quattro scelte descritte: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - PayPal come conto personale;
 - categorie, beneficiari e mittenti ricercabili mentre si scrive e creati automaticamente quando il nome non esiste; tag creabili durante l'uso;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
@@ -33,6 +33,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - beneficiari e mittenti eliminabili scegliendo se riassegnare movimenti e rate a un'altra anagrafica oppure raggrupparli come “Nessun beneficiario” o “Nessun mittente”;
 - nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dal “Tipo di acquisto” (unico o multiplo); l’acquisto unico e ogni parziale usano “Tipo di spesa” con le opzioni personale, condivisa, per conto di un’altra persona o rimborso tramite acquisto;
 - suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari, acquisti per conto di contatti e acquisti che compensano debiti verso membri diversi, con residuo automatico in coda;
+- “Paga alla romana” per dividere automaticamente ai centesimi una spesa occasionale fra il pagante e i contatti aggiunti; ogni quota genera una richiesta ordinaria, oppure per un familiare può compensare un debito sufficiente verso di lui;
 - movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;

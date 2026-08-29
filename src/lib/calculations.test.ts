@@ -338,4 +338,17 @@ describe('accountBalance', () => {
     expect(accountBalance(data, 'simone-bank')).toBe(base - 75)
     expect(totalsByCategory(data, data.movements)).toEqual([])
   })
+
+  it('settles the full purchase reimbursement with its counterparty in a three-member family', () => {
+    const data = cleanData()
+    data.movements = []
+    data.reimbursements = [{
+      id: 'purchase-settlement', fromId: 'simone', toId: 'anna', amount: 50,
+      date: '2026-08-29', authorId: 'simone', fromAccountId: 'simone-bank',
+      settlementMethod: 'purchase', commissionedPurchaseId: 'cosmetics', status: 'confirmed',
+    }]
+
+    expect(sharedBalance(data, 'simone', 3)).toBe(50)
+    expect(sharedBalance(data, 'anna', 3)).toBe(-50)
+  })
 })

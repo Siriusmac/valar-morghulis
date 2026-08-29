@@ -21,6 +21,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 - Beneficiario per spese; mittente per entrate.
 - Creazione contestuale di categoria, beneficiario o mittente tramite autocompletamento.
 - Acquisto unico o multiplo; il beneficiario è unico per lo scontrino, mentre ogni parziale ha importo, categoria, tag e tipo di spesa personale/condivisa/per conto terzi/rimborso tramite acquisto indipendenti.
+- Pagamento alla romana: divisione automatica ai centesimi fra pagante e contatti; richiesta ordinaria per ogni quota oppure compensazione di un debito familiare sufficiente.
 - Rateizzazione: prima rata immediata, successive programmate; gli acquisti familiari regolano subito l'intero importo condiviso.
 - Modifica ed eliminazione con aggiornamento di tutte le dipendenze e senza duplicati.
 - Operazioni antecedenti al saldo iniziale incluse nel conto oppure conservate solo per statistiche.
@@ -28,7 +29,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 ### Conti e regolazioni
 
 - Conti bancari, carte, contanti e PayPal; personali o condivisi.
-- Saldo iniziale e data modificabili; giro fondi come terza scelta nella creazione di un nuovo movimento.
+- Saldo iniziale e data modificabili; in creazione il compositore propone Spesa, Entrata, Giro fondi e Paga alla romana.
 - Rimborsi con approvazione e scelta dei conti di origine/destinazione.
 - Sezione Rimborsi distinta fra richieste attese e dovute.
 - Agli altri membri è pubblicabile solo il nome dei conti abilitati ai rimborsi, mai il saldo.

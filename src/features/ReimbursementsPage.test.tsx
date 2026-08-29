@@ -42,9 +42,11 @@ describe('ReimbursementsPage', () => {
     const onRespondPurchase = vi.fn().mockResolvedValue(undefined)
 
     render(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[purchase]} onRespond={onRespond} onRespondPurchase={onRespondPurchase} />)
+    expect(screen.getByText('Compensazione debito')).toBeTruthy()
+    expect(screen.queryByLabelText('Conto personale')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Conferma e cataloga' }))
 
-    await waitFor(() => expect(onRespondPurchase).toHaveBeenCalledWith(purchase, true, expect.any(String), expect.any(String)))
+    await waitFor(() => expect(onRespondPurchase).toHaveBeenCalledWith(purchase, true, expect.any(String), undefined))
     expect(onRespond).not.toHaveBeenCalled()
   })
 
@@ -61,5 +63,6 @@ describe('ReimbursementsPage', () => {
     rerender(<ReimbursementsPage data={structuredClone(defaultData)} user={users[1]} members={users} purchases={[purchase]} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
     expect(screen.getByRole('button', { name: 'Conferma e cataloga' })).toBeTruthy()
+    expect(screen.getByLabelText('Conto personale')).toBeTruthy()
   })
 })

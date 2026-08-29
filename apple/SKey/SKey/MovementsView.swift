@@ -306,7 +306,9 @@ private struct MovementProjection {
                 movement.comments ?? "",
                 snapshot.categoryName(for: movement),
                 snapshot.directoryName(for: movement),
-                snapshot.account(named: movement.accountID)?.name ?? ""
+                movement.accountID == CommissionedPurchaseAccounting.debtCompensationAccountID
+                    ? CommissionedPurchaseAccounting.debtCompensationAccountLabel
+                    : snapshot.account(named: movement.accountID)?.name ?? ""
             ]
             .joined(separator: " ")
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
@@ -414,7 +416,7 @@ struct MovementRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 HStack(spacing: 5) {
-                    Text(snapshot.account(named: movement.accountID)?.name ?? "Conto non disponibile")
+                    Text(accountLabel)
                     if LedgerCalculations.hasSharedPortion(movement, in: snapshot) {
                         Label("Condiviso", systemImage: "person.2.fill")
                     }
@@ -437,6 +439,13 @@ struct MovementRow: View {
                 )
         }
         .padding(.vertical, 5)
+    }
+
+    private var accountLabel: String {
+        if movement.accountID == CommissionedPurchaseAccounting.debtCompensationAccountID {
+            return CommissionedPurchaseAccounting.debtCompensationAccountLabel
+        }
+        return snapshot.account(named: movement.accountID)?.name ?? "Conto non disponibile"
     }
 }
 

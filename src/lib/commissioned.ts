@@ -4,6 +4,9 @@ const incomeCategoryPrefix = 'category-commissioned-reimbursement-'
 const incomeMovementPrefix = 'commissioned-reimbursement-'
 const senderPrefix = 'sender-contact-'
 
+export const debtCompensationAccountId = 'family-debt-compensation'
+export const debtCompensationAccountLabel = 'Compensazione debito'
+
 /**
  * Una richiesta per conto terzi è anche un rimborso: finché è pending resta
  * negli attesi/dovuti; quando il destinatario la conferma, il pagante riceve
@@ -80,4 +83,8 @@ export function reconcileConfirmedCommissionedIncomes(
 
 export function isOrdinaryCommissionedPurchase(purchase: CommissionedPurchase) {
   return !purchase.reimbursementId
+}
+
+export function isPurchaseReimbursement(purchase: CommissionedPurchase) {
+  return Boolean(purchase.reimbursementId)
 }

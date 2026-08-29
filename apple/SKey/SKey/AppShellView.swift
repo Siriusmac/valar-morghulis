@@ -289,6 +289,10 @@ private struct FeaturePlaceholderView: View {
 private struct ScheduledPaymentsView: View {
     let appModel: AppModel
 
+    @State private var editingMovement: LedgerMovement?
+    @State private var pendingDeletion: LedgerMovement?
+    @State private var deletionError: String?
+
     var body: some View {
         Group {
             switch appModel.ledgerState {
@@ -310,6 +314,7 @@ private struct ScheduledPaymentsView: View {
                 let groups = Self.groups(from: scheduled)
                 List {
                     ForEach(groups) { group in
+                        let firstMovement = Self.firstMovement(for: group, in: snapshot)
                         Section {
                             ForEach(group.payments) { payment in
                                 HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -325,9 +330,14 @@ private struct ScheduledPaymentsView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(payment.amount.euroFormatted)
-                                        .fontWeight(.semibold)
-                                        .monospacedDigit()
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("Rata completa")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text(payment.amount.euroFormatted)
+                                            .fontWeight(.semibold)
+                                            .monospacedDigit()
+                                    }
                                 }
                             }
                         } header: {
@@ -341,6 +351,12 @@ private struct ScheduledPaymentsView: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                             .textCase(nil)
+                                        if let firstMovement {
+                                            Text("Iniziato il \(Self.dateLabel(firstMovement.date))")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .textCase(nil)
+                                        }
                                     }
                                     Spacer()
                                     VStack(alignment: .trailing, spacing: 2) {
@@ -352,6 +368,39 @@ private struct ScheduledPaymentsView: View {
                                             .font(.headline)
                                             .monospacedDigit()
                                             .textCase(nil)
+                                    }
+                                    if let firstMovement {
+                                        #if os(macOS)
+                                        Button {
+                                            editingMovement = firstMovement
+                                        } label: {
+                                            Image(systemName: "pencil")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("Modifica piano rateale")
+                                        .accessibilityLabel("Modifica \(group.first.description)")
+
+                                        Button(role: .destructive) {
+                                            pendingDeletion = firstMovement
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .foregroundStyle(.red)
+                                        .help("Elimina piano rateale")
+                                        .accessibilityLabel("Elimina \(group.first.description)")
+                                        #else
+                                        Menu("Azioni", systemImage: "ellipsis.circle") {
+                                            Button("Modifica", systemImage: "pencil") {
+                                                editingMovement = firstMovement
+                                            }
+                                            Button("Elimina piano", systemImage: "trash", role: .destructive) {
+                                                pendingDeletion = firstMovement
+                                            }
+                                        }
+                                        .labelStyle(.iconOnly)
+                                        .accessibilityLabel("Azioni per \(group.first.description)")
+                                        #endif
                                     }
                                 }
                                 HStack(spacing: 12) {
@@ -379,6 +428,26 @@ private struct ScheduledPaymentsView: View {
                 .refreshable { await appModel.reloadLedger() }
             }
         }
+        .sheet(item: $editingMovement) { movement in
+            MovementComposerView(appModel: appModel, movement: movement)
+        }
+        .alert("Eliminare il piano rateale?", isPresented: Binding(
+            get: { pendingDeletion != nil },
+            set: { if !$0 { pendingDeletion = nil } }
+        )) {
+            Button("Annulla", role: .cancel) { pendingDeletion = nil }
+            Button("Elimina", role: .destructive) { deletePendingPlan() }
+        } message: {
+            Text("L’acquisto iniziale e tutte le rate collegate verranno rimossi definitivamente.")
+        }
+        .alert("Piano non eliminato", isPresented: Binding(
+            get: { deletionError != nil },
+            set: { if !$0 { deletionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { deletionError = nil }
+        } message: {
+            Text(deletionError ?? "Riprova tra poco.")
+        }
     }
 
     private struct PlanGroup: Identifiable {
@@ -397,6 +466,14 @@ private struct ScheduledPaymentsView: View {
                 PlanGroup(planID: planID, payments: items.sorted { $0.dueDate < $1.dueDate })
             }
             .sorted { $0.first.dueDate < $1.first.dueDate }
+    }
+
+    private static func firstMovement(for group: PlanGroup, in snapshot: LedgerSnapshot) -> LedgerMovement? {
+        snapshot.movements.first {
+            $0.installmentPlanID == group.planID
+                && $0.installmentNumber == 1
+                && $0.authorID.caseInsensitiveCompare(snapshot.currentUserID) == .orderedSame
+        }
     }
 
     private static func accountName(for payment: LedgerScheduledPayment, snapshot: LedgerSnapshot) -> String {
@@ -422,6 +499,20 @@ private struct ScheduledPaymentsView: View {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    private func deletePendingPlan() {
+        guard let movement = pendingDeletion else { return }
+        pendingDeletion = nil
+        Task {
+            do {
+                try await appModel.deleteMovement(movement)
+            } catch is CancellationError {
+                return
+            } catch {
+                deletionError = error.localizedDescription
+            }
+        }
+    }
 }
 
 private struct AccountsView: View {

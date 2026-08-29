@@ -81,6 +81,9 @@ un beneficiario unico e ogni riga ha importo, categoria, tag e destinazione indi
 famiglia e acquisto per conto terzi. La combinazione con le rate usa la stessa
 ripartizione centesimale della web app e la sincronizzazione pubblica soltanto
 le allocazioni condivise; le sole righe commissionate restano fuori dai report.
+Il flusso “Paga alla romana” va verificato con due o più contatti, importi non
+divisibili esattamente ai centesimi, contatti familiari e amici, rimozione di un
+partecipante e compensazione abilitata/disabilitata al variare del debito.
 
 Le directory native di categorie, beneficiari, mittenti e tag supportano
 creazione, rinomina e apertura dello storico filtrato. La cancellazione di

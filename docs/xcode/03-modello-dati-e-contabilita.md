@@ -48,6 +48,11 @@
     che contiene l'allocazione e non ne crea un secondo.
 13. La somma delle allocazioni di rimborso destinate allo stesso membro non può
     superare il suo `availableCredit`, già depurato dei rimborsi pending.
+14. “Paga alla romana” non introduce un nuovo tipo persistito: crea un movimento
+    di spesa per il totale, lascia come residuo la quota del pagante e genera
+    un'allocazione commissionata uguale per ogni contatto. Gli eventuali centesimi
+    residui vanno all'ultima quota. La compensazione familiare è ammessa soltanto
+    se `availableCredit` copre l'intera quota.
 
 ## Saldo conto
 

@@ -388,6 +388,31 @@ struct SKeyTests {
     }
 
     @Test
+    func purchaseReimbursementSettlesTheFullAmountForOneCounterparty() {
+        let snapshot = ledgerSnapshot(
+            memberCount: 3,
+            accounts: [],
+            movements: [],
+            reimbursements: [LedgerReimbursement(
+                id: "purchase-settlement",
+                fromID: "user",
+                toID: "anna",
+                amount: Money(cents: 5_000),
+                date: "2026-08-29",
+                authorID: "user",
+                fromAccountID: "user-bank",
+                toAccountID: nil,
+                status: .confirmed,
+                settlementMethod: .purchase,
+                commissionedPurchaseID: "cosmetics"
+            )]
+        )
+
+        #expect(LedgerCalculations.sharedBalance(in: snapshot) == Money(cents: 5_000))
+        #expect(LedgerCalculations.sharedBalance(in: snapshot, userID: "anna") == Money(cents: -5_000))
+    }
+
+    @Test
     func calculatesFamilyToPersonalTransferEvenWhenDestinationAccountIsPrivate() {
         let family = AccountSummary(
             id: "family",

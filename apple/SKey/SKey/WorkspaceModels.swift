@@ -276,6 +276,21 @@ nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
     var scope: DirectoryScope { familyID == nil ? .personal : .family }
 }
 
+nonisolated enum CommissionedPurchaseAccounting {
+    static let debtCompensationAccountID = "family-debt-compensation"
+    static let debtCompensationAccountLabel = "Compensazione debito"
+
+    static let debtCompensationAccount = AccountSummary(
+        id: debtCompensationAccountID,
+        familyID: nil,
+        name: debtCompensationAccountLabel,
+        institution: "Saldo familiare",
+        kind: .cash,
+        openingBalance: 0,
+        openingBalanceDate: nil
+    )
+}
+
 nonisolated struct AccountDraft: Identifiable, Equatable, Sendable {
     let id: String
     let isNew: Bool
