@@ -19,6 +19,7 @@ export function materializeDuePayments(data: AppData, today: string): AppData {
         beneficiaryId: payment.beneficiaryId,
         accountId: payment.accountId,
         tagId: payment.tagId,
+        tagIds: payment.tagIds,
         comments: payment.comments,
         shared: payment.shared,
         splits: payment.splits,

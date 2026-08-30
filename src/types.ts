@@ -60,6 +60,7 @@ export interface MovementSplit {
   categoryId: string
   beneficiaryId?: string
   tagId?: string
+  tagIds?: string[]
   shared: boolean
   commissionedPurchaseId?: string
   excludeFromReports?: boolean
@@ -78,6 +79,7 @@ export interface Movement {
   senderId?: string
   accountId: string
   tagId?: string
+  tagIds?: string[]
   comments?: string
   shared: boolean
   splits?: MovementSplit[]
@@ -105,6 +107,7 @@ export interface ScheduledPayment {
   beneficiaryId?: string
   accountId: string
   tagId?: string
+  tagIds?: string[]
   comments?: string
   shared: boolean
   splits?: MovementSplit[]

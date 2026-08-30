@@ -109,6 +109,52 @@ describe('MovementForm', () => {
     const [movement, additions] = onSave.mock.calls[0]
     expect(additions.tag.name).toBe('Cena amici')
     expect(movement.tagId).toBe(additions.tag.id)
+    expect(movement.tagIds).toEqual([additions.tag.id])
+  })
+
+  it('saves up to three tags on the movement', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '25' } })
+    fireEvent.change(screen.getByLabelText('Tag'), { target: { value: 'Vacanza a Parigi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi tag' }))
+    fireEvent.change(screen.getByLabelText('Tag 2'), { target: { value: 'Casa 2026' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi tag' }))
+    fireEvent.change(screen.getByLabelText('Tag 3'), { target: { value: 'Cena amici' } })
+    expect(screen.queryByRole('button', { name: 'Aggiungi tag' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(movement.tagIds).toEqual(['vacanza-parigi', 'casa-2026', additions.tags[0].id])
+    expect(movement.tagId).toBe('vacanza-parigi')
+    const saved = saveMovementData(structuredClone(defaultData), movement, additions)
+    expect(saved.tags.filter((tag) => tag.id === additions.tags[0].id)).toHaveLength(1)
+  })
+
+  it('saves three independent tags on each category of a multiple purchase', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
+    fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
+    fireEvent.change(screen.getByLabelText('Categoria parziale 1'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Tag parziale 1'), { target: { value: 'Vacanza a Parigi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi tag' }))
+    fireEvent.change(screen.getByLabelText('Tag parziale 1 · 2'), { target: { value: 'Casa 2026' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi tag' }))
+    fireEvent.change(screen.getByLabelText('Tag parziale 1 · 3'), { target: { value: 'Scontrino' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    const [movement, additions] = onSave.mock.calls[0]
+    expect(movement.splits[0].tagIds).toEqual(['vacanza-parigi', 'casa-2026', additions.tags[0].id])
+    expect(movement.splits[0].tagId).toBe('vacanza-parigi')
   })
 
   it('hides the beneficiary for an income and creates a selectable sender', () => {

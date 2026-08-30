@@ -171,8 +171,8 @@ describe('movement category splits', () => {
       splits: [{ id: 'home', amount: 30, categoryId: 'accessori-casa', shared: false }],
     }
     expect(movementAllocations(movement)).toEqual([
-      { categoryId: 'alimentari', beneficiaryId: 'lidl', tagId: undefined, amount: 70, shared: true, excludeFromReports: false },
-      { categoryId: 'accessori-casa', beneficiaryId: undefined, tagId: undefined, amount: 30, shared: false, excludeFromReports: false },
+      { categoryId: 'alimentari', beneficiaryId: 'lidl', tagId: undefined, tagIds: [], amount: 70, shared: true, excludeFromReports: false },
+      { categoryId: 'accessori-casa', beneficiaryId: undefined, tagId: undefined, tagIds: [], amount: 30, shared: false, excludeFromReports: false },
     ])
     expect(totalsByCategory(data, [movement]).map((item) => [item.category?.id, item.total])).toEqual([
       ['alimentari', 70],

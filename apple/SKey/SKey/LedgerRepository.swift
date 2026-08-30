@@ -164,22 +164,23 @@ struct SupabaseLedgerRepository: LedgerRepository {
             preferred: decodeArray(LedgerDirectoryItem.self, key: "tags", from: familyRoot),
             additional: decodeArray(LedgerDirectoryItem.self, key: "tags", from: personalRoot)
         )
+        let currentAuthorID = userID.uuidString.lowercased()
         let privateMovements = mergedByID(
             preferred: decodeArray(LedgerMovement.self, key: "movements", from: familyRoot),
             additional: decodeArray(LedgerMovement.self, key: "movements", from: personalRoot)
-        )
+        ).filter { $0.authorID.lowercased() == currentAuthorID }
         let privateScheduledPayments = mergedByID(
             preferred: decodeArray(LedgerScheduledPayment.self, key: "scheduledPayments", from: familyRoot),
             additional: decodeArray(LedgerScheduledPayment.self, key: "scheduledPayments", from: personalRoot)
-        )
+        ).filter { $0.authorID.lowercased() == currentAuthorID }
         let privateTransfers = mergedByID(
             preferred: decodeArray(LedgerTransfer.self, key: "transfers", from: familyRoot),
             additional: decodeArray(LedgerTransfer.self, key: "transfers", from: personalRoot)
-        )
+        ).filter { $0.authorID.lowercased() == currentAuthorID }
         let privateReimbursements = mergedByID(
             preferred: decodeArray(LedgerReimbursement.self, key: "reimbursements", from: familyRoot),
             additional: decodeArray(LedgerReimbursement.self, key: "reimbursements", from: personalRoot)
-        )
+        ).filter { $0.authorID.lowercased() == currentAuthorID }
 
         let sharedCategories = decodeShared(LedgerDirectoryItem.self, type: "category", from: resolvedSharedRecords)
         let sharedBeneficiaries = decodeShared(LedgerDirectoryItem.self, type: "beneficiary", from: resolvedSharedRecords)

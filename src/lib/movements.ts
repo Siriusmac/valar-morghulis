@@ -38,12 +38,15 @@ export function saveMovementData(current: AppData, movement: Movement, additions
           beneficiaryId: movement.beneficiaryId,
           accountId: movement.accountId,
           tagId: movement.tagId,
+          tagIds: movement.tagIds,
           comments: movement.comments,
           shared: movement.shared,
           splits: movement.splits ? payment.splits?.map((split, index) => ({
             ...split,
             categoryId: movement.splits?.[index]?.categoryId ?? split.categoryId,
             beneficiaryId: movement.splits?.[index]?.beneficiaryId,
+            tagId: movement.splits?.[index]?.tagId,
+            tagIds: movement.splits?.[index]?.tagIds,
             shared: movement.splits?.[index]?.shared ?? split.shared,
           })) : undefined,
         }
@@ -66,7 +69,11 @@ export function saveMovementData(current: AppData, movement: Movement, additions
 function appendUnique<T extends { id: string }>(current: T[], additions: Array<T | undefined>) {
   const existing = new Set(current.map((item) => item.id))
   const defined = additions.filter((item): item is T => item !== undefined)
-  return [...current, ...defined.filter((item) => !existing.has(item.id))]
+  return [...current, ...defined.filter((item) => {
+    if (existing.has(item.id)) return false
+    existing.add(item.id)
+    return true
+  })]
 }
 
 export function deleteMovementData(current: AppData, movementId: string): AppData {

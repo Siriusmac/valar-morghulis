@@ -18,7 +18,7 @@
 | Beneficiary / Sender | name, scope, ownerId | Spese / entrate |
 | Tag | name, scope, ownerId, color | Sempre selezionabile |
 | Movement | tipo, autore, membro, importo, data, conto, directory | Commenti, rate e parziali |
-| MovementSplit | amount, categoryId, beneficiaryId, tagId, shared, commissionedPurchaseId, excludeFromReports | Il residuo resta sul principale |
+| MovementSplit | amount, categoryId, beneficiaryId, tagIds (max 3), tagId, shared, commissionedPurchaseId, excludeFromReports | `tagId` replica il primo tag; il residuo resta sul principale |
 | ScheduledPayment | planId, dueDate, numero/totale, status | Materializzazione idempotente |
 | Transfer | conti, importo, data | Escluso dalle statistiche |
 | Reimbursement | utenti, conti, importo, status | pending/confirmed/rejected |

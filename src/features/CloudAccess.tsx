@@ -493,6 +493,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       const privateData = mergePrivateCloudData(
         privateResult.data?.data as Partial<AppData> | null,
         familyPrivateResult.data?.data as Partial<AppData> | null,
+        snapshot.profile.id,
       )
       if (!privateData && !sharedResult.data.length) return null
       const merged = mergeCloudPersistence(

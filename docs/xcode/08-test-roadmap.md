@@ -107,6 +107,12 @@ record già posseduti dall’autore, per evitare che la procedura Supabase elimi
 movimenti estranei al salvataggio corrente. Restano da aggiungere cache offline
 e riallineamento Realtime.
 
+Il caricamento filtra inoltre le copie private per autore: verificare con due
+utenti che, dopo la cancellazione di un movimento condiviso, un vecchio snapshot
+del secondo membro non lo faccia ricomparire. Aggiungere al compositore Apple la
+selezione fino a tre tag già supportata dal modello web, preservando `tagId` come
+primo valore compatibile.
+
 Le migration push, rimborsi multiutente, contatti e acquisti multipli su
 commissione sono applicate sul progetto remoto fino alla
 `20260816170000_multiple_commissioned_purchase_allocations.sql`. Il successivo

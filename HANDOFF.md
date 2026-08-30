@@ -19,12 +19,12 @@ Funzioni disponibili:
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
 - conti personali, conti condivisi, carte, contanti e giro fondi;
-- categorie, beneficiari e mittenti ricercabili per testo e creati automaticamente dal modulo del movimento quando non esiste una corrispondenza; tag creabili durante l’uso;
+- categorie, beneficiari e mittenti ricercabili per testo e creati automaticamente dal modulo del movimento quando non esiste una corrispondenza; tag creabili durante l’uso, fino a tre sul movimento web e fino a tre per ogni parziale di un acquisto multiplo;
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
 - eliminazione di beneficiari e mittenti con riassegnazione facoltativa di movimenti e rate; senza sostituzione, le operazioni vengono raccolte nelle righe “Nessun beneficiario” e “Nessun mittente”;
 - nuovo movimento con quattro scelte descritte e coerenti web/Apple: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; segue la gerarchia importo, conto, beneficiario/mittente e data;
-- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, tag e destinazione indipendenti; “Tipo di acquisto” distingue acquisto unico e multiplo, mentre “Tipo di spesa” distingue personale, condivisa, per conto di un’altra persona e rimborso tramite acquisto. La famiglia compare solo per la spesa condivisa e non include opzioni personali;
+- suddivisione facoltativa in parziali con beneficiario unico a monte e importo, categoria, fino a tre tag e destinazione indipendenti; “Tipo di acquisto” distingue acquisto unico e multiplo, mentre “Tipo di spesa” distingue personale, condivisa, per conto di un’altra persona e rimborso tramite acquisto. La famiglia compare solo per la spesa condivisa e non include opzioni personali;
 - grafici mensili per categoria e bilancio per tag;
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
@@ -434,6 +434,25 @@ verdi. Il browser integrato ha verificato caricamento e navigazione della pagina
 Rimborsi senza errori console o overlay, ma i dati demo non contengono un
 rimborso confermato: il ciclo reale a due utenti resta quindi da collaudare con
 account autenticati dopo il rilascio del frontend.
+
+Il lavoro del 31 agosto 2026 estende il modello web con `tagIds` (massimo tre),
+mantenendo `tagId` come primo valore per la compatibilità con i dati e i client
+precedenti. Il modulo consente tre tag sul movimento principale e tre tag
+indipendenti su ogni parziale; ricerca, report, filtri, rate e record condivisi
+considerano l'intero insieme. La selezione multipla nel compositore Apple resta
+un intervento separato: il client continua a usare il primo tag compatibile.
+
+La sincronizzazione non accetta più transazioni di altri autori provenienti da
+snapshot privati personali o familiari: movimenti, rate, girofondi e rimborsi
+altrui vengono caricati soltanto dai record condivisi correnti. La stessa
+protezione è applicata al caricamento del repository Apple e impedisce che un
+movimento condiviso cancellato dall'autore ricompaia dalla copia privata obsoleta
+di un altro membro. Non sono richieste migration.
+
+Verifiche locali: 165 test web superati, lint e build Vite verdi; il browser
+locale ha verificato il selettore a tre tag nel movimento singolo e
+nell'acquisto multiplo senza errori console. Anche il build non firmato del
+target Apple per simulatore è riuscito.
 
 ## Hosting Cloudflare
 

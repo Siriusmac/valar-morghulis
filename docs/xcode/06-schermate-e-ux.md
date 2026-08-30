@@ -28,7 +28,7 @@ Form progressivo:
 4. Beneficiario o mittente, data, descrizione e commenti.
 5. Per le spese: acquisto unico o multiplo.
 6. “Tipo di acquisto” distingue “Acquisto unico” e “Acquisto multiplo”. Nel primo e in ogni riga del secondo, “Tipo di spesa” sceglie fra “Spesa personale”, “Spesa condivisa”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. La scelta della famiglia compare solo per “Spesa condivisa” e non contiene l’opzione personale.
-7. Nel multiplo, il beneficiario resta unico a monte e ogni riga ripete lo stesso menu a quattro opzioni. Le righe personali e condivise aggiungono categoria e tag; solo quelle condivise mostrano la famiglia; quelle conto-terzi scelgono il committente; quelle di rimborso scelgono un membro creditore. Il residuo è sempre l'ultima riga compilabile.
+7. Nel multiplo, il beneficiario resta unico a monte e ogni riga ripete lo stesso menu a quattro opzioni. Le righe personali e condivise aggiungono categoria e fino a tre tag; solo quelle condivise mostrano la famiglia; quelle conto-terzi scelgono il committente; quelle di rimborso scelgono un membro creditore. Il residuo è sempre l'ultima riga compilabile. La web app implementa già la selezione multipla; il compositore Apple mantiene temporaneamente il primo tag compatibile.
 
 “Paga alla romana” riusa importo, conto, beneficiario, data, descrizione e
 commenti della spesa, ma sostituisce “Tipo di acquisto” con “Aggiungi contatto”.

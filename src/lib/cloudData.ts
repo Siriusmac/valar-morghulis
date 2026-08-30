@@ -63,6 +63,7 @@ function sanitizedSharedMovement(data: AppData, movement: Movement): Movement | 
     categoryId: primary.categoryId,
     beneficiaryId: primary.beneficiaryId,
     tagId: primary.tagId,
+    tagIds: primary.tagIds,
     shared: true,
     splits: partials.map((item, index) => ({
       id: `${movement.id}-shared-${index + 1}`,
@@ -70,6 +71,7 @@ function sanitizedSharedMovement(data: AppData, movement: Movement): Movement | 
       categoryId: item.categoryId,
       beneficiaryId: item.beneficiaryId,
       tagId: item.tagId,
+      tagIds: item.tagIds,
       shared: true,
     })),
     sharedSettlementAmount: movement.sharedSettlementAmount,
@@ -88,6 +90,7 @@ function sanitizedSharedPayment(payment: ScheduledPayment): ScheduledPayment | n
     categoryId: primary.categoryId,
     beneficiaryId: primary.beneficiaryId,
     tagId: primary.tagId,
+    tagIds: primary.tagIds,
     shared: true,
     splits: partials.map((item, index) => ({
       id: `${payment.id}-shared-${index + 1}`,
@@ -95,6 +98,7 @@ function sanitizedSharedPayment(payment: ScheduledPayment): ScheduledPayment | n
       categoryId: item.categoryId,
       beneficiaryId: item.beneficiaryId,
       tagId: item.tagId,
+      tagIds: item.tagIds,
       shared: true,
     })),
     affectsAccountBalance: false,
@@ -113,7 +117,7 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
     }
     if (movement.senderId) senderIds.add(movement.senderId)
     for (const allocation of movementAllocations(movement)) {
-      if (allocation.tagId) tagIds.add(allocation.tagId)
+      allocation.tagIds.forEach((tagId) => tagIds.add(tagId))
     }
   }
   for (const payment of scheduledPayments) {
@@ -122,7 +126,7 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
       if (allocation.beneficiaryId) beneficiaryIds.add(allocation.beneficiaryId)
     }
     for (const allocation of movementAllocations(payment)) {
-      if (allocation.tagId) tagIds.add(allocation.tagId)
+      allocation.tagIds.forEach((tagId) => tagIds.add(tagId))
     }
   }
   return { categoryIds, beneficiaryIds, senderIds, tagIds }
@@ -208,6 +212,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
 export function mergePrivateCloudData(
   personalData: Partial<AppData> | null,
   familyData: Partial<AppData> | null,
+  userId?: UserId,
 ): Partial<AppData> | null {
   if (!personalData && !familyData) return null
   const personal = personalData ?? {}
@@ -221,10 +226,17 @@ export function mergePrivateCloudData(
     senders: mergeById(personal.senders ?? [], family.senders ?? []),
     tags: mergeById(personal.tags ?? [], family.tags ?? []),
     tagReportIds: [...new Set([...(personal.tagReportIds ?? []), ...(family.tagReportIds ?? [])])],
-    movements: mergeById(family.movements ?? [], personal.movements ?? []),
-    scheduledPayments: mergeById(family.scheduledPayments ?? [], personal.scheduledPayments ?? []),
-    transfers: mergeById(family.transfers ?? [], personal.transfers ?? []),
-    reimbursements: mergeById(family.reimbursements ?? [], personal.reimbursements ?? []),
+    // Le copie private possono contenere residui di vecchie versioni. Un
+    // movimento altrui deve arrivare soltanto dai record condivisi correnti,
+    // così una cancellazione dell'autore non viene resuscitata da uno snapshot.
+    movements: mergeById(family.movements ?? [], personal.movements ?? [])
+      .filter((item) => !userId || item.authorId === userId),
+    scheduledPayments: mergeById(family.scheduledPayments ?? [], personal.scheduledPayments ?? [])
+      .filter((item) => !userId || item.authorId === userId),
+    transfers: mergeById(family.transfers ?? [], personal.transfers ?? [])
+      .filter((item) => !userId || item.authorId === userId),
+    reimbursements: mergeById(family.reimbursements ?? [], personal.reimbursements ?? [])
+      .filter((item) => !userId || item.authorId === userId),
   }
 }
 

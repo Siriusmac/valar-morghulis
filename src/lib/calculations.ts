@@ -4,6 +4,7 @@ export interface MovementAllocation {
   categoryId: string
   beneficiaryId?: string
   tagId?: string
+  tagIds: string[]
   amount: number
   shared: boolean
   excludeFromReports: boolean
@@ -18,10 +19,17 @@ interface AllocationSource {
   categoryId: string
   beneficiaryId?: string
   tagId?: string
+  tagIds?: string[]
   shared: boolean
   splits?: MovementSplit[]
   commissionedPurchaseId?: string
   excludeFromReports?: boolean
+}
+
+export function movementTagIds(value: { tagId?: string; tagIds?: string[] }) {
+  return [...new Set([...(value.tagIds ?? []), ...(value.tagId ? [value.tagId] : [])])]
+    .filter(Boolean)
+    .slice(0, 3)
 }
 
 export function movementAllocations(movement: AllocationSource): MovementAllocation[] {
@@ -33,6 +41,7 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
       categoryId: item.categoryId,
       beneficiaryId: item.beneficiaryId,
       tagId: item.tagId,
+      tagIds: movementTagIds(item),
       amount: roundMoney(item.amount),
       shared: item.shared,
       excludeFromReports: Boolean(item.excludeFromReports || item.commissionedPurchaseId),
@@ -44,6 +53,7 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
       categoryId: movement.categoryId,
       beneficiaryId: movement.beneficiaryId,
       tagId: movement.tagId,
+      tagIds: movementTagIds(movement),
       amount: remainder,
       shared: movement.shared,
       excludeFromReports: Boolean(movement.excludeFromReports || movement.commissionedPurchaseId),

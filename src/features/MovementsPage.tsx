@@ -31,7 +31,8 @@ export function MovementsPage({ data, user, onEdit, onDelete }: Props) {
       const beneficiary = data.beneficiaries.find((entry) => entry.id === item.beneficiaryId)?.name ?? ''
       const sender = data.senders.find((entry) => entry.id === item.senderId)?.name ?? ''
       const missingCounterparty = item.type === 'income' && !item.senderId ? 'nessun mittente' : item.type === 'expense' && !item.beneficiaryId ? 'nessun beneficiario' : ''
-      const tag = data.tags.find((entry) => entry.id === item.tagId)?.name ?? ''
+      const tag = movementAllocations(item).flatMap((allocation) => allocation.tagIds)
+        .map((tagId) => data.tags.find((entry) => entry.id === tagId)?.name ?? '').join(' ')
       return `${item.description} ${item.comments ?? ''} ${category} ${beneficiary} ${sender} ${missingCounterparty} ${tag}`.toLowerCase().includes(deferredQuery)
     }).toSorted((a, b) => b.date.localeCompare(a.date))
 

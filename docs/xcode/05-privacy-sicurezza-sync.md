@@ -40,6 +40,7 @@ Non accodare offline operazioni irreversibili come eliminazione account/famiglia
 - Directory: applicare redirect server senza ricreare record eliminati.
 - Rimborsi: stato server sempre autorevole.
 - Eliminazioni: tombstone/chiavi possedute, non sola assenza locale.
+- Gli snapshot privati vengono filtrati per `authorId`: le transazioni di altri membri arrivano soltanto dai record condivisi correnti, così una copia obsoleta non può ricreare un movimento eliminato dall'autore.
 - Foreground, cambio famiglia e recupero rete: pull completo della porzione coinvolta.
 
 ## RLS

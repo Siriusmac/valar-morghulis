@@ -130,6 +130,20 @@ describe('family cloud persistence', () => {
     expect(payload.familyPrivateData.movements.some((item) => item.id === 'seed-1')).toBe(true)
   })
 
+  it('does not resurrect a deleted shared movement from another member private snapshot', () => {
+    const staleForeignMovement = structuredClone(defaultData.movements.find((item) => item.id === 'seed-1')!)
+    const privateData = mergePrivateCloudData(
+      { movements: [staleForeignMovement] },
+      { movements: [staleForeignMovement] },
+      'anna',
+    )
+    const fallback = createStarterData('anna', defaultData.accounts.filter((item) => item.scope === 'family'))
+    const merged = mergeCloudPersistence(privateData, [], fallback)
+
+    expect(privateData?.movements).toEqual([])
+    expect(merged.movements.some((item) => item.id === staleForeignMovement.id)).toBe(false)
+  })
+
   it('shares a sender referenced by a family income', () => {
     const data = structuredClone(defaultData)
     const payload = buildCloudPersistence(data, 'anna')

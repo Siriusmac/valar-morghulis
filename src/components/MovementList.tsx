@@ -1,5 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, Edit3, LockKeyhole, Share2, Trash2 } from 'lucide-react'
-import { movementAllocations, movementHasSharedPortion, sharedMovementAmount } from '../lib/calculations'
+import { movementAllocations, movementHasSharedPortion, movementTagIds, sharedMovementAmount } from '../lib/calculations'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { formatDate, formatMoney } from '../lib/format'
 import type { AppData, Movement, User } from '../types'
@@ -26,15 +26,20 @@ export function MovementList({ data, movements, user, onEdit, onDelete, compact 
       const counterparty = movement.type === 'income'
         ? sender?.name ?? 'Nessun mittente'
         : beneficiary?.name ?? 'Nessun beneficiario'
-      const tag = data.tags.find((item) => item.id === movement.tagId)
-      const canEdit = user?.id === movement.authorId
       const allocations = movementAllocations(movement)
+      const tagNames = [...new Set([
+        ...movementTagIds(movement),
+        ...allocations.flatMap((allocation) => allocation.tagIds),
+      ])]
+        .map((tagId) => data.tags.find((item) => item.id === tagId)?.name)
+        .filter((name): name is string => Boolean(name))
+      const canEdit = user?.id === movement.authorId
       const hasSharedPortion = movementHasSharedPortion(data, movement)
       const isMixed = account?.scope !== 'family' && allocations.some((item) => item.shared) && allocations.some((item) => !item.shared)
       const displayedAmount = sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : movement.amount
       return <article className="movement-row" key={movement.id}>
         <span className={`movement-row__icon movement-row__icon--${movement.type}`}>{movement.type === 'income' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
-        <div className="movement-row__name"><strong>{movement.description}</strong><small>{counterparty}{tag ? `${counterparty ? ' · ' : ''}#${tag.name}` : ''}{movement.comments ? `${counterparty || tag ? ' · ' : ''}${movement.comments}` : ''}</small></div>
+        <div className="movement-row__name"><strong>{movement.description}</strong><small>{counterparty}{tagNames.length ? `${counterparty ? ' · ' : ''}${tagNames.map((name) => `#${name}`).join(' · ')}` : ''}{movement.comments ? `${counterparty || tagNames.length ? ' · ' : ''}${movement.comments}` : ''}</small></div>
         <div className="movement-row__meta"><small>Categoria</small><span><i style={{ background: category?.color }} />{movement.splits?.length ? `${allocations.length} categorie` : category?.name}</span></div>
         <div className="movement-row__meta"><small>Conto</small><span>{accountName}</span></div>
         <span className={`scope-label ${hasSharedPortion ? 'scope-label--shared' : ''}`}>{hasSharedPortion ? <Share2 /> : <LockKeyhole />}{isMixed ? 'Misto' : hasSharedPortion ? 'Condiviso' : 'Personale'}</span>

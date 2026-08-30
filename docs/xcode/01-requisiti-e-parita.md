@@ -17,10 +17,10 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 ### Movimenti
 
 - Entrate e spese personali o condivise.
-- Categoria, conto, data, descrizione, commenti e tag.
+- Categoria, conto, data, descrizione, commenti e fino a tre tag (`tagIds`); `tagId` resta l'alias compatibile del primo.
 - Beneficiario per spese; mittente per entrate.
 - Creazione contestuale di categoria, beneficiario o mittente tramite autocompletamento.
-- Acquisto unico o multiplo; il beneficiario è unico per lo scontrino, mentre ogni parziale ha importo, categoria, tag e tipo di spesa personale/condivisa/per conto terzi/rimborso tramite acquisto indipendenti.
+- Acquisto unico o multiplo; il beneficiario è unico per lo scontrino, mentre ogni parziale ha importo, categoria, fino a tre tag e tipo di spesa personale/condivisa/per conto terzi/rimborso tramite acquisto indipendenti.
 - Pagamento alla romana: divisione automatica ai centesimi fra pagante e contatti; richiesta ordinaria per ogni quota oppure compensazione di un debito familiare sufficiente.
 - Rateizzazione: prima rata immediata, successive programmate; gli acquisti familiari regolano subito l'intero importo condiviso.
 - Modifica ed eliminazione con aggiornamento di tutte le dipendenze e senza duplicati.

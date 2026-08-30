@@ -2,7 +2,7 @@ import { CalendarClock, Check, Landmark, LockKeyhole, Plus, Scale, Trash2, UserP
 import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { MovementTypeSelector, type ComposerType } from '../components/MovementTypeSelector'
-import { reimbursementPlan } from '../lib/calculations'
+import { movementTagIds, reimbursementPlan } from '../lib/calculations'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
@@ -42,11 +42,11 @@ interface Props {
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
 type PurchaseExpenseMode = 'personal' | 'shared' | 'commissioned' | 'reimbursement'
 type RomanParticipant = { contactId: string; compensateDebt: boolean }
-type SplitDraft = Omit<MovementSplit, 'amount'> & {
+type SplitDraft = Omit<MovementSplit, 'amount' | 'tagId' | 'tagIds'> & {
   amount: string
   categoryQuery: string
   beneficiaryQuery: string
-  tagQuery: string
+  tagQueries: string[]
   commissioned: boolean
   reimbursement: boolean
   commissionedRecipientId: string
@@ -57,6 +57,35 @@ type SplitDraft = Omit<MovementSplit, 'amount'> & {
 function findByName<T extends { name: string }>(items: T[], value: string) {
   const normalized = value.trim().toLocaleLowerCase('it-IT')
   return items.find((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
+}
+
+function initialTagQueries(value: { tagId?: string; tagIds?: string[] }, data: AppData) {
+  const names = movementTagIds(value)
+    .map((id) => data.tags.find((tag) => tag.id === id)?.name)
+    .filter((name): name is string => Boolean(name))
+  return names.length ? names : ['']
+}
+
+function TagLookupFields({ label, values, options, onChange }: {
+  label: string
+  values: string[]
+  options: Tag[]
+  onChange: (values: string[]) => void
+}) {
+  const normalizedValues = values.length ? values.slice(0, 3) : ['']
+  return <div className="tag-lookup-group">
+    {normalizedValues.map((value, index) => <div className="tag-lookup-row" key={index}>
+      <CreatableLookup
+        label={index === 0 ? label : label === 'Tag' ? `Tag ${index + 1}` : `${label} · ${index + 1}`}
+        value={value}
+        options={options}
+        placeholder="Inserisci tag (facoltativo)"
+        onChange={(nextValue) => onChange(normalizedValues.map((item, itemIndex) => itemIndex === index ? nextValue : item))}
+      />
+      {index > 0 ? <button type="button" className="icon-button icon-button--danger tag-lookup-row__remove" title={`Rimuovi ${label.toLocaleLowerCase('it-IT')} ${index + 1}`} onClick={() => onChange(normalizedValues.filter((_, itemIndex) => itemIndex !== index))}><Trash2 /></button> : null}
+    </div>)}
+    {normalizedValues.length < 3 ? <button type="button" className="button button--ghost tag-lookup-group__add" onClick={() => onChange([...normalizedValues, ''])}><Plus />Aggiungi tag</button> : null}
+  </div>
 }
 
 function installmentPlanDraft(data: AppData, initial?: Movement) {
@@ -118,15 +147,14 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const [beneficiaryQuery, setBeneficiaryQuery] = useState(() => data.beneficiaries.find((item) => item.id === initial?.beneficiaryId)?.name ?? '')
   const [senderId, setSenderId] = useState(initial?.senderId ?? '')
   const [senderQuery, setSenderQuery] = useState(() => data.senders.find((item) => item.id === initial?.senderId)?.name ?? '')
-  const [tagId, setTagId] = useState(initial?.tagId ?? '')
-  const [tagQuery, setTagQuery] = useState(() => data.tags.find((item) => item.id === initial?.tagId)?.name ?? '')
+  const [tagQueries, setTagQueries] = useState(() => initialTagQueries(initial ?? {}, data))
   const [splitsEnabled, setSplitsEnabled] = useState(Boolean(initial?.splits?.length))
   const [splits, setSplits] = useState<SplitDraft[]>(() => (initialPlan?.splits ?? initial?.splits ?? []).map((item) => ({
     ...item,
     amount: item.amount.toString(),
     categoryQuery: data.categories.find((category) => category.id === item.categoryId)?.name ?? '',
     beneficiaryQuery: data.beneficiaries.find((beneficiary) => beneficiary.id === item.beneficiaryId)?.name ?? '',
-    tagQuery: data.tags.find((tag) => tag.id === item.tagId)?.name ?? '',
+    tagQueries: initialTagQueries(item, data),
     commissioned: Boolean(item.commissionedPurchaseId),
     reimbursement: false,
     commissionedRecipientId: '',
@@ -155,7 +183,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const romanSplits: SplitDraft[] = romanParticipants.map((participant, index) => ({
     id: `roman-${participant.contactId}`,
     amount: (romanShares[index + 1] ?? 0).toFixed(2),
-    categoryId: '', categoryQuery: '', beneficiaryQuery: '', tagQuery: '', shared: false,
+    categoryId: '', categoryQuery: '', beneficiaryQuery: '', tagQueries: [''], shared: false,
     commissioned: true, reimbursement: participant.compensateDebt,
     commissionedRecipientId: participant.contactId, commissionedInviteEmail: '',
   }))
@@ -203,7 +231,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       categoryQuery: '',
       beneficiaryId: undefined,
       beneficiaryQuery: '',
-      tagQuery: '',
+      tagQueries: [''],
       shared: false,
       commissioned: false,
       reimbursement: false,
@@ -230,8 +258,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       setBeneficiaryQuery('')
       setSenderId('')
       setSenderQuery('')
-      setTagId('')
-      setTagQuery('')
+      setTagQueries([''])
       setCommissioned(false)
       setReimbursementPurchase(false)
       setSplitsEnabled(false)
@@ -257,11 +284,6 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     setBeneficiaryId(findByName(beneficiaries, value)?.id ?? '')
   }
 
-  const changeTagQuery = (value: string) => {
-    setTagQuery(value)
-    setTagId(findByName(tags, value)?.id ?? '')
-  }
-
   const changeSenderQuery = (value: string) => {
     setSenderQuery(value)
     setSenderId(findByName(senders, value)?.id ?? '')
@@ -285,8 +307,8 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     updateSplit(id, { categoryQuery: value, categoryId: findByName(categories, value)?.id ?? '' })
   }
 
-  const changeSplitTagQuery = (id: string, value: string) => {
-    updateSplit(id, { tagQuery: value, tagId: findByName(tags, value)?.id })
+  const changeSplitTagQueries = (id: string, values: string[]) => {
+    updateSplit(id, { tagQueries: values.slice(0, 3) })
   }
 
   const changeType = (nextType: MovementType) => {
@@ -297,8 +319,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     setBeneficiaryQuery('')
     setSenderId('')
     setSenderQuery('')
-    setTagId('')
-    setTagQuery('')
+    setTagQueries([''])
     setInstallmentsEnabled(false)
     setSplitsEnabled(false)
     setSplits([])
@@ -373,15 +394,34 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     const sender = type === 'income' && senderName && !senderMatch
       ? { id: makeId('sender'), name: senderName, scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id }
       : undefined
-    const tagName = tagQuery.trim()
-    const tagMatch = findByName(tags, tagName)
-    const tag = tagName && !tagMatch ? { id: makeId('tag'), name: tagName, scope: effectivelyShared ? 'family' as const : 'personal' as const, ownerId: effectivelyShared ? undefined : user.id, color: '#c64e2f' } : undefined
+    const createdTags: Tag[] = []
+    const resolveTagQueries = (queries: string[], familyScope: boolean) => {
+      const names = queries
+        .map((query) => query.trim())
+        .filter(Boolean)
+        .filter((name, index, items) => items.findIndex((item) => item.toLocaleLowerCase('it-IT') === name.toLocaleLowerCase('it-IT')) === index)
+        .slice(0, 3)
+      return names.map((name) => {
+        const existing = findByName(tags, name) ?? findByName(createdTags, name)
+        if (existing) return existing.id
+        const created = {
+          id: makeId('tag'),
+          name,
+          scope: familyScope ? 'family' as const : 'personal' as const,
+          ownerId: familyScope ? undefined : user.id,
+          color: '#c64e2f',
+        }
+        createdTags.push(created)
+        return created.id
+      })
+    }
+    const resolvedTagIds = resolveTagQueries(tagQueries, effectivelyShared)
     const resolvedCategoryId = category?.id ?? categoryMatch?.id ?? categoryId
     const resolvedBeneficiaryId = type === 'income'
       ? userBeneficiaryId
       : resolvedMainBeneficiaryName ? beneficiary?.id ?? beneficiaryMatch?.id ?? beneficiaryId : undefined
     const resolvedSenderId = type === 'income' && senderName ? sender?.id ?? senderMatch?.id ?? senderId : undefined
-    const resolvedTagId = tag?.id ?? tagMatch?.id ?? (tagId || undefined)
+    const resolvedTagId = resolvedTagIds[0]
     const resolvedDescription = description.trim() || categoryName || 'Movimento'
     const resolvedComments = comments.trim() || undefined
     const shouldInstall = type === 'expense' && installmentsEnabled && (!initial || Boolean(initialPlan))
@@ -393,7 +433,6 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     const resolvedProvider = shouldInstall ? (provider === 'Altro' ? customProvider.trim() || 'Altro' : provider) : undefined
     const newSplitCategories: Category[] = []
     const newSplitBeneficiaries: Beneficiary[] = []
-    const newSplitTags: Tag[] = []
     const commissionedDrafts: CommissionedPurchaseDraft[] = []
     const resolvedSplits = type === 'expense' && activeSplitsEnabled
       ? activeSplits.map((item) => {
@@ -427,18 +466,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
           }
           newSplitBeneficiaries.push(resolvedSplitBeneficiary)
         }
-        const splitTagName = item.tagQuery.trim()
-        let resolvedSplitTag = findByName(tags, splitTagName) ?? findByName(newSplitTags, splitTagName)
-        if (!resolvedSplitTag && tag?.name.toLocaleLowerCase('it-IT') === splitTagName.toLocaleLowerCase('it-IT')) resolvedSplitTag = tag
-        if (splitTagName && !resolvedSplitTag) {
-          resolvedSplitTag = {
-            id: makeId('tag'), name: splitTagName,
-            scope: selectedAccount?.scope === 'family' || item.shared ? 'family' : 'personal',
-            ownerId: selectedAccount?.scope === 'family' || item.shared ? undefined : user.id,
-            color: '#c64e2f',
-          }
-          newSplitTags.push(resolvedSplitTag)
-        }
+        const resolvedSplitTagIds = resolveTagQueries(item.tagQueries, selectedAccount?.scope === 'family' || item.shared)
         const commissionedPurchaseId = item.existingCommissionedPurchaseId ?? (item.commissioned ? makeId('commissioned-purchase') : undefined)
         if (commissionedPurchaseId && !item.existingCommissionedPurchaseId) commissionedDrafts.push({
           id: commissionedPurchaseId,
@@ -457,7 +485,8 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
           amount: Math.round(Number(item.amount.replace(',', '.')) * 100) / 100,
           categoryId: resolvedSplitCategory.id,
           beneficiaryId: resolvedSplitBeneficiary?.id,
-          tagId: resolvedSplitTag?.id,
+          tagId: resolvedSplitTagIds[0],
+          tagIds: resolvedSplitTagIds.length ? resolvedSplitTagIds : undefined,
           shared: !item.commissioned && (selectedAccount?.scope === 'family' || item.shared),
           commissionedPurchaseId,
           excludeFromReports: item.commissioned || undefined,
@@ -495,6 +524,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
         beneficiaryId: primaryBeneficiaryId,
         accountId,
         tagId: resolvedTagId,
+        tagIds: resolvedTagIds.length ? resolvedTagIds : undefined,
         comments: resolvedComments,
         shared: effectivelyShared,
         splits: splitsForInstallment(index + 1),
@@ -530,6 +560,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       senderId: resolvedSenderId,
       accountId,
       tagId: resolvedTagId,
+      tagIds: resolvedTagIds.length ? resolvedTagIds : undefined,
       comments: resolvedComments,
       shared: commissioned ? false : effectivelyShared,
       splits: shouldInstall ? splitsForInstallment(0) : resolvedSplits,
@@ -555,10 +586,10 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
         return
       } finally { setSaving(false) }
     }
-    onSave(movement, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag, tags: newSplitTags, scheduledPayments })
+    onSave(movement, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag: createdTags[0], tags: createdTags, scheduledPayments })
   }
 
-  const mainTagField = <CreatableLookup label="Tag" value={tagQuery} options={tags} placeholder="Inserisci tag (facoltativo)" onChange={changeTagQuery} />
+  const mainTagField = <TagLookupFields label="Tag" values={tagQueries} options={tags} onChange={setTagQueries} />
   const mainSharingField = <label>Spesa condivisa con<select value="family" onChange={() => setMovementSharing(true)}><option value="family">{familyName}</option></select>{selectedAccount?.scope === 'family' ? <small>Il conto appartiene alla famiglia selezionata.</small> : null}</label>
   const mainCommissionFields = <div className="installment-fields"><label>Committente<select value={commissionedRecipientId} onChange={(event) => { setCommissionedRecipientId(event.target.value); setCommissionedInviteEmail('') }}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!commissionedRecipientId ? <label>Email da invitare<input type="email" value={commissionedInviteEmail} onChange={(event) => setCommissionedInviteEmail(event.target.value)} placeholder="nome@email.it" required /></label> : null}<small>Il committente riceverà la richiesta e catalogherà l’acquisto nella propria contabilità.</small>{submitted && commissionedTargetMissing ? <small className="field-error">Scegli un contatto o inserisci l’email da invitare.</small> : null}</div>
   const reimbursementMemberName = (memberId: string) => members.find((member) => member.id === memberId)?.name ?? 'Membro della famiglia'
@@ -626,7 +657,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
           {item.existingCommissionedPurchaseId ? <label>Acquisto per conto di<output>{data.beneficiaries.find((entry) => entry.id === item.beneficiaryId)?.name ?? 'Altra persona'}</output></label> : item.commissioned ? item.reimbursement
             ? <label>Rimborso a<select value={item.commissionedRecipientId} onChange={(event) => updateSplit(item.id, { commissionedRecipientId: event.target.value, commissionedInviteEmail: '' })}><option value="">Scegli il membro da rimborsare</option>{reimbursementOptionsMarkup}</select></label>
             : <><label>Committente<select value={item.commissionedRecipientId} onChange={(event) => updateSplit(item.id, { commissionedRecipientId: event.target.value, commissionedInviteEmail: '' })}><option value="">Invita un nuovo contatto</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}{contact.source === 'family' ? ' · famiglia' : ''}</option>)}</select></label>{!item.commissionedRecipientId ? <label>Email da invitare<input type="email" value={item.commissionedInviteEmail} onChange={(event) => updateSplit(item.id, { commissionedInviteEmail: event.target.value })} placeholder="nome@email.it" /></label> : null}</>
-            : <><CreatableLookup className="split-row__category" label={`Categoria parziale ${index + 1}`} value={item.categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={(value) => changeSplitCategoryQuery(item.id, value)} /><CreatableLookup label={`Tag parziale ${index + 1}`} value={item.tagQuery} options={tags} placeholder="Inserisci tag (facoltativo)" onChange={(value) => changeSplitTagQuery(item.id, value)} />{(selectedAccount?.scope === 'family' || item.shared) ? <label>Spesa condivisa con<select aria-label={`Famiglia spesa parziale ${index + 1}`} value="family"><option value="family">{familyName}</option></select></label> : null}</>}
+            : <><CreatableLookup className="split-row__category" label={`Categoria parziale ${index + 1}`} value={item.categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={(value) => changeSplitCategoryQuery(item.id, value)} /><TagLookupFields label={`Tag parziale ${index + 1}`} values={item.tagQueries} options={tags} onChange={(values) => changeSplitTagQueries(item.id, values)} />{(selectedAccount?.scope === 'family' || item.shared) ? <label>Spesa condivisa con<select aria-label={`Famiglia spesa parziale ${index + 1}`} value="family"><option value="family">{familyName}</option></select></label> : null}</>}
           <button className="icon-button icon-button--danger split-row__remove" type="button" title={`Elimina parziale ${index + 1}`} onClick={() => setSplits((items) => items.filter((entry) => entry.id !== item.id))}><Trash2 /></button>
         </div>)}
         {mainRemainder > 0 ? <div className="split-row split-row--purchase split-row--remainder"><div className="split-remainder"><span>Importo residuo</span><strong>€ {mainRemainder.toFixed(2).replace('.', ',')}</strong></div><label>Tipo di spesa<select value={reimbursementPurchase ? 'reimbursement' : commissioned ? 'commissioned' : effectivelyShared ? 'shared' : 'personal'} onChange={(event) => setMainPurchaseMode(event.target.value as PurchaseExpenseMode)}><option value="personal">Spesa personale</option><option value="shared">Spesa condivisa</option>{onCommissionedPurchase ? <option value="commissioned">Acquisto per conto di un’altra persona</option> : null}<option value="reimbursement" disabled={!reimbursementOptions.length}>Rimborso tramite acquisto</option></select></label>{commissioned ? reimbursementPurchase ? mainReimbursementFields : mainCommissionFields : <><CreatableLookup label="Categoria residua" value={categoryQuery} options={categories} placeholder="Inserisci categoria" onChange={changeCategoryQuery} />{mainTagField}{effectivelyShared ? mainSharingField : null}</>}</div> : null}
