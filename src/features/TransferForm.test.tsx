@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultData, users } from '../lib/seed'
 import { TransferForm } from './TransferForm'
@@ -61,5 +61,16 @@ describe('TransferForm', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert').textContent).toContain('almeno due conti')
+  })
+
+  it('mostra un errore quando il salvataggio non riesce', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('Cloud non raggiungibile'))
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Cloud non raggiungibile'))
+    expect(screen.getByRole('button', { name: 'Conferma giro fondi' })).toBeTruthy()
   })
 })

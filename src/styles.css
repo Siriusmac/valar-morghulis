@@ -348,6 +348,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .movement-tabs { border-bottom: 0; }
 .directory-tabs { margin: -18px 0 24px; border-bottom: 1px solid var(--line); }
 .tabs .tab-income.active { color: var(--positive); border-color: var(--positive); }
+.tabs .tab-transfer.active { color: #526b82; border-color: #526b82; }
 .month-field { height: 40px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: white; }
 .month-field svg { width: 16px; color: var(--muted); }
 .month-field input, .month-field select { border: 0; background: transparent; color: var(--ink); font-size: 11px; outline: 0; }
@@ -376,6 +377,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .donut-section--compact .donut-legend small { display: none; }
 .shared-donuts { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
 .shared-donuts > section + section { border-left: 1px solid var(--line); }
+.transfer-summary { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 16px; border-bottom: 1px solid var(--line); }
+.transfer-summary > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: #526b82; background: #edf2f6; }
+.transfer-summary > span svg { width: 22px; }
+.transfer-summary > div { display: grid; gap: 3px; }
+.transfer-summary small { color: var(--muted); font-size: 10px; }
+.transfer-summary strong { font: 600 25px/1.15 'Newsreader', Georgia, serif; color: #526b82; }
 .movements-ledger { padding-top: 32px; }
 .movements-ledger > .section-title-row { padding-bottom: 14px; }
 .movements-ledger .search-field { width: 260px; }
@@ -385,6 +392,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .movement-row__icon svg { width: 17px; }
 .movement-row__icon--expense { color: var(--accent); background: var(--accent-soft); }
 .movement-row__icon--income { color: var(--positive); background: var(--positive-soft); }
+.movement-row__icon--transfer { color: #526b82; background: #edf2f6; }
 .movement-row__name, .movement-row__meta { display: grid; min-width: 0; }
 .movement-row__name strong { font: 600 15px/1.25 'Newsreader', Georgia, serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .movement-row__name small, .movement-row__meta small { color: var(--muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -393,6 +401,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .movement-row time { color: var(--muted); font-size: 10px; }
 .movement-row__amount { text-align: right; font: 600 15px/1 'Newsreader', Georgia, serif; }
 .movement-row__amount--expense { color: var(--accent); }
+.movement-row__amount--transfer { color: #526b82; }
+.transfer-row { grid-template-columns: 40px minmax(170px, 1.25fr) minmax(130px, .8fr) minmax(130px, .8fr) 92px 105px; }
 .movement-row__amount--income { color: var(--positive); }
 .movement-list--compact .movement-row { grid-template-columns: 38px minmax(145px, 1fr) 105px 105px 90px; }
 .movement-list--compact .scope-label, .movement-list--compact .movement-row time, .movement-list--compact .row-actions { display: none; }

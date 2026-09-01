@@ -371,7 +371,16 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     await cloud.withdrawReimbursementChange(requestId)
     setToast('Richiesta di rettifica ritirata')
   }
-  const saveTransfer = (transfer: Transfer) => { setData((current) => ({ ...current, transfers: [...current.transfers, transfer] })); setModal(null); setToast('Giro fondi completato') }
+  const saveTransfer = async (transfer: Transfer) => {
+    const appendTransfer = (current: AppData) => current.transfers.some((item) => item.id === transfer.id)
+      ? current
+      : { ...current, transfers: [...current.transfers, transfer] }
+    const nextData = appendTransfer(data)
+    if (cloud) await cloud.saveAppData(nextData)
+    setData(appendTransfer)
+    setModal(null)
+    setToast('Giro fondi salvato')
+  }
   const updateAccount = (account: AppData['accounts'][number]) => {
     setData((current) => ({ ...current, accounts: current.accounts.map((item) => item.id === account.id ? account : item) }))
     if (cloud && account.scope === 'family') {
