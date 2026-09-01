@@ -99,6 +99,36 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'anna')).toBe(50)
   })
 
+  it('reduces family debt when funds move from a personal account to a shared account', () => {
+    const data = cleanData()
+    data.transfers = [{ id: 'personal-to-family', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank', amount: 100, date: '2026-07-18', description: 'Versamento nel conto famiglia' }]
+    expect(sharedBalance(data, 'simone')).toBe(50)
+    expect(sharedBalance(data, 'anna')).toBe(-50)
+  })
+
+  it('subtracts a personal-to-family transfer from an existing family debt', () => {
+    const data = cleanData()
+    data.movements = [expense('paid-by-anna', 'anna', 100, 'anna-bank')]
+    data.transfers = [{ id: 'partial-family-settlement', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank', amount: 40, date: '2026-07-18', description: 'Versamento parziale' }]
+    expect(sharedBalance(data, 'simone')).toBe(-30)
+    expect(sharedBalance(data, 'anna')).toBe(30)
+  })
+
+  it('credits the other members share when personal funds move into a three-member family account', () => {
+    const data = cleanData()
+    data.transfers = [{ id: 'personal-to-family-three', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank', amount: 90, date: '2026-07-18', description: 'Versamento nel conto famiglia' }]
+    expect(sharedBalance(data, 'simone', 3)).toBe(60)
+    expect(sharedBalance(data, 'anna', 3)).toBe(-30)
+    expect(sharedBalance(data, 'terzo-membro', 3)).toBe(-30)
+  })
+
+  it('uses the transfer author when another member cannot load the personal source account', () => {
+    const data = cleanData()
+    data.accounts = data.accounts.filter((account) => account.id !== 'simone-bank')
+    data.transfers = [{ id: 'hidden-personal-to-family', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank', amount: 100, date: '2026-07-18', description: 'Versamento nel conto famiglia' }]
+    expect(sharedBalance(data, 'anna')).toBe(-50)
+  })
+
   it('settles a shared installment purchase immediately, without counting later installments twice', () => {
     const data = cleanData()
     data.movements = [

@@ -115,11 +115,22 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
   for (const transfer of data.transfers) {
     const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
     const destination = data.accounts.find((account) => account.id === transfer.toAccountId)
-    if (source?.scope !== 'family' || destination?.scope === 'family') continue
-    const destinationOwnerId = destination?.ownerId ?? transfer.authorId
-    net += destinationOwnerId === userId
-      ? -transfer.amount * otherMembersShare
-      : transfer.amount * personalShare
+    const sourceIsFamily = source?.scope === 'family'
+    const destinationIsFamily = destination?.scope === 'family'
+    if (sourceIsFamily === destinationIsFamily) continue
+    if (sourceIsFamily) {
+      const destinationOwnerId = destination?.ownerId ?? transfer.authorId
+      net += destinationOwnerId === userId
+        ? -transfer.amount * otherMembersShare
+        : transfer.amount * personalShare
+    } else {
+      // Il conto personale può non essere visibile agli altri membri: in quel
+      // caso l'autore del girofondi identifica comunque chi ha versato.
+      const sourceOwnerId = source?.ownerId ?? transfer.authorId
+      net += sourceOwnerId === userId
+        ? transfer.amount * otherMembersShare
+        : -transfer.amount * personalShare
+    }
   }
   return Math.round(net * 100) / 100
 }
