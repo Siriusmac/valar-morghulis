@@ -37,4 +37,29 @@ describe('TransferForm', () => {
     expect(onSubmit).toHaveBeenCalledOnce()
     expect(onSubmit.mock.calls[0][0].amount).toBe(12.5)
   })
+
+  it('spiega perché non può spostare denaro verso lo stesso conto', () => {
+    const onSubmit = vi.fn()
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Al conto'), { target: { value: 'simone-bank' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('Scegli due conti diversi')
+  })
+
+  it('spiega quando è disponibile un solo conto', () => {
+    const onSubmit = vi.fn()
+    const data = structuredClone(defaultData)
+    data.accounts = data.accounts.filter((account) => account.id === 'simone-bank')
+    render(<TransferForm data={data} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('almeno due conti')
+  })
 })
