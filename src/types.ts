@@ -248,6 +248,7 @@ export interface ReimbursementAccountReference {
 
 export interface AppData {
   version: 3
+  defaultMovementAccountIds?: Record<string, string>
   accounts: Account[]
   categories: Category[]
   deletedCategoryIds?: string[]

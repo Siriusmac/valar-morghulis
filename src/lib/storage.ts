@@ -68,6 +68,7 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
   return {
     ...data,
     version: 3,
+    defaultMovementAccountIds: data.defaultMovementAccountIds ?? {},
     accounts,
     categories: mergeMissingById(data.categories, base.categories).filter((item) => !deletedCategoryIds.includes(item.id)),
     deletedCategoryIds,
@@ -108,6 +109,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
   const remoteData = hydrateData(remote, fallbackData)
   return hydrateData({
     ...remoteData,
+    defaultMovementAccountIds: { ...(remoteData.defaultMovementAccountIds ?? {}), ...(local.defaultMovementAccountIds ?? {}) },
     accounts: mergePreferredById(local.accounts, remoteData.accounts),
     categories: mergePreferredById(local.categories, remoteData.categories),
     deletedCategoryIds: [...new Set([...(local.deletedCategoryIds ?? []), ...(remoteData.deletedCategoryIds ?? [])])],
@@ -137,6 +139,7 @@ function migrateLegacy(legacy: LegacyData): AppData {
   const fallbackAccount = (userId: UserId) => accounts.find((item) => item.ownerId === userId)?.id ?? base.accounts.find((item) => item.ownerId === userId)!.id
   return {
     version: 3,
+    defaultMovementAccountIds: {},
     accounts,
     categories: legacy.categories?.map((item) => ({ ...item, movementType: item.movementType ?? 'expense' as const })) ?? base.categories,
     beneficiaries: legacy.beneficiaries ?? base.beneficiaries,

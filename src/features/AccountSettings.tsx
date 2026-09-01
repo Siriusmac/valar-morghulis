@@ -5,14 +5,18 @@ import {
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilySession } from './CloudAccess'
 import { downloadAccountExport, type ExportFormat } from '../lib/exportData'
-import type { User } from '../types'
+import type { AppData, User } from '../types'
 
 interface Props {
   user: User
   cloud?: FamilySession
+  data?: AppData
+  personalOnly?: boolean
+  defaultMovementAccountId?: string
+  onDefaultMovementAccountChange?: (accountId: string) => void
 }
 
-export function AccountSettings({ user, cloud }: Props) {
+export function AccountSettings({ user, cloud, data, personalOnly = false, defaultMovementAccountId, onDefaultMovementAccountChange }: Props) {
   if (!cloud) {
     return <div className="page account-settings-page">
       <PageHeading />
@@ -32,6 +36,13 @@ export function AccountSettings({ user, cloud }: Props) {
     <div className="settings-layout">
       <div className="settings-column">
         <ProfileSettings user={user} cloud={cloud} />
+        {data && onDefaultMovementAccountChange ? <DefaultMovementAccountSettings
+          data={data}
+          user={user}
+          personalOnly={personalOnly}
+          defaultMovementAccountId={defaultMovementAccountId}
+          onSave={onDefaultMovementAccountChange}
+        /> : null}
         <FamilySwitcher cloud={cloud} />
         <SecuritySettings cloud={cloud} />
         <AccountDeletion cloud={cloud} />
@@ -42,6 +53,35 @@ export function AccountSettings({ user, cloud }: Props) {
       </div>
     </div>
   </div>
+}
+
+function DefaultMovementAccountSettings({ data, user, personalOnly, defaultMovementAccountId, onSave }: {
+  data: AppData
+  user: User
+  personalOnly: boolean
+  defaultMovementAccountId?: string
+  onSave: (accountId: string) => void
+}) {
+  const accounts = data.accounts.filter((account) => account.scope === 'personal'
+    ? account.ownerId === user.id
+    : !personalOnly)
+  const fallbackAccountId = accounts[0]?.id ?? ''
+  const initialAccountId = accounts.some((account) => account.id === defaultMovementAccountId)
+    ? defaultMovementAccountId!
+    : fallbackAccountId
+  const [accountId, setAccountId] = useState(initialAccountId)
+  const selectedAccount = accounts.find((account) => account.id === accountId)
+
+  return <section className="settings-card">
+    <div className="settings-card__heading"><span><Landmark /></span><div><h2>Conto predefinito</h2><p>Viene preselezionato quando registri un nuovo movimento in questo spazio.</p></div></div>
+    {accounts.length ? <form className="settings-form" onSubmit={(event) => { event.preventDefault(); onSave(accountId) }}>
+      <label>Conto per i nuovi movimenti<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+        {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.institution}</option>)}
+      </select></label>
+      <p className="settings-card__note">{selectedAccount?.scope === 'family' ? 'Conto condiviso della famiglia attiva.' : 'Conto personale, visibile solo a te.'}</p>
+      <button className="button button--secondary" disabled={!accountId || accountId === defaultMovementAccountId}><Landmark /> Salva conto predefinito</button>
+    </form> : <p className="settings-card__note">Crea prima un conto per poterlo usare come predefinito.</p>}
+  </section>
 }
 
 function ProfileSettings({ user, cloud }: { user: User; cloud: FamilySession }) {

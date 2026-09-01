@@ -33,6 +33,7 @@ interface Props {
   personalOnly?: boolean
   initialType?: MovementType
   initialComposerType?: ComposerType
+  defaultAccountId?: string
   onSelectTransfer?: () => void
   contacts?: Contact[]
   members?: User[]
@@ -116,7 +117,7 @@ function installmentPlanDraft(data: AppData, initial?: Movement) {
   }
 }
 
-export function MovementForm({ data, user, memberCount = 2, familyName = 'Famiglia attiva', onSave, onCancel, onDelete, initial, personalOnly = false, initialType, initialComposerType, onSelectTransfer, contacts = [], members = [], onCommissionedPurchase }: Props) {
+export function MovementForm({ data, user, memberCount = 2, familyName = 'Famiglia attiva', onSave, onCancel, onDelete, initial, personalOnly = false, initialType, initialComposerType, defaultAccountId, onSelectTransfer, contacts = [], members = [], onCommissionedPurchase }: Props) {
   const initialPlan = installmentPlanDraft(data, initial)
   const [composerSelected, setComposerSelected] = useState(Boolean(initial || initialType || initialComposerType))
   const [type, setType] = useState<MovementType>(initial?.type ?? initialType ?? 'expense')
@@ -131,7 +132,9 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const personalAccounts = useMemo(() => data.accounts.filter((item) => item.scope === 'personal' && item.ownerId === user.id), [data.accounts, user.id])
   const familyAccounts = useMemo(() => data.accounts.filter((item) => item.scope === 'family'), [data.accounts])
   const availableAccounts = useMemo(() => [...personalAccounts, ...familyAccounts], [personalAccounts, familyAccounts])
-  const defaultAccount = type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
+  const defaultAccount = !initial && defaultAccountId && availableAccounts.some((account) => account.id === defaultAccountId)
+    ? defaultAccountId
+    : type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
   const [accountId, setAccountId] = useState(initial?.accountId ?? defaultAccount ?? '')
   const initialAccount = data.accounts.find((item) => item.id === (initial?.accountId ?? defaultAccount))
   const [affectsAccountBalance, setAffectsAccountBalance] = useState(
@@ -327,17 +330,20 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     setReimbursementPurchase(false)
     setCommissionedRecipientId('')
     setCommissionedInviteEmail('')
-    const nextAccountId = nextType === 'income'
+    const preferredAccountId = !initial && defaultAccountId && availableAccounts.some((account) => account.id === defaultAccountId)
+      ? defaultAccountId
+      : undefined
+    const nextAccountId = preferredAccountId ?? (nextType === 'income'
       ? personalAccounts[0]?.id ?? ''
-      : personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? ''
+      : personalAccounts[0]?.id ?? availableAccounts[0]?.id ?? '')
+    const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
     if (nextType === 'income') {
-      setShared(false)
+      setShared(nextAccount?.scope === 'family')
       setAccountId(nextAccountId)
     } else {
       setShared(true)
       setAccountId(nextAccountId)
     }
-    const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
     setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
   }
 

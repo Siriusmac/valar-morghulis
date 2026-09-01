@@ -39,6 +39,15 @@ describe('MovementForm', () => {
     expect(screen.queryByRole('button', { name: 'Paga alla romana' })).toBeNull()
   })
 
+  it('preselects the saved default account for a new movement', () => {
+    const data = structuredClone(defaultData)
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-card" onSave={vi.fn()} onCancel={vi.fn()} />)
+
+    chooseExpense()
+
+    expect((screen.getByLabelText('Conto di addebito') as HTMLSelectElement).value).toBe('simone-card')
+  })
+
   it('asks how a movement before the opening balance date affects the account', () => {
     const data = structuredClone(defaultData)
     data.accounts = data.accounts.map((account) => account.id === 'simone-bank'

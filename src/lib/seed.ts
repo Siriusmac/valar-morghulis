@@ -7,6 +7,7 @@ export const users: User[] = [
 
 export const defaultData: AppData = {
   version: 3,
+  defaultMovementAccountIds: {},
   accounts: [
     { id: 'simone-bank', ownerId: 'simone', name: 'Conto corrente', institution: 'Intesa Sanpaolo', type: 'bank', scope: 'personal', openingBalance: 2450 },
     { id: 'simone-card', ownerId: 'simone', name: 'Carta di credito', institution: 'Visa •••• 1234', type: 'credit', scope: 'personal', openingBalance: 0 },
@@ -73,6 +74,7 @@ export const defaultData: AppData = {
 export function createStarterData(userId: UserId, sharedAccounts: Account[]): AppData {
   return {
     version: 3,
+    defaultMovementAccountIds: {},
     accounts: [
       ...sharedAccounts,
       { id: `${userId}-cash`, ownerId: userId, name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 0 },
@@ -94,6 +96,7 @@ export function createStarterData(userId: UserId, sharedAccounts: Account[]): Ap
 export function createPersonalStarterData(userId: UserId): AppData {
   return {
     version: 3,
+    defaultMovementAccountIds: {},
     accounts: [{ id: `${userId}-cash`, ownerId: userId, name: 'Contanti', institution: 'Portafoglio', type: 'cash', scope: 'personal', openingBalance: 0 }],
     categories: defaultData.categories.map((item) => ({ ...item, scope: 'personal', ownerId: userId })),
     beneficiaries: [],

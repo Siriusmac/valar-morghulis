@@ -196,6 +196,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
     },
     familyPrivateData: {
       version: 3,
+      defaultMovementAccountIds: data.defaultMovementAccountIds ?? {},
       accounts: [],
       categories: [],
       beneficiaries: [],
@@ -228,6 +229,7 @@ export function mergePrivateCloudData(
   return {
     ...personal,
     version: 3,
+    defaultMovementAccountIds: { ...(personal.defaultMovementAccountIds ?? {}), ...(family.defaultMovementAccountIds ?? {}) },
     accounts: mergeById(personal.accounts ?? [], family.accounts ?? []),
     categories: mergeById(personal.categories ?? [], family.categories ?? []),
     beneficiaries: mergeById(personal.beneficiaries ?? [], family.beneficiaries ?? []),

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountSettings } from './AccountSettings'
 import type { FamilySession } from './CloudAccess'
+import { defaultData } from '../lib/seed'
 
 const simone = { id: 'simone', name: 'Simone', email: 'simone@example.com', initials: 'S' }
 const anna = { id: 'anna', name: 'Anna', email: 'anna@example.com', initials: 'A' }
@@ -65,6 +66,22 @@ describe('AccountSettings', () => {
 
     await waitFor(() => expect(cloud.updateProfileName).toHaveBeenCalledWith('Simone', 'Miotto'))
     expect(screen.getByRole('status').textContent).toContain('Nome e cognome aggiornati.')
+  })
+
+  it('saves the default account for new movements', () => {
+    const onDefaultMovementAccountChange = vi.fn()
+    render(<AccountSettings
+      user={simone}
+      cloud={familySession()}
+      data={structuredClone(defaultData)}
+      defaultMovementAccountId="simone-bank"
+      onDefaultMovementAccountChange={onDefaultMovementAccountChange}
+    />)
+
+    fireEvent.change(screen.getByLabelText('Conto per i nuovi movimenti'), { target: { value: 'simone-card' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva conto predefinito' }))
+
+    expect(onDefaultMovementAccountChange).toHaveBeenCalledWith('simone-card')
   })
 
   it('shows family administration only to an admin and switches family', async () => {
