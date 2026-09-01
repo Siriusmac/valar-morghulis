@@ -151,6 +151,16 @@ describe('AccountsPage', () => {
     { id: 'family-two', name: 'Famiglia Due' },
   ]
 
+  it('richiede lo storico completo del conto, inclusi i giri fondi', () => {
+    const onShowMovements = vi.fn()
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={onShowMovements} />)
+
+    const accountRow = screen.getByText('Conto corrente').closest('article')!
+    fireEvent.click(within(accountRow).getByRole('button', { name: 'Movimenti' }))
+
+    expect(onShowMovements).toHaveBeenCalledWith(expect.stringContaining('Conto corrente'), expect.any(Function), undefined, 'simone-bank')
+  })
+
   it('asks explicitly which family owns a new shared account', async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined)
     render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)

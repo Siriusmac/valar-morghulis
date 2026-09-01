@@ -4,7 +4,7 @@ import { AppShell } from './components/AppShell'
 import { Login } from './components/Login'
 import { Modal } from './components/Modal'
 import { CloudAccess, type FamilySession } from './features/CloudAccess'
-import { reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
+import { accountBalance, reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
@@ -38,7 +38,7 @@ type ModalState =
   | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType }
   | { type: 'reimburse' }
   | { type: 'transfer' }
-  | { type: 'details'; title: string; filter: (movement: Movement) => boolean; amount?: (movement: Movement) => number }
+  | { type: 'details'; title: string; filter: (movement: Movement) => boolean; amount?: (movement: Movement) => number; accountId?: string }
   | null
 
 interface ReimbursementSubmission {
@@ -391,7 +391,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     setToast('Saldo iniziale aggiornato')
   }
-  const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number) => setModal({ type: 'details', title, filter, amount })
+  const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number, accountId?: string) => setModal({ type: 'details', title, filter, amount, accountId })
   const sendContactInvite = async (email: string) => {
     await inviteContact(email)
     await refreshContacts()
@@ -538,9 +538,15 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : <AccountSettings user={user} cloud={cloud} data={data} personalOnly={Boolean(cloud?.personalMode)} defaultMovementAccountId={defaultMovementAccountId} onDefaultMovementAccountChange={setDefaultMovementAccount} />
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
+  const detailTransfers = modal?.type === 'details' && modal.accountId
+    ? data.transfers.filter((transfer) => transfer.fromAccountId === modal.accountId || transfer.toAccountId === modal.accountId)
+    : []
   const detailTotal = modal?.type === 'details'
-    ? detailMovements.reduce((sum, movement) => sum + (modal.amount?.(movement) ?? movement.amount), 0)
+    ? modal.accountId
+      ? accountBalance(data, modal.accountId)
+      : detailMovements.reduce((sum, movement) => sum + (modal.amount?.(movement) ?? movement.amount), 0)
     : 0
+  const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
     <AppShell page={page} user={user} registeredUserCount={cloud ? cloud.registeredUserCount : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
@@ -548,7 +554,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'transfer' ? <Modal title="Nuovo movimento" onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} onSubmit={saveTransfer} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
-    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>Totale <strong>{formatMoney(detailTotal)}</strong></span>{detailMovements.length ? <span>dal <strong>{formatDate(detailMovements[detailMovements.length - 1].date)}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} compact /></Suspense></Modal> : null}
+    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} accountId={modal.accountId} compact /></Suspense></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
 }

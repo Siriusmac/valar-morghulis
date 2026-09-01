@@ -6,7 +6,7 @@ import { accountBalance, movementAllocations, visibleMovements } from '../lib/ca
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
 import type { Account, AppData, Beneficiary, Category, Movement, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
 
-interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number) => void }
+interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number, accountId?: string) => void }
 
 export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, families = [], activeFamilyId, reimbursementSharing }: BaseProps & {
   onAdd: (account: Account, familyId?: string) => void | Promise<void>
@@ -76,7 +76,7 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, fam
             .catch((reason) => setSharingError(reason instanceof Error ? reason.message : 'Non è stato possibile aggiornare la visibilità del conto.'))
             .finally(() => setSharingAccountId(''))
         }} /> {family.name}</label>
-      })}</fieldset> : null}</div><div className="management-row__actions"><button className="detail-button" onClick={() => startEditing(account)}><Edit3 />Saldo iniziale</button><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id)}><Eye />Movimenti</button></div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>
+      })}</fieldset> : null}</div><div className="management-row__actions"><button className="detail-button" onClick={() => startEditing(account)}><Edit3 />Saldo iniziale</button><button className="detail-button" onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id, undefined, account.id)}><Eye />Movimenti</button></div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div></article>
     })}</div>
   </div>
 }

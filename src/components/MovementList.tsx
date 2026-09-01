@@ -1,8 +1,8 @@
-import { ArrowDownLeft, ArrowUpRight, Edit3, LockKeyhole, Share2, Trash2 } from 'lucide-react'
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Edit3, LockKeyhole, Share2, Trash2 } from 'lucide-react'
 import { movementAllocations, movementHasSharedPortion, movementTagIds, sharedMovementAmount } from '../lib/calculations'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { formatDate, formatMoney } from '../lib/format'
-import type { AppData, Movement, User } from '../types'
+import type { AppData, Movement, Transfer, User } from '../types'
 
 interface Props {
   data: AppData
@@ -12,12 +12,35 @@ interface Props {
   onDelete?: (id: string) => void
   compact?: boolean
   sharedAmountsOnly?: boolean
+  transfers?: Transfer[]
+  accountId?: string
 }
 
-export function MovementList({ data, movements, user, onEdit, onDelete, compact = false, sharedAmountsOnly = false }: Props) {
-  if (!movements.length) return <div className="empty-state"><ArrowUpRight /><h3>Nessun movimento</h3><p>Non ci sono dati per questa selezione.</p></div>
+export function MovementList({ data, movements, user, onEdit, onDelete, compact = false, sharedAmountsOnly = false, transfers = [], accountId }: Props) {
+  const entries = [
+    ...movements.map((movement) => ({ kind: 'movement' as const, date: movement.date, movement })),
+    ...transfers.map((transfer) => ({ kind: 'transfer' as const, date: transfer.date, transfer })),
+  ].toSorted((a, b) => b.date.localeCompare(a.date))
+  if (!entries.length) return <div className="empty-state"><ArrowUpRight /><h3>Nessun movimento</h3><p>Non ci sono dati per questa selezione.</p></div>
   return <div className={`movement-list ${compact ? 'movement-list--compact' : ''}`}>
-    {movements.map((movement) => {
+    {entries.map((entry) => {
+      if (entry.kind === 'transfer') {
+        const transfer = entry.transfer
+        const from = data.accounts.find((item) => item.id === transfer.fromAccountId)
+        const to = data.accounts.find((item) => item.id === transfer.toAccountId)
+        const isOutgoing = transfer.fromAccountId === accountId
+        const otherAccount = isOutgoing ? to : from
+        return <article className="movement-row movement-row--account-transfer" key={`transfer-${transfer.id}`}>
+          <span className="movement-row__icon movement-row__icon--transfer"><ArrowLeftRight /></span>
+          <div className="movement-row__name"><strong>{transfer.description}</strong><small>{isOutgoing ? `Verso ${otherAccount?.name ?? 'conto non visibile'}` : `Da ${otherAccount?.name ?? 'conto non visibile'}`}</small></div>
+          <div className="movement-row__meta"><small>Dal conto</small><span>{from?.name ?? 'Conto non visibile'}</span></div>
+          <div className="movement-row__meta"><small>Al conto</small><span>{to?.name ?? 'Conto non visibile'}</span></div>
+          <span className="scope-label"><ArrowLeftRight />Giro fondi</span>
+          <time>{formatDate(transfer.date)}</time>
+          <strong className="movement-row__amount movement-row__amount--transfer">{isOutgoing ? '−' : '+'}{formatMoney(transfer.amount)}</strong>
+        </article>
+      }
+      const movement = entry.movement
       const category = data.categories.find((item) => item.id === movement.categoryId)
       const account = data.accounts.find((item) => item.id === movement.accountId)
       const accountName = movement.accountId === debtCompensationAccountId ? debtCompensationAccountLabel : account?.name
