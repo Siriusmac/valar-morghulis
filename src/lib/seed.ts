@@ -66,6 +66,8 @@ export const defaultData: AppData = {
   ],
   transfers: [],
   reimbursements: [],
+  loans: [],
+  loanRepayments: [],
 }
 
 export function createStarterData(userId: UserId, sharedAccounts: Account[]): AppData {
@@ -84,6 +86,8 @@ export function createStarterData(userId: UserId, sharedAccounts: Account[]): Ap
     scheduledPayments: [],
     transfers: [],
     reimbursements: [],
+    loans: [],
+    loanRepayments: [],
   }
 }
 
@@ -100,5 +104,7 @@ export function createPersonalStarterData(userId: UserId): AppData {
     scheduledPayments: [],
     transfers: [],
     reimbursements: [],
+    loans: [],
+    loanRepayments: [],
   }
 }

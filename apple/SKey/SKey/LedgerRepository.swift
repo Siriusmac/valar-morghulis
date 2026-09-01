@@ -22,6 +22,10 @@ protocol LedgerRepository: Sendable {
     func deleteDirectory(kind: LedgerDirectoryKind, id: String, replacementID: String?, scope: DirectoryScope, userID: UUID, familyID: UUID?) async throws
     func createReimbursement(_ draft: ReimbursementDraft, userID: UUID, familyID: UUID) async throws -> String
     func respondToReimbursement(id: String, accepted: Bool, accountID: String?, familyID: UUID) async throws
+    func createLoan(_ draft: LoanDraft, userID: UUID, familyID: UUID) async throws
+    func respondToLoan(id: String, accepted: Bool, accountID: String?, familyID: UUID) async throws
+    func createLoanRepayment(_ draft: LoanRepaymentDraft, familyID: UUID) async throws
+    func respondToLoanRepayment(id: String, accepted: Bool, accountID: String?, categoryID: String?, recipientMovementID: String?, familyID: UUID) async throws
 }
 
 struct SupabaseLedgerRepository: LedgerRepository {
@@ -198,6 +202,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
             type: "reimbursement",
             from: resolvedSharedRecords
         )
+        let sharedLoans = decodeShared(LedgerLoan.self, type: "loan", from: resolvedSharedRecords)
+        let sharedLoanRepayments = decodeShared(
+            LedgerLoanRepayment.self, type: "loan_repayment", from: resolvedSharedRecords
+        )
 
         return LedgerSnapshot(
             currentUserID: userID.uuidString.lowercased(),
@@ -225,7 +233,9 @@ struct SupabaseLedgerRepository: LedgerRepository {
             reimbursements: mergedByID(
                 preferred: sharedReimbursements,
                 additional: privateReimbursements
-            )
+            ),
+            loans: sharedLoans,
+            loanRepayments: sharedLoanRepayments
         )
     }
 
@@ -1346,6 +1356,36 @@ struct SupabaseLedgerRepository: LedgerRepository {
         ).execute()
     }
 
+    func createLoan(_ draft: LoanDraft, userID: UUID, familyID: UUID) async throws {
+        try await client.rpc("create_family_loan", params: CreateLoanParameters(
+            familyID: familyID, loanID: draft.id, borrowerID: draft.borrowerID,
+            amount: draft.amount, date: Self.dayFormatter.string(from: draft.date),
+            description: draft.description, lenderAccountID: draft.lenderAccountID
+        )).execute()
+    }
+
+    func respondToLoan(id: String, accepted: Bool, accountID: String?, familyID: UUID) async throws {
+        try await client.rpc("respond_to_family_loan", params: LoanResponseParameters(
+            familyID: familyID, loanID: id, accepted: accepted, accountID: accountID
+        )).execute()
+    }
+
+    func createLoanRepayment(_ draft: LoanRepaymentDraft, familyID: UUID) async throws {
+        try await client.rpc("create_family_loan_repayment", params: CreateLoanRepaymentParameters(
+            familyID: familyID, repaymentID: draft.id, loanID: draft.loanID,
+            amount: draft.amount, date: Self.dayFormatter.string(from: draft.date),
+            description: draft.description, method: draft.method.rawValue,
+            fromAccountID: draft.fromAccountID, payerMovementID: draft.payerMovementID
+        )).execute()
+    }
+
+    func respondToLoanRepayment(id: String, accepted: Bool, accountID: String?, categoryID: String?, recipientMovementID: String?, familyID: UUID) async throws {
+        try await client.rpc("respond_to_family_loan_repayment", params: LoanRepaymentResponseParameters(
+            familyID: familyID, repaymentID: id, accepted: accepted, accountID: accountID,
+            categoryID: categoryID, recipientMovementID: recipientMovementID
+        )).execute()
+    }
+
     private func appDataRoot(from value: JSONValue?) -> [String: JSONValue] {
         var root = value?.objectValue ?? [:]
         root["version"] = .number(3)
@@ -1874,6 +1914,47 @@ private struct ReimbursementResponseParameters: Encodable, Sendable {
         case reimbursementID = "target_reimbursement_id"
         case accepted = "accept_reimbursement"
         case accountID = "selected_account_id"
+    }
+}
+
+private struct CreateLoanParameters: Encodable, Sendable {
+    let familyID: UUID; let loanID: String; let borrowerID: UUID; let amount: Decimal
+    let date: String; let description: String; let lenderAccountID: String
+    enum CodingKeys: String, CodingKey {
+        case familyID = "target_family_id"; case loanID = "target_loan_id"
+        case borrowerID = "target_borrower_id"; case amount = "target_amount"
+        case date = "target_date"; case description = "target_description"
+        case lenderAccountID = "target_lender_account_id"
+    }
+}
+
+private struct LoanResponseParameters: Encodable, Sendable {
+    let familyID: UUID; let loanID: String; let accepted: Bool; let accountID: String?
+    enum CodingKeys: String, CodingKey {
+        case familyID = "target_family_id"; case loanID = "target_loan_id"
+        case accepted = "accept_loan"; case accountID = "selected_account_id"
+    }
+}
+
+private struct CreateLoanRepaymentParameters: Encodable, Sendable {
+    let familyID: UUID; let repaymentID: String; let loanID: String; let amount: Decimal
+    let date: String; let description: String; let method: String
+    let fromAccountID: String?; let payerMovementID: String?
+    enum CodingKeys: String, CodingKey {
+        case familyID = "target_family_id"; case repaymentID = "target_repayment_id"
+        case loanID = "target_loan_id"; case amount = "target_amount"; case date = "target_date"
+        case description = "target_description"; case method = "target_method"
+        case fromAccountID = "target_from_account_id"; case payerMovementID = "target_payer_movement_id"
+    }
+}
+
+private struct LoanRepaymentResponseParameters: Encodable, Sendable {
+    let familyID: UUID; let repaymentID: String; let accepted: Bool
+    let accountID: String?; let categoryID: String?; let recipientMovementID: String?
+    enum CodingKeys: String, CodingKey {
+        case familyID = "target_family_id"; case repaymentID = "target_repayment_id"
+        case accepted = "accept_repayment"; case accountID = "selected_account_id"
+        case categoryID = "selected_category_id"; case recipientMovementID = "target_recipient_movement_id"
     }
 }
 

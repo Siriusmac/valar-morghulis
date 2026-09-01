@@ -33,7 +33,7 @@ nonisolated enum AppDestination: String, CaseIterable, Hashable, Identifiable, S
         case .dashboard: "Bacheca"
         case .movements: "Spese ed Entrate"
         case .scheduledPayments: "Pagamenti programmati"
-        case .reimbursements: "Rimborsi"
+        case .reimbursements: "Rimborsi e prestiti"
         case .accounts: "Conti"
         case .categories: "Categorie"
         case .counterparties: "Beneficiari e mittenti"

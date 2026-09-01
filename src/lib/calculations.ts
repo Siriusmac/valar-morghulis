@@ -1,4 +1,4 @@
-import type { AppData, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
+import type { AppData, Loan, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
 
 export interface MovementAllocation {
   categoryId: string
@@ -107,6 +107,11 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
       if (item.fromId === userId) net += item.amount
     }
   }
+  for (const repayment of data.loanRepayments) {
+    if (repayment.status !== 'confirmed' || repayment.method !== 'family_credit') continue
+    if (repayment.borrowerId === userId) net -= repayment.amount
+    if (repayment.lenderId === userId) net += repayment.amount
+  }
   for (const transfer of data.transfers) {
     const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
     const destination = data.accounts.find((account) => account.id === transfer.toAccountId)
@@ -175,7 +180,31 @@ export function accountBalance(data: AppData, accountId: string) {
     if (reimbursement.fromAccountId === accountId) balance -= reimbursement.amount
     if (reimbursement.toAccountId === accountId) balance += reimbursement.amount
   }
+  for (const loan of data.loans) {
+    if (loan.status !== 'confirmed') continue
+    if (loan.lenderAccountId === accountId) balance -= loan.amount
+    if (loan.borrowerAccountId === accountId) balance += loan.amount
+  }
+  for (const repayment of data.loanRepayments) {
+    if (repayment.status !== 'confirmed' || repayment.method !== 'money') continue
+    if (repayment.fromAccountId === accountId) balance -= repayment.amount
+    if (repayment.toAccountId === accountId) balance += repayment.amount
+  }
   return Math.round(balance * 100) / 100
+}
+
+export function loanOutstanding(data: AppData, loan: Loan) {
+  const repaid = data.loanRepayments
+    .filter((item) => item.loanId === loan.id && item.status === 'confirmed')
+    .reduce((sum, item) => sum + item.amount, 0)
+  return roundMoney(Math.max(0, loan.amount - repaid))
+}
+
+export function loanAvailableToRepay(data: AppData, loan: Loan) {
+  const reserved = data.loanRepayments
+    .filter((item) => item.loanId === loan.id && item.status === 'pending')
+    .reduce((sum, item) => sum + item.amount, 0)
+  return roundMoney(Math.max(0, loanOutstanding(data, loan) - reserved))
 }
 
 export function visibleMovements(data: AppData, userId: UserId) {

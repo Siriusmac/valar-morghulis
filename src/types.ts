@@ -162,6 +162,48 @@ export interface ReimbursementChangeRequest {
   selectedAccountId?: string
 }
 
+export type LoanStatus = 'pending' | 'confirmed' | 'rejected'
+export type LoanRepaymentMethod = 'money' | 'purchase' | 'family_credit'
+
+export interface Loan {
+  id: string
+  lenderId: UserId
+  borrowerId: UserId
+  amount: number
+  date: string
+  description: string
+  authorId: UserId
+  lenderAccountId: string
+  borrowerAccountId?: string
+  status: LoanStatus
+  confirmedBy?: UserId
+  confirmedAt?: string
+  rejectedBy?: UserId
+  rejectedAt?: string
+}
+
+export interface LoanRepayment {
+  id: string
+  loanId: string
+  lenderId: UserId
+  borrowerId: UserId
+  amount: number
+  date: string
+  description: string
+  authorId: UserId
+  method: LoanRepaymentMethod
+  fromAccountId?: string
+  toAccountId?: string
+  categoryId?: string
+  payerMovementId?: string
+  recipientMovementId?: string
+  status: LoanStatus
+  confirmedBy?: UserId
+  confirmedAt?: string
+  rejectedBy?: UserId
+  rejectedAt?: string
+}
+
 export interface Contact {
   id: UserId
   name: string
@@ -219,4 +261,6 @@ export interface AppData {
   scheduledPayments: ScheduledPayment[]
   transfers: Transfer[]
   reimbursements: Reimbursement[]
+  loans: Loan[]
+  loanRepayments: LoanRepayment[]
 }

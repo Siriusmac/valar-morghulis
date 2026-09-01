@@ -31,7 +31,8 @@ Funzioni disponibili:
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
 - piano rateale completo conservato soltanto nei dati privati dell'autore: non viene pubblicato come record familiare e “Pagamenti programmati” mostra sempre l'intera rata, non la quota condivisa;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
-- pagina “Rimborsi” con segmenti “Attesi” e “Dovuti” su web e client Apple; include anche gli acquisti ordinari per conto terzi, attesi dal pagante e dovuti dal destinatario;
+- pagina “Rimborsi e prestiti” con segmenti “Attesi” e “Dovuti”; include anche gli acquisti ordinari per conto terzi e, sul web, prestiti familiari con conferma iniziale, residuo e restituzioni parziali;
+- migration `20260901100000_family_loans.sql` applicata al progetto Supabase remoto il 1 settembre 2026: aggiunge record autorevoli `loan`/`loan_repayment`, RPC di creazione e risposta reciproca e controllo server del credito familiare; il client Apple decodifica e contabilizza questi record e dispone delle chiamate repository, mentre la relativa UI nativa resta da completare;
 - compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
 - rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
 - spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo; alla conferma il pagante riceve una sola entrata personale “Rimborsi ricevuti” sul conto di origine, con ID deterministico per impedire duplicazioni;

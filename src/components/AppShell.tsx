@@ -10,7 +10,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Bacheca', icon: LayoutDashboard },
   { id: 'movements', label: 'Spese ed Entrate', icon: ReceiptText },
   { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
-  { id: 'reimbursements', label: 'Rimborsi', icon: HandCoins },
+  { id: 'reimbursements', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },

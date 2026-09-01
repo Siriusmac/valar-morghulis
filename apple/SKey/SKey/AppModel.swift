@@ -577,6 +577,37 @@ final class AppModel {
         await reloadWorkspace()
     }
 
+    func createLoan(_ draft: LoanDraft) async throws {
+        guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
+        guard let currentUserID, let ledgerRepository else { throw AppModelError.clientUnavailable }
+        try await ledgerRepository.createLoan(draft, userID: currentUserID, familyID: familyID)
+        await reloadWorkspace()
+    }
+
+    func respondToLoan(_ loan: LedgerLoan, accepted: Bool, accountID: String?) async throws {
+        guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
+        guard let ledgerRepository else { throw AppModelError.clientUnavailable }
+        try await ledgerRepository.respondToLoan(id: loan.id, accepted: accepted, accountID: accountID, familyID: familyID)
+        await reloadWorkspace()
+    }
+
+    func createLoanRepayment(_ draft: LoanRepaymentDraft) async throws {
+        guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
+        guard let ledgerRepository else { throw AppModelError.clientUnavailable }
+        try await ledgerRepository.createLoanRepayment(draft, familyID: familyID)
+        await reloadWorkspace()
+    }
+
+    func respondToLoanRepayment(_ repayment: LedgerLoanRepayment, accepted: Bool, accountID: String?, categoryID: String?, recipientMovementID: String?) async throws {
+        guard let familyID = selectedFamilyID else { throw AppModelError.familyRequired }
+        guard let ledgerRepository else { throw AppModelError.clientUnavailable }
+        try await ledgerRepository.respondToLoanRepayment(
+            id: repayment.id, accepted: accepted, accountID: accountID,
+            categoryID: categoryID, recipientMovementID: recipientMovementID, familyID: familyID
+        )
+        await reloadWorkspace()
+    }
+
     func inviteContact(email: String) async throws -> UUID {
         guard let familyRepository else { throw AppModelError.clientUnavailable }
         let invitationID = try await familyRepository.inviteContact(email: email)

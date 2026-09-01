@@ -1033,6 +1033,22 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .reimbursement-review__actions { display: flex; gap: 8px; }
 .reimbursement-review--rejected { opacity: .72; }
 .reimbursement-review--rejected > span { color: #a93d34; background: #fff2f0; }
+.loan-form, .loan-card { border: 1px solid var(--line); border-radius: 18px; background: var(--white); padding: 18px; }
+.loan-form { display: grid; gap: 14px; margin-bottom: 22px; }
+.loan-form__heading, .loan-card__summary { display: flex; align-items: center; gap: 12px; }
+.loan-form__heading > span, .loan-card__summary > span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--positive); background: var(--positive-soft); flex: 0 0 auto; }
+.loan-form__heading > div, .loan-card__summary > div:not(.loan-card__amount) { display: grid; gap: 3px; min-width: 0; }
+.loan-form__heading small, .loan-card small { color: var(--muted); }
+.loan-card { display: grid; gap: 14px; }
+.loan-card--rejected { opacity: .72; }
+.loan-card__amount { margin-left: auto; display: grid; justify-items: end; }
+.loan-card__decision, .loan-repayment-row__response, .loan-repayment-form { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.loan-card__decision label, .loan-repayment-row__response label, .loan-repayment-form label { display: grid; gap: 5px; font-size: .78rem; font-weight: 700; }
+.loan-card__repay { justify-self: start; }
+.loan-repayments { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.loan-repayment-row { display: grid; gap: 10px; border-radius: 12px; background: var(--sand); padding: 12px; }
+.loan-repayment-row > div:first-child { display: flex; justify-content: space-between; gap: 10px; }
+.loan-repayment-form { background: var(--sand); border-radius: 14px; padding: 14px; }
 .reimbursement-change-summary { display: grid; gap: 3px; margin-top: 8px; padding: 10px 12px; border-radius: 9px; background: var(--sand); }
 .reimbursement-change-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
 .reimbursement-change-form > small { grid-column: 1 / -1; }
@@ -1066,6 +1082,10 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .reimbursement-review { grid-template-columns: auto minmax(0, 1fr); }
   .reimbursement-review__actions { grid-column: 1 / -1; }
   .reimbursement-review__actions .button { flex: 1; }
+  .reimbursements-page .page-heading { flex-direction: column; gap: 14px; }
+  .loan-card__summary { align-items: flex-start; flex-wrap: wrap; }
+  .loan-card__amount { margin-left: 56px; justify-items: start; }
+  .loan-repayment-row > div:first-child { display: grid; }
   .reimbursement-change-form { grid-template-columns: 1fr; }
   .purchase-review { grid-template-columns: 42px minmax(0, 1fr); }
   .purchase-review__controls { grid-template-columns: 1fr; }

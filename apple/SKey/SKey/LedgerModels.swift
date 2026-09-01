@@ -355,6 +355,81 @@ nonisolated struct ReimbursementDraft: Equatable, Sendable {
     }
 }
 
+nonisolated struct LedgerLoan: Identifiable, Codable, Equatable, Sendable {
+    enum Status: String, Codable, Sendable { case pending, confirmed, rejected }
+    let id: String
+    let lenderID: String
+    let borrowerID: String
+    let amount: Money
+    let date: String
+    let description: String
+    let authorID: String
+    let lenderAccountID: String
+    let borrowerAccountID: String?
+    let status: Status
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, date, description, status
+        case lenderID = "lenderId"
+        case borrowerID = "borrowerId"
+        case authorID = "authorId"
+        case lenderAccountID = "lenderAccountId"
+        case borrowerAccountID = "borrowerAccountId"
+    }
+}
+
+nonisolated struct LedgerLoanRepayment: Identifiable, Codable, Equatable, Sendable {
+    enum Method: String, Codable, Sendable { case money, purchase, familyCredit = "family_credit" }
+    let id: String
+    let loanID: String
+    let lenderID: String
+    let borrowerID: String
+    let amount: Money
+    let date: String
+    let description: String
+    let authorID: String
+    let method: Method
+    let fromAccountID: String?
+    let toAccountID: String?
+    let categoryID: String?
+    let payerMovementID: String?
+    let recipientMovementID: String?
+    let status: LedgerLoan.Status
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, date, description, method, status
+        case loanID = "loanId"
+        case lenderID = "lenderId"
+        case borrowerID = "borrowerId"
+        case authorID = "authorId"
+        case fromAccountID = "fromAccountId"
+        case toAccountID = "toAccountId"
+        case categoryID = "categoryId"
+        case payerMovementID = "payerMovementId"
+        case recipientMovementID = "recipientMovementId"
+    }
+}
+
+nonisolated struct LoanDraft: Equatable, Sendable {
+    let id: String
+    let borrowerID: UUID
+    let amount: Decimal
+    let date: Date
+    let description: String
+    let lenderAccountID: String
+}
+
+nonisolated struct LoanRepaymentDraft: Equatable, Sendable {
+    let id: String
+    let loanID: String
+    let amount: Decimal
+    let date: Date
+    let description: String
+    let method: LedgerLoanRepayment.Method
+    let fromAccountID: String?
+    let payerMovementID: String?
+}
+
 nonisolated struct ReimbursementPlanItem: Identifiable, Equatable, Sendable {
     let memberID: String
     let availableCredit: Money
@@ -375,6 +450,8 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
     let scheduledPayments: [LedgerScheduledPayment]
     let transfers: [LedgerTransfer]
     let reimbursements: [LedgerReimbursement]
+    let loans: [LedgerLoan]
+    let loanRepayments: [LedgerLoanRepayment]
 
     init(
         currentUserID: String,
@@ -387,7 +464,9 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
         movements: [LedgerMovement],
         scheduledPayments: [LedgerScheduledPayment] = [],
         transfers: [LedgerTransfer],
-        reimbursements: [LedgerReimbursement]
+        reimbursements: [LedgerReimbursement],
+        loans: [LedgerLoan] = [],
+        loanRepayments: [LedgerLoanRepayment] = []
     ) {
         self.currentUserID = currentUserID
         self.memberCount = memberCount
@@ -400,6 +479,8 @@ nonisolated struct LedgerSnapshot: Equatable, Sendable {
         self.scheduledPayments = scheduledPayments
         self.transfers = transfers
         self.reimbursements = reimbursements
+        self.loans = loans
+        self.loanRepayments = loanRepayments
     }
 
     func account(named id: String) -> AccountSummary? {

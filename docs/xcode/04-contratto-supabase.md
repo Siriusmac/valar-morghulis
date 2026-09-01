@@ -57,7 +57,7 @@ l'autore dell'invito e annulla nello stesso passaggio le richieste d'acquisto
 pending ancora prive di destinatario. Entrambe eliminano il record, rendendo
 invalido il token già inviato per email.
 
-Tipi condivisi: `movement`, `reimbursement`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Lo schema accetta ancora `scheduled_payment` per compatibilità con record storici, ma i client non lo pubblicano più: il piano rateale completo resta nei dati privati dell'autore. Le transazioni hanno `authorId` uguale all'utente autenticato. Un nuovo rimborso è forzato server-side a `pending`; solo la controparte lo risolve e lo stato server prevale sempre.
+Tipi condivisi: `movement`, `reimbursement`, `loan`, `loan_repayment`, `transfer`, `category`, `beneficiary`, `sender`, `directory_redirect`, `tag`. Lo schema accetta ancora `scheduled_payment` per compatibilità con record storici, ma i client non lo pubblicano più: il piano rateale completo resta nei dati privati dell'autore. Le transazioni hanno `authorId` uguale all'utente autenticato. Rimborsi, prestiti e restituzioni partono da `pending`; solo la controparte li risolve e lo stato server prevale sempre.
 
 ## Caricamento
 
@@ -75,6 +75,7 @@ Tipi condivisi: `movement`, `reimbursement`, `transfer`, `category`, `beneficiar
 - Personale: upsert `user_app_data`.
 - Privato per famiglia: upsert `family_user_app_data`.
 - Condiviso: RPC `sync_family_shared_records`.
+- Prestiti: `create_family_loan` e `respond_to_family_loan` confermano il passaggio iniziale; `create_family_loan_repayment` e `respond_to_family_loan_repayment` proteggono il residuo e ogni restituzione parziale. La compensazione familiare è accettata solo entro il credito del beneficiario e il debito familiare del prestatore, al netto delle richieste pending.
 - Conti: tabella `accounts` con RLS.
 - Visibilità dei conti personali per i rimborsi: la RPC atomica
   `set_reimbursement_account_families` sostituisce l'insieme completo delle

@@ -12,9 +12,11 @@ import { deleteMovementData, saveMovementData, type MovementAdditions } from './
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
+import { reconcileConfirmedLoanPurchases } from './lib/loans'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, Category, CommissionedPurchase, Contact, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+import type { AppData, Beneficiary, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
+import type { LoanDraft, LoanRepaymentDraft } from './features/ReimbursementsPage'
 import type { ComposerType } from './components/MovementTypeSelector'
 
 const MovementList = lazy(() => import('./components/MovementList').then((module) => ({ default: module.MovementList })))
@@ -67,13 +69,17 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const appUsers = cloud?.members ?? users
   const storageKey = cloud ? `valar-morghulis:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
   const starterData = cloud ? (cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)) : undefined
-  const [data, setData] = useState<AppData>(() => cloud ? loadData(storageKey, starterData!) : loadData())
-  const [userId, setUserId] = useState<UserId | null>(() => {
+  const initialUserId = (() => {
     if (cloud) return cloud.user.id
     const demoUser = new URLSearchParams(window.location.search).get('demo')
     if (demoUser === 'simone' || demoUser === 'anna') return demoUser
     return sessionStorage.getItem('vm:user') as UserId | null
+  })()
+  const [data, setData] = useState<AppData>(() => {
+    const loaded = cloud ? loadData(storageKey, starterData!) : loadData()
+    return initialUserId ? reconcileConfirmedLoanPurchases(loaded, initialUserId, appUsers) : loaded
   })
+  const [userId, setUserId] = useState<UserId | null>(initialUserId)
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
     return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
@@ -177,7 +183,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     familyContacts(appUsers, userId ?? '', cloud?.familyName ?? 'Famiglia demo'),
     cloud ? contactData.friends : [],
   ), [appUsers, cloud, contactData.friends, userId])
-  const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setUserId(id) }
+  const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setData((current) => reconcileConfirmedLoanPurchases(current, id, appUsers)); setUserId(id) }
   const logout = () => {
     if (cloud) { void cloud.signOut(); return }
     sessionStorage.removeItem('vm:user'); setUserId(null); setPage('dashboard')
@@ -285,6 +291,61 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       setToast('Non è stato possibile aggiornare il rimborso')
       throw reason
     }
+  }
+  const createLoan = async (draft: LoanDraft) => {
+    const loan: Loan = {
+      id: makeId('loan'), lenderId: user.id, borrowerId: draft.borrowerId,
+      amount: draft.amount, date: draft.date, description: draft.description,
+      authorId: user.id, lenderAccountId: draft.lenderAccountId, status: 'pending',
+    }
+    if (cloud) await cloud.createLoan(loan)
+    setData((current) => current.loans.some((item) => item.id === loan.id)
+      ? current : { ...current, loans: [...current.loans, loan] })
+    setToast('Prestito inviato per conferma')
+  }
+  const respondToLoan = async (loanId: string, accepted: boolean, selectedAccountId?: string) => {
+    if (cloud) await cloud.respondToLoan(loanId, accepted, selectedAccountId)
+    setData((current) => ({ ...current, loans: current.loans.map((loan) => loan.id === loanId ? {
+      ...loan, status: accepted ? 'confirmed' : 'rejected',
+      ...(accepted ? { borrowerAccountId: selectedAccountId, confirmedBy: user.id, confirmedAt: new Date().toISOString() } : { rejectedBy: user.id, rejectedAt: new Date().toISOString() }),
+    } : loan) }))
+    setToast(accepted ? 'Prestito confermato e conti aggiornati' : 'Prestito rifiutato')
+  }
+  const createLoanRepayment = async (draft: LoanRepaymentDraft) => {
+    const loan = data.loans.find((item) => item.id === draft.loanId)
+    if (!loan || loan.borrowerId !== user.id) throw new Error('Prestito non disponibile.')
+    const repayment: LoanRepayment = {
+      id: makeId('loan-repayment'), loanId: loan.id,
+      lenderId: loan.lenderId, borrowerId: loan.borrowerId,
+      amount: draft.amount, date: draft.date, description: draft.description,
+      authorId: user.id, method: draft.method, fromAccountId: draft.fromAccountId,
+      payerMovementId: draft.method === 'purchase' ? makeId('movement') : undefined,
+      status: 'pending',
+    }
+    if (cloud) await cloud.createLoanRepayment(repayment)
+    setData((current) => current.loanRepayments.some((item) => item.id === repayment.id)
+      ? current : { ...current, loanRepayments: [...current.loanRepayments, repayment] })
+    setToast('Restituzione inviata per conferma')
+  }
+  const respondToLoanRepayment = async (repaymentId: string, accepted: boolean, selectedAccountId?: string, category?: Category) => {
+    const repayment = data.loanRepayments.find((item) => item.id === repaymentId)
+    if (!repayment) throw new Error('Restituzione non disponibile.')
+    const recipientMovementId = accepted && repayment.method === 'purchase' ? makeId('movement') : undefined
+    if (cloud) await cloud.respondToLoanRepayment(repaymentId, accepted, selectedAccountId, category?.id, recipientMovementId)
+    setData((current) => {
+      const updated: LoanRepayment = {
+        ...repayment,
+        status: accepted ? 'confirmed' : 'rejected',
+        ...(accepted ? { confirmedBy: user.id, confirmedAt: new Date().toISOString(), toAccountId: selectedAccountId, categoryId: category?.id, recipientMovementId } : { rejectedBy: user.id, rejectedAt: new Date().toISOString() }),
+      }
+      const withRepayment = {
+        ...current,
+        categories: category && !current.categories.some((item) => item.id === category.id) ? [...current.categories, category] : current.categories,
+        loanRepayments: current.loanRepayments.map((item) => item.id === repaymentId ? updated : item),
+      }
+      return reconcileConfirmedLoanPurchases(withRepayment, user.id, appUsers)
+    })
+    setToast(accepted ? 'Restituzione confermata e residuo aggiornato' : 'Restituzione rifiutata')
   }
   const requestReimbursementChange = async (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => {
     if (!cloud) return
@@ -424,7 +485,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
-    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} />
+    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} onCreateLoan={!cloud || !cloud.personalMode ? createLoan : undefined} onRespondLoan={!cloud || !cloud.personalMode ? respondToLoan : undefined} onCreateLoanRepayment={!cloud || !cloud.personalMode ? createLoanRepayment : undefined} onRespondLoanRepayment={!cloud || !cloud.personalMode ? respondToLoanRepayment : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')

@@ -59,7 +59,7 @@ creano o cancellano grandi quantità di dati.
     rate dovute.
 13. Acquisto unico o multiplo con righe personali, familiari o effettuate per
     conto di un contatto, mantenendo il totale come riferimento per le rate.
-14. Sezione Rimborsi con viste distinte per importi attesi e dovuti.
+14. Sezione Rimborsi e prestiti con viste distinte per importi attesi e dovuti.
 
 Prossimi blocchi: cache offline, riallineamento Realtime e collaudo end-to-end
 su account staging con più famiglie e contatti.

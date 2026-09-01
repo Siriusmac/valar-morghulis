@@ -9,6 +9,8 @@ export type SharedRecordType =
   | 'movement'
   | 'scheduled_payment'
   | 'reimbursement'
+  | 'loan'
+  | 'loan_repayment'
   | 'transfer'
   | 'category'
   | 'beneficiary'
@@ -36,7 +38,7 @@ export interface CloudPersistencePayload {
 }
 
 const transactionTypes = new Set<SharedRecordType>([
-  'movement', 'scheduled_payment', 'reimbursement', 'transfer',
+  'movement', 'scheduled_payment', 'reimbursement', 'loan', 'loan_repayment', 'transfer',
 ])
 
 function mergeById<T extends { id: string }>(preferred: T[], additional: T[]) {
@@ -144,6 +146,8 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
   const ownFamilyPayments = ownScheduledPayments.filter((item) => sanitizedSharedPayment(item) !== null)
   const familyPaymentIds = new Set(ownFamilyPayments.map((item) => item.id))
   const ownSharedReimbursements = data.reimbursements.filter((item) => item.authorId === userId)
+  const ownSharedLoans = data.loans.filter((item) => item.authorId === userId)
+  const ownSharedLoanRepayments = data.loanRepayments.filter((item) => item.authorId === userId)
   const ownSharedTransfers = data.transfers.filter((item) => item.authorId === userId && (familyAccountIds.has(item.fromAccountId) || familyAccountIds.has(item.toAccountId)))
   const familyMovementIds = new Set(ownSharedMovements.map((item) => item.id))
   const personalTagIds = new Set(data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId).map((item) => item.id))
@@ -187,6 +191,8 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       scheduledPayments: ownScheduledPayments.filter((item) => !familyPaymentIds.has(item.id)),
       transfers: data.transfers.filter((item) => item.authorId === userId && !familyAccountIds.has(item.fromAccountId) && !familyAccountIds.has(item.toAccountId)),
       reimbursements: [],
+      loans: [],
+      loanRepayments: [],
     },
     familyPrivateData: {
       version: 3,
@@ -201,6 +207,8 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
       scheduledPayments: ownFamilyPayments,
       transfers: ownSharedTransfers,
       reimbursements: ownSharedReimbursements,
+      loans: ownSharedLoans,
+      loanRepayments: ownSharedLoanRepayments,
     },
     sharedRecords,
     ownedKeys: sharedRecords
@@ -237,6 +245,10 @@ export function mergePrivateCloudData(
       .filter((item) => !userId || item.authorId === userId),
     reimbursements: mergeById(family.reimbursements ?? [], personal.reimbursements ?? [])
       .filter((item) => !userId || item.authorId === userId),
+    loans: mergeById(family.loans ?? [], personal.loans ?? [])
+      .filter((item) => !userId || item.authorId === userId),
+    loanRepayments: mergeById(family.loanRepayments ?? [], personal.loanRepayments ?? [])
+      .filter((item) => !userId || item.authorId === userId),
   }
 }
 
@@ -254,6 +266,8 @@ export function mergeCloudPersistence(
     scheduledPayments: [] as ScheduledPayment[],
     transfers: [] as AppData['transfers'],
     reimbursements: [] as AppData['reimbursements'],
+    loans: [] as AppData['loans'],
+    loanRepayments: [] as AppData['loanRepayments'],
     redirects: [] as Array<{ kind: DirectoryDeletionKind; oldId: string; replacementId?: string }>,
   }
   for (const record of records) {
@@ -271,6 +285,8 @@ export function mergeCloudPersistence(
     if (record.record_type === 'scheduled_payment') shared.scheduledPayments.push(record.data as ScheduledPayment)
     if (record.record_type === 'transfer') shared.transfers.push(record.data as AppData['transfers'][number])
     if (record.record_type === 'reimbursement') shared.reimbursements.push(record.data as AppData['reimbursements'][number])
+    if (record.record_type === 'loan') shared.loans.push(record.data as AppData['loans'][number])
+    if (record.record_type === 'loan_repayment') shared.loanRepayments.push(record.data as AppData['loanRepayments'][number])
   }
   const personal = privateData ?? {}
   const merged = hydrateData({
@@ -286,6 +302,8 @@ export function mergeCloudPersistence(
     // Lo stato approvato o rifiutato dalla controparte vive nel record familiare:
     // deve prevalere sull'eventuale copia privata ancora ferma a "pending".
     reimbursements: mergeById(shared.reimbursements, personal.reimbursements ?? []),
+    loans: mergeById(shared.loans, personal.loans ?? []),
+    loanRepayments: mergeById(shared.loanRepayments, personal.loanRepayments ?? []),
   }, fallback)
   const redirectMap = new Map(shared.redirects.map((item) => [`${item.kind}:${item.oldId}`, item]))
   const finalReplacement = (redirect: typeof shared.redirects[number]) => {

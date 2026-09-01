@@ -110,6 +110,15 @@ nonisolated enum LedgerCalculations {
             }
         }
 
+        for loan in snapshot.loans where loan.status == .confirmed {
+            if loan.lenderAccountID.caseInsensitiveCompare(account.id) == .orderedSame { balance = balance - loan.amount }
+            if loan.borrowerAccountID?.caseInsensitiveCompare(account.id) == .orderedSame { balance = balance + loan.amount }
+        }
+        for repayment in snapshot.loanRepayments where repayment.status == .confirmed && repayment.method == .money {
+            if repayment.fromAccountID?.caseInsensitiveCompare(account.id) == .orderedSame { balance = balance - repayment.amount }
+            if repayment.toAccountID?.caseInsensitiveCompare(account.id) == .orderedSame { balance = balance + repayment.amount }
+        }
+
         return balance
     }
 
@@ -281,7 +290,26 @@ nonisolated enum LedgerCalculations {
             }
         }
 
+        for repayment in snapshot.loanRepayments where repayment.status == .confirmed && repayment.method == .familyCredit {
+            if repayment.borrowerID.caseInsensitiveCompare(userID) == .orderedSame { net -= repayment.amount.decimal }
+            if repayment.lenderID.caseInsensitiveCompare(userID) == .orderedSame { net += repayment.amount.decimal }
+        }
+
         return Money(decimal: net)
+    }
+
+    static func loanOutstanding(_ loan: LedgerLoan, in snapshot: LedgerSnapshot) -> Money {
+        let repaid = snapshot.loanRepayments
+            .filter { $0.loanID == loan.id && $0.status == .confirmed }
+            .reduce(Money.zero) { $0 + $1.amount }
+        return Money(cents: max(0, loan.amount.cents - repaid.cents))
+    }
+
+    static func loanAvailableToRepay(_ loan: LedgerLoan, in snapshot: LedgerSnapshot) -> Money {
+        let pending = snapshot.loanRepayments
+            .filter { $0.loanID == loan.id && $0.status == .pending }
+            .reduce(Money.zero) { $0 + $1.amount }
+        return Money(cents: max(0, loanOutstanding(loan, in: snapshot).cents - pending.cents))
     }
 
     static func reimbursementPlan(in snapshot: LedgerSnapshot, memberIDs: [String]) -> [ReimbursementPlanItem] {

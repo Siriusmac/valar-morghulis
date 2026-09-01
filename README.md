@@ -44,8 +44,9 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - modifica di un piano rateale basata sull'importo totale dell'acquisto, con la stessa struttura della creazione e conservazione di categorie, acquisti per conto terzi e date delle rate;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - piano rateale privato e visibile soltanto all'autore, sempre calcolato sul totale dello scontrino anche quando contiene quote personali, condivise o acquistate per altri;
-- sezione “Rimborsi” con viste “Attesi” e “Dovuti” separate;
-- acquisti per conto terzi presenti anche in “Rimborsi”: il destinatario li cataloga tra i dovuti e, dopo la conferma, il pagante vede un'entrata di rimborso tra gli attesi e nella propria contabilità;
+- sezione “Rimborsi e prestiti” con viste “Attesi” e “Dovuti” separate;
+- prestiti tra membri della famiglia con conferma del beneficiario, capitale residuo sempre visibile e restituzioni parziali confermate singolarmente in denaro, tramite acquisto o compensando un credito familiare disponibile;
+- acquisti per conto terzi presenti anche in “Rimborsi e prestiti”: il destinatario li cataloga tra i dovuti e, dopo la conferma, il pagante vede un'entrata di rimborso tra gli attesi e nella propria contabilità;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, possono ritirare o reinviare gli inviti in attesa, reinviare quelli scaduti e rimuovere quelli rifiutati;
@@ -205,7 +206,7 @@ e modifica di spese ed entrate personali o condivise, acquisti singoli o multipl
 con categoria, tag e destinazione indipendenti per parziale, acquisti in 3 o 5 rate,
 azioni contestuali touch o Mac, anagrafiche di categorie, beneficiari, mittenti
 e tag modificabili con accesso ai relativi movimenti, elenco mensile dei
-movimenti, sezione Rimborsi “Attesi/Dovuti”, conferma delle richieste, saldi calcolati di conti e famiglia e
+movimenti, sezione Rimborsi e prestiti “Attesi/Dovuti”, conferma delle richieste, saldi calcolati di conti e famiglia e
 grafici mensili condivisi/per categoria tramite Swift Charts. Le rate future
 sono raggruppate per acquisto in “Pagamenti programmati” e vengono materializzate
 alla scadenza.

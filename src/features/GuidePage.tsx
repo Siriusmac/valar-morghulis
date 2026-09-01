@@ -11,7 +11,7 @@ const chapters = [
   { id: 'condivisione', label: 'Spese condivise e saldi', icon: Users },
   { id: 'conti', label: 'Conti e giro fondi', icon: CreditCard },
   { id: 'rate-rimborsi', label: 'Rate e pagamenti programmati', icon: CalendarClock },
-  { id: 'rimborsi', label: 'Rimborsi in denaro o con acquisto', icon: HandCoins },
+  { id: 'rimborsi', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'contatti', label: 'Contatti e acquisti per altri', icon: ContactRound },
   { id: 'anagrafiche', label: 'Categorie, beneficiari, mittenti e tag', icon: Tags },
   { id: 'famiglia', label: 'Account, famiglie e privacy', icon: ShieldCheck },
@@ -181,7 +181,7 @@ export function GuidePage() {
         </section>
 
         <section id="rimborsi" className="guide-chapter">
-          <ChapterHeading number="07" title="Rimborsi in denaro o con acquisto" icon={HandCoins} />
+          <ChapterHeading number="07" title="Rimborsi e prestiti" icon={HandCoins} />
           <p>
             Dalla Bacheca puoi registrare un rimborso del debito familiare. In una famiglia
             con più persone l’app mostra i singoli creditori: puoi sceglierne uno o più,
@@ -203,7 +203,9 @@ export function GuidePage() {
             <li>Ogni rimborso resta in attesa finché il destinatario non lo conferma o rifiuta.</li>
             <li>Il destinatario può completare il proprio conto personale se non era visibile al pagatore.</li>
             <li>Per il rimborso con acquisto, il destinatario sceglie categoria e conto per inserirlo nella propria contabilità senza un secondo addebito.</li>
-            <li>La sezione <strong>Rimborsi</strong> separa quelli <strong>Attesi</strong> da quelli <strong>Dovuti</strong>.</li>
+            <li>La sezione <strong>Rimborsi e prestiti</strong> separa quelli <strong>Attesi</strong> da quelli <strong>Dovuti</strong>.</li>
+            <li>Un prestito sposta il capitale soltanto dopo la conferma del beneficiario e mostra sempre quanto resta da restituire.</li>
+            <li>La restituzione può essere parziale, in denaro, tramite un acquisto catalogato dal prestatore oppure compensando un credito familiare realmente disponibile.</li>
             <li>La notifica viene inviata soltanto alla persona interessata e apre direttamente la conferma nel client Apple.</li>
           </ul>
         </section>

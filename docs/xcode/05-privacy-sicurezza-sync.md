@@ -10,7 +10,7 @@ I dati personali sono visibili all'utente; gli altri membri ricevono solo le por
   l'intera quota familiare dello scontrino.
 - Directory familiari necessarie a interpretarla.
 - Girofondi con un conto familiare.
-- Rimborsi e stato.
+- Rimborsi, prestiti, restituzioni e stato autorevole.
 - Solo nome e ID opaco dei conti personali pubblicati per i rimborsi.
 
 ### Da non condividere
@@ -38,7 +38,7 @@ Non accodare offline operazioni irreversibili come eliminazione account/famiglia
 
 - Transazioni: solo autore; su conflitto ricaricare il record server.
 - Directory: applicare redirect server senza ricreare record eliminati.
-- Rimborsi: stato server sempre autorevole.
+- Rimborsi, prestiti e singole restituzioni: stato server sempre autorevole.
 - Eliminazioni: tombstone/chiavi possedute, non sola assenza locale.
 - Gli snapshot privati vengono filtrati per `authorId`: le transazioni di altri membri arrivano soltanto dai record condivisi correnti, così una copia obsoleta non può ricreare un movimento eliminato dall'autore.
 - Foreground, cambio famiglia e recupero rete: pull completo della porzione coinvolta.

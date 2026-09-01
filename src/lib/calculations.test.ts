@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
+import { accountBalance, loanAvailableToRepay, loanOutstanding, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAllocationsAcrossInstallments, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -160,6 +160,49 @@ describe('reimbursementPlan', () => {
       { memberId: 'simone', availableCredit: 25, suggestedAmount: 25 },
       { memberId: 'anna', availableCredit: 10, suggestedAmount: 10 },
     ])
+  })
+})
+
+describe('loans', () => {
+  it('moves principal only after confirmation and tracks partial repayments', () => {
+    const data = cleanData()
+    const simoneOpening = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    const annaOpening = data.accounts.find((item) => item.id === 'anna-bank')!.openingBalance
+    data.loans = [{
+      id: 'loan-1', lenderId: 'simone', borrowerId: 'anna', amount: 100,
+      date: '2026-09-01', description: 'Anticipo', authorId: 'simone',
+      lenderAccountId: 'simone-bank', borrowerAccountId: 'anna-bank', status: 'pending',
+    }]
+    expect(accountBalance(data, 'simone-bank')).toBe(simoneOpening)
+    data.loans[0].status = 'confirmed'
+    expect(accountBalance(data, 'simone-bank')).toBe(simoneOpening - 100)
+    expect(accountBalance(data, 'anna-bank')).toBe(annaOpening + 100)
+
+    data.loanRepayments = [{
+      id: 'repayment-1', loanId: 'loan-1', lenderId: 'simone', borrowerId: 'anna',
+      amount: 40, date: '2026-09-02', description: 'Prima parte', authorId: 'anna',
+      method: 'money', fromAccountId: 'anna-bank', toAccountId: 'simone-bank', status: 'confirmed',
+    }, {
+      id: 'repayment-pending', loanId: 'loan-1', lenderId: 'simone', borrowerId: 'anna',
+      amount: 10, date: '2026-09-03', description: 'Seconda parte', authorId: 'anna',
+      method: 'money', fromAccountId: 'anna-bank', status: 'pending',
+    }]
+    expect(loanOutstanding(data, data.loans[0])).toBe(60)
+    expect(loanAvailableToRepay(data, data.loans[0])).toBe(50)
+    expect(accountBalance(data, 'simone-bank')).toBe(simoneOpening - 60)
+    expect(accountBalance(data, 'anna-bank')).toBe(annaOpening + 60)
+  })
+
+  it('uses family credit without moving either personal account', () => {
+    const data = cleanData()
+    data.movements = [expense('credit-for-simone', 'simone', 400, 'simone-bank')]
+    data.loanRepayments = [{
+      id: 'credit-repayment', loanId: 'loan-1', lenderId: 'anna', borrowerId: 'simone',
+      amount: 100, date: '2026-09-02', description: 'Compensazione', authorId: 'simone',
+      method: 'family_credit', status: 'confirmed',
+    }]
+    expect(sharedBalance(data, 'simone')).toBe(100)
+    expect(sharedBalance(data, 'anna')).toBe(-100)
   })
 })
 

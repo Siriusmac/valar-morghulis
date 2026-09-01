@@ -8,9 +8,10 @@ import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, ty
 import type { AccountExportData } from '../lib/exportData'
 import { invitationInvokeError } from '../lib/functionErrors'
 import { reconcilePurchaseReimbursementMovements } from '../lib/commissioned'
+import { reconcileConfirmedLoanPurchases } from '../lib/loans'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
-import type { Account, AppData, ReimbursementAccountReference, ReimbursementChangeRequest, User } from '../types'
+import type { Account, AppData, Loan, LoanRepayment, ReimbursementAccountReference, ReimbursementChangeRequest, User } from '../types'
 
 export const PERSONAL_WORKSPACE_ID = 'personal'
 
@@ -46,6 +47,10 @@ export interface FamilySession {
   updateSharedAccount: (account: Account) => Promise<void>
   setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
   respondToReimbursement: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
+  createLoan: (loan: Loan) => Promise<void>
+  respondToLoan: (loanId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
+  createLoanRepayment: (repayment: LoanRepayment) => Promise<void>
+  respondToLoanRepayment: (repaymentId: string, accepted: boolean, selectedAccountId?: string, selectedCategoryId?: string, recipientMovementId?: string) => Promise<void>
   requestReimbursementChange: (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => Promise<void>
   respondToReimbursementChange: (requestId: string, accepted: boolean) => Promise<void>
   withdrawReimbursementChange: (requestId: string) => Promise<void>
@@ -510,13 +515,13 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         date: row.proposed_date ?? undefined,
         selectedAccountId: row.proposed_account_id ?? undefined,
       } as ReimbursementChangeRequest]))
-      return reconcilePurchaseReimbursementMovements({
+      return reconcileConfirmedLoanPurchases(reconcilePurchaseReimbursementMovements({
         ...merged,
         reimbursements: merged.reimbursements.map((reimbursement) => ({
           ...reimbursement,
           changeRequest: requests.get(reimbursement.id),
         })),
-      })
+      }), snapshot.profile.id, snapshot.members)
     },
     saveAppData: async (appData) => {
       const payload = buildCloudPersistence(appData, snapshot.profile.id)
@@ -648,6 +653,60 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         if (responseError.message.includes('reimbursement_already_resolved')) await load(activeFamilyId)
         throw responseError
       }
+      await load(activeFamilyId)
+    },
+    createLoan: async (loan) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: createError } = await supabase.rpc('create_family_loan', {
+        target_family_id: activeFamilyId,
+        target_loan_id: loan.id,
+        target_borrower_id: loan.borrowerId,
+        target_amount: loan.amount,
+        target_date: loan.date,
+        target_description: loan.description,
+        target_lender_account_id: loan.lenderAccountId,
+      })
+      if (createError) throw createError
+      await load(activeFamilyId)
+    },
+    respondToLoan: async (loanId, accepted, selectedAccountId) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: responseError } = await supabase.rpc('respond_to_family_loan', {
+        target_family_id: activeFamilyId,
+        target_loan_id: loanId,
+        accept_loan: accepted,
+        selected_account_id: selectedAccountId ?? null,
+      })
+      if (responseError) throw responseError
+      await load(activeFamilyId)
+    },
+    createLoanRepayment: async (repayment) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: createError } = await supabase.rpc('create_family_loan_repayment', {
+        target_family_id: activeFamilyId,
+        target_repayment_id: repayment.id,
+        target_loan_id: repayment.loanId,
+        target_amount: repayment.amount,
+        target_date: repayment.date,
+        target_description: repayment.description,
+        target_method: repayment.method,
+        target_from_account_id: repayment.fromAccountId ?? null,
+        target_payer_movement_id: repayment.payerMovementId ?? null,
+      })
+      if (createError) throw createError
+      await load(activeFamilyId)
+    },
+    respondToLoanRepayment: async (repaymentId, accepted, selectedAccountId, selectedCategoryId, recipientMovementId) => {
+      if (!activeFamilyId) throw new Error('Nessuna famiglia selezionata.')
+      const { error: responseError } = await supabase.rpc('respond_to_family_loan_repayment', {
+        target_family_id: activeFamilyId,
+        target_repayment_id: repaymentId,
+        accept_repayment: accepted,
+        selected_account_id: selectedAccountId ?? null,
+        selected_category_id: selectedCategoryId ?? null,
+        target_recipient_movement_id: recipientMovementId ?? null,
+      })
+      if (responseError) throw responseError
       await load(activeFamilyId)
     },
     requestReimbursementChange: async (reimbursementId, change) => {

@@ -6,7 +6,7 @@
 - Residuo e parziali.
 - Bilancio con 2, 3 e più membri.
 - Esclusione conti familiari dal debito personale.
-- Rimborsi personali/verso conto familiare e girofondi.
+- Rimborsi personali/verso conto familiare, prestiti con restituzioni parziali e girofondi.
 - Rate personali/familiari.
 - Aggregazioni mensili e per categoria.
 - Movimento solo statistico.

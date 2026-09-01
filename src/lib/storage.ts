@@ -80,6 +80,8 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
     movements: data.movements ?? [],
     scheduledPayments: data.scheduledPayments ?? [],
     transfers: data.transfers ?? [],
+    loans: data.loans ?? [],
+    loanRepayments: data.loanRepayments ?? [],
     reimbursements: (data.reimbursements ?? []).map((item) => ({
       ...item,
       fromAccountId: item.fromAccountId || fallbackAccount(item.fromId),
@@ -94,6 +96,8 @@ export function hasMeaningfulUserData(data: AppData, userId: UserId) {
     || data.scheduledPayments.length > 0
     || data.transfers.length > 0
     || data.reimbursements.length > 0
+    || data.loans.length > 0
+    || data.loanRepayments.length > 0
     || data.beneficiaries.length > 0
     || data.senders.length > 0
     || data.tags.length > 0
@@ -117,6 +121,8 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     scheduledPayments: mergePreferredById(local.scheduledPayments, remoteData.scheduledPayments),
     transfers: mergePreferredById(local.transfers, remoteData.transfers),
     reimbursements: mergePreferredById(remoteData.reimbursements, local.reimbursements),
+    loans: mergePreferredById(remoteData.loans, local.loans),
+    loanRepayments: mergePreferredById(remoteData.loanRepayments, local.loanRepayments),
   }, fallbackData)
 }
 
@@ -145,6 +151,8 @@ function migrateLegacy(legacy: LegacyData): AppData {
       fromAccountId: item.fromAccountId ?? fallbackAccount(item.fromId),
       toAccountId: item.toAccountId ?? fallbackAccount(item.toId),
     })) ?? [],
+    loans: [],
+    loanRepayments: [],
   }
 }
 

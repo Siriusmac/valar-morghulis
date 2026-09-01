@@ -2,7 +2,7 @@
 
 ## Navigazione
 
-Destinazioni: Bacheca, Spese ed entrate, Pagamenti programmati, Rimborsi, Conti, Categorie, Beneficiari e mittenti, Tag, Contatti, Guida, Account.
+Destinazioni: Bacheca, Spese ed entrate, Pagamenti programmati, Rimborsi e prestiti, Conti, Categorie, Beneficiari e mittenti, Tag, Contatti, Guida, Account.
 
 iPhone usa navigazione compatta; iPad e Mac sidebar completa. “Nuovo movimento”
 è un'azione primaria verde nella toolbar, apre una sheet e conserva la

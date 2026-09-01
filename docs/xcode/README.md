@@ -49,7 +49,7 @@ sono ancora state portate o coperte da test equivalenti in Swift.
 - Configurazioni Debug e Release collegate ai rispettivi `.xcconfig`.
 - Login, Account e famiglie, creazione/modifica conti, CRUD dei movimenti,
   acquisti singoli o multipli con parziali personali, familiari o commissionati,
-  acquisti in 3 o 5 rate e pagamenti programmati, sezione Rimborsi con
+  acquisti in 3 o 5 rate e pagamenti programmati, sezione Rimborsi e prestiti con
   conferma, elenco mensile, saldi calcolati e grafici mensili
   condivisi/per categoria già operativi.
 - Registrazione APNs iOS/macOS e richiesta push agli altri membri dopo un

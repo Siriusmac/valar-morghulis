@@ -31,7 +31,7 @@ La versione Apple deve usare gli stessi account, famiglie e dati della web app. 
 - Conti bancari, carte, contanti e PayPal; personali o condivisi.
 - Saldo iniziale e data modificabili; in creazione il compositore propone Spesa, Entrata, Giro fondi e Paga alla romana.
 - Rimborsi con approvazione e scelta dei conti di origine/destinazione.
-- Sezione Rimborsi distinta fra richieste attese e dovute.
+- Sezione Rimborsi e prestiti distinta fra richieste attese e dovute; prestiti con capitale confermato, residuo e restituzioni parziali reciprocamente approvate.
 - Agli altri membri è pubblicabile solo il nome dei conti abilitati ai rimborsi, mai il saldo.
 
 ### Famiglia
