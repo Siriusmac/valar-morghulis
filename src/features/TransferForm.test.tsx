@@ -73,4 +73,21 @@ describe('TransferForm', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Cloud non raggiungibile'))
     expect(screen.getByRole('button', { name: 'Conferma giro fondi' })).toBeTruthy()
   })
+
+  it('precompila e aggiorna un giro fondi mantenendone identità e autore', () => {
+    const initial = {
+      id: 'transfer-edit', authorId: users[0].id,
+      fromAccountId: 'simone-bank', toAccountId: 'simone-card',
+      amount: 25.5, date: '2026-07-20', description: 'Ricarica carta',
+    }
+    const onSubmit = vi.fn()
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    expect((screen.getByLabelText('Importo') as HTMLInputElement).value).toBe('25,50')
+    expect((screen.getByLabelText('Descrizione') as HTMLInputElement).value).toBe('Ricarica carta')
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ id: initial.id, authorId: initial.authorId, amount: 30 }))
+  })
 })
