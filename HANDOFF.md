@@ -231,8 +231,11 @@ autenticati soltanto il totale dei profili registrati. La successiva
 introduce amministratori globali separati dai ruoli familiari, attività di
 apertura autenticata aggiornata al massimo ogni dodici ore e un riepilogo minimo
 degli utenti protetto da RPC. La console non mostra dati contabili e non offre
-ancora avvisi o eliminazioni. Dopo la migration il titolare va inserito in
-`platform_admins` direttamente sul backend, senza versionarne email o UUID.
+ancora avvisi o eliminazioni. La migration è stata applicata il 4 settembre
+2026; il titolare è stato inserito in `platform_admins` direttamente sul backend,
+senza versionarne email o UUID. `migration list` è allineato, il lint dello
+schema `public` non segnala errori e le due tabelle restano illeggibili al ruolo
+`authenticated`, che può usare soltanto le RPC autorizzate.
 
 La migrazione `20260815143000_push_notifications.sql` aggiunge token APNs
 privati, registrazione/rimozione tramite RPC legate a `auth.uid()` e consegne
