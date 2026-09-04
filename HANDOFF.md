@@ -225,9 +225,14 @@ nel profilo, mantiene `full_name` per compatibilità e aggiorna la creazione dei
 nuovi utenti. Gli utenti esistenti vengono inizializzati a partire dal nome già
 salvato e possono poi correggere entrambi i campi dalle impostazioni.
 
-La migrazione `20260803120000_registered_user_count.sql` espone agli utenti
-autenticati soltanto il totale dei profili registrati. La funzione usa privilegi
-minimi e non rende consultabile l’elenco globale degli utenti.
+La migrazione `20260803120000_registered_user_count.sql` esponeva agli utenti
+autenticati soltanto il totale dei profili registrati. La successiva
+`20260904120000_platform_admin_console.sql` revoca quell’accesso generale e
+introduce amministratori globali separati dai ruoli familiari, attività di
+apertura autenticata aggiornata al massimo ogni dodici ore e un riepilogo minimo
+degli utenti protetto da RPC. La console non mostra dati contabili e non offre
+ancora avvisi o eliminazioni. Dopo la migration il titolare va inserito in
+`platform_admins` direttamente sul backend, senza versionarne email o UUID.
 
 La migrazione `20260815143000_push_notifications.sql` aggiunge token APNs
 privati, registrazione/rimozione tramite RPC legate a `auth.uid()` e consegne
@@ -320,7 +325,9 @@ Il comando “Giro fondi” non è più nella sezione Conti: web app e client Ap
 lo espongono nella finestra “Nuovo movimento” come terza scelta dopo Spesa ed
 Entrata. Il trasferimento mantiene il record `transfer` esistente, aggiorna i
 saldi dei due conti e, dal conto familiare verso un conto personale, regola il
-saldo familiare in modo proporzionale al numero dei membri.
+saldo familiare in modo proporzionale al numero dei membri. Le spese bancarie
+opzionali sono addebitate soltanto al conto di origine, non aumentano l’importo
+accreditato e non generano credito familiare.
 
 Ogni movimento creato dall'utente corrente espone le azioni native di modifica
 ed eliminazione con swipe da destra verso sinistra su touch e icone permanenti
@@ -450,10 +457,10 @@ protezione è applicata al caricamento del repository Apple e impedisce che un
 movimento condiviso cancellato dall'autore ricompaia dalla copia privata obsoleta
 di un altro membro. Non sono richieste migration.
 
-Verifiche locali: 165 test web superati, lint e build Vite verdi; il browser
-locale ha verificato il selettore a tre tag nel movimento singolo e
-nell'acquisto multiplo senza errori console. Anche il build non firmato del
-target Apple per simulatore è riuscito.
+Verifiche locali al 4 settembre 2026: 192 test web superati, lint e build Vite
+verdi; il browser locale ha verificato anche presenza, spiegazione e allineamento
+del campo “Spese bancarie” nel giro fondi. Anche il build non firmato del target
+Apple per simulatore è riuscito nell’ultima verifica dedicata.
 
 ## Hosting Cloudflare
 

@@ -183,7 +183,7 @@ export function accountBalance(data: AppData, accountId: string) {
     balance += movement.type === 'income' ? movement.amount : -movement.amount
   }
   for (const transfer of data.transfers) {
-    if (transfer.fromAccountId === accountId) balance -= transfer.amount
+    if (transfer.fromAccountId === accountId) balance -= transfer.amount + (transfer.feeAmount ?? 0)
     if (transfer.toAccountId === accountId) balance += transfer.amount
   }
   for (const reimbursement of data.reimbursements) {

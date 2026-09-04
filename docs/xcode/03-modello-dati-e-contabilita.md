@@ -20,7 +20,7 @@
 | Movement | tipo, autore, membro, importo, data, conto, directory | Commenti, rate e parziali |
 | MovementSplit | amount, categoryId, beneficiaryId, tagIds (max 3), tagId, shared, commissionedPurchaseId, excludeFromReports | `tagId` replica il primo tag; il residuo resta sul principale |
 | ScheduledPayment | planId, dueDate, numero/totale, status | Materializzazione idempotente |
-| Transfer | conti, importo, data | Escluso dalle statistiche |
+| Transfer | conti, importo, spese bancarie opzionali, data | Escluso dalle statistiche |
 | Reimbursement | utenti, conti, importo, status | pending/confirmed/rejected |
 | ContactLink / ContactInvitation | coppia utenti o email, stato | Nessun accesso implicito alle famiglie |
 | CommissionedPurchase | pagante, destinatario/invito, importo, descrizione, stato | Può compensare un rimborso |
@@ -58,7 +58,7 @@
 
 ```text
 saldo = saldo iniziale + entrate - spese
-      + girofondi in entrata - girofondi in uscita
+      + girofondi in entrata - girofondi in uscita - relative spese bancarie
       + rimborsi confermati in entrata - rimborsi confermati in uscita
 ```
 
@@ -71,6 +71,8 @@ Se esiste `sharedSettlementAmount`, usarlo soltanto se principale o almeno un pa
 Con `N >= 2`, quota personale `1/N`, quota degli altri `(N-1)/N`. Per una spesa da conto personale chi paga acquisisce credito per la quota degli altri; ciascun altro membro assume la propria quota. Per un'entrata il verso si inverte.
 
 I rimborsi contano solo se confermati. Verso un conto familiare riconoscono a chi versa la sola quota degli altri. Un trasferimento da familiare a personale produce l'effetto opposto.
+Le spese bancarie del giro fondi incidono soltanto sul saldo del conto di origine:
+non raggiungono il conto di destinazione e non modificano credito o debito familiare.
 
 La rettifica di un rimborso confermato è un'entità separata e verificabile. Può
 proporre una modifica o un annullamento, ma non sostituisce il record contabile

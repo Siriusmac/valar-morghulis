@@ -105,6 +105,21 @@ describe('AccountSettings', () => {
     expect(screen.getByText('Solo un amministratore di questa famiglia può cambiarne il nome o invitare nuovi membri.')).toBeTruthy()
   })
 
+  it('mostra la console globale soltanto quando il backend autorizza l’utente', () => {
+    const cloud = familySession({
+      platformAdminUsers: [
+        { id: 'simone', name: 'Simone Miotto', email: 'simone@example.com', createdAt: '2026-01-01T10:00:00Z', emailConfirmedAt: '2026-01-01T10:05:00Z', lastActivityAt: new Date().toISOString(), familyCount: 2 },
+        { id: 'anna', name: 'Anna', email: 'anna@example.com', createdAt: '2026-02-01T10:00:00Z', familyCount: 1 },
+      ],
+    })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+
+    expect(screen.getByRole('heading', { name: 'Console utenti' })).toBeTruthy()
+    expect(screen.getByText('Attivi 30 giorni').parentElement?.textContent).toContain('1')
+    expect(screen.getByText('Email da confermare')).toBeTruthy()
+    expect(screen.getByText(/Nessun movimento o dato contabile è visibile qui/)).toBeTruthy()
+  })
+
   it('switches to the personal workspace', async () => {
     const cloud = familySession()
     render(<AccountSettings user={simone} cloud={cloud} />)

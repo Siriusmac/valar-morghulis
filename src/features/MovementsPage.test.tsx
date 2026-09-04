@@ -42,7 +42,7 @@ describe('MovementsPage', () => {
     data.transfers.push({
       id: 'transfer-visible', authorId: users[0].id,
       fromAccountId: 'simone-bank', toAccountId: 'simone-card',
-      amount: 42.5, date: '2026-07-31', description: 'Ricarica carta',
+      amount: 42.5, feeAmount: 0.8, date: '2026-07-31', description: 'Ricarica carta',
     })
     render(<MovementsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
@@ -52,5 +52,6 @@ describe('MovementsPage', () => {
     expect(screen.getByText('Conto corrente')).toBeTruthy()
     expect(screen.getByText('Carta di credito')).toBeTruthy()
     expect(screen.getAllByText('42,50 €').length).toBeGreaterThan(0)
+    expect(screen.getByText(/spese 0,80 €/)).toBeTruthy()
   })
 })

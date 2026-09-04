@@ -106,6 +106,13 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'anna')).toBe(-50)
   })
 
+  it('does not count bank fees as family credit', () => {
+    const data = cleanData()
+    data.transfers = [{ id: 'personal-to-family-with-fee', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'family-bank', amount: 100, feeAmount: 5, date: '2026-09-04', description: 'Versamento nel conto famiglia' }]
+    expect(sharedBalance(data, 'simone')).toBe(50)
+    expect(sharedBalance(data, 'anna')).toBe(-50)
+  })
+
   it('subtracts a personal-to-family transfer from an existing family debt', () => {
     const data = cleanData()
     data.movements = [expense('paid-by-anna', 'anna', 100, 'anna-bank')]
@@ -367,6 +374,16 @@ describe('accountBalance', () => {
     data.transfers = [{ id: 't', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 50, date: '2026-07-18', description: 'Prelievo' }]
     data.reimbursements = [{ id: 'r', fromId: 'simone', toId: 'anna', amount: 10, date: '2026-07-18', authorId: 'anna', fromAccountId: 'simone-bank', toAccountId: 'anna-bank' }]
     expect(accountBalance(data, 'simone-bank')).toBe(base - 100 + 250 - 50 - 10)
+  })
+
+  it('charges transfer fees only to the source account', () => {
+    const data = cleanData()
+    const sourceBase = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    const destinationBase = data.accounts.find((item) => item.id === 'simone-cash')!.openingBalance
+    data.transfers = [{ id: 'with-fee', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 100, feeAmount: 2.5, date: '2026-09-04', description: 'Bonifico' }]
+
+    expect(accountBalance(data, 'simone-bank')).toBe(sourceBase - 102.5)
+    expect(accountBalance(data, 'simone-cash')).toBe(destinationBase + 100)
   })
 
   it('credits a reimbursement to the selected destination account', () => {

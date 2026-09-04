@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilySession } from './CloudAccess'
+import type { PlatformAdminUserOverview } from './CloudAccess'
 import { downloadAccountExport, type ExportFormat } from '../lib/exportData'
 import type { AppData, User } from '../types'
 
@@ -33,6 +34,7 @@ export function AccountSettings({ user, cloud, data, personalOnly = false, defau
       <span className="avatar avatar--large">{user.initials}</span>
       <div><span className="eyebrow">Profilo personale</span><h2>{user.name}</h2><p>{user.email}</p></div>
     </section>
+    {cloud.platformAdminUsers ? <PlatformAdministration users={cloud.platformAdminUsers} /> : null}
     <div className="settings-layout">
       <div className="settings-column">
         <ProfileSettings user={user} cloud={cloud} />
@@ -53,6 +55,53 @@ export function AccountSettings({ user, cloud, data, personalOnly = false, defau
       </div>
     </div>
   </div>
+}
+
+function PlatformAdministration({ users }: { users: PlatformAdminUserOverview[] }) {
+  const [now] = useState(() => Date.now())
+  const activeWithin = (days: number) => users.filter((user) => user.lastActivityAt && now - new Date(user.lastActivityAt).getTime() <= days * 86_400_000).length
+  const inactive = users.filter((user) => !user.lastActivityAt || now - new Date(user.lastActivityAt).getTime() > 120 * 86_400_000).length
+  const confirmed = users.filter((user) => user.emailConfirmedAt).length
+
+  return <section className="settings-card platform-admin-console">
+    <div className="settings-card__heading"><span><ShieldCheck /></span><div><span className="eyebrow">Solo amministratore della piattaforma</span><h2>Console utenti</h2><p>Dati essenziali per misurare l’utilizzo. Nessun movimento o dato contabile è visibile qui.</p></div></div>
+    <div className="platform-admin-metrics" aria-label="Riepilogo utenti">
+      <span><small>Iscritti</small><strong>{users.length}</strong></span>
+      <span><small>Confermati</small><strong>{confirmed}</strong></span>
+      <span><small>Attivi 30 giorni</small><strong>{activeWithin(30)}</strong></span>
+      <span><small>Attivi 90 giorni</small><strong>{activeWithin(90)}</strong></span>
+      <span><small>Inattivi da 120 giorni</small><strong>{inactive}</strong></span>
+    </div>
+    <div className="platform-admin-table-wrap">
+      <table className="platform-admin-table">
+        <thead><tr><th>Utente</th><th>Iscrizione</th><th>Ultima attività</th><th>Famiglie</th><th>Stato</th></tr></thead>
+        <tbody>{users.map((user) => {
+          const status = platformUserStatus(user, now)
+          return <tr key={user.id}>
+            <td><strong>{user.name}</strong><small>{user.email}</small></td>
+            <td>{formatAdminDate(user.createdAt)}</td>
+            <td>{user.lastActivityAt ? formatAdminDate(user.lastActivityAt) : 'Mai rilevata'}</td>
+            <td>{user.familyCount}</td>
+            <td><span className={`platform-user-status platform-user-status--${status.tone}`}>{status.label}</span></td>
+          </tr>
+        })}</tbody>
+      </table>
+    </div>
+    <p className="settings-card__note">L’attività viene aggiornata quando l’utente apre l’app con una sessione valida. Il semplice rinnovo tecnico della sessione non conta. Avvisi ed eliminazione restano disattivati.</p>
+  </section>
+}
+
+function platformUserStatus(user: PlatformAdminUserOverview, now: number) {
+  if (!user.emailConfirmedAt) return { label: 'Email da confermare', tone: 'pending' }
+  if (!user.lastActivityAt) return { label: 'Mai attivo', tone: 'inactive' }
+  const days = Math.max(0, Math.floor((now - new Date(user.lastActivityAt).getTime()) / 86_400_000))
+  if (days <= 30) return { label: 'Attivo', tone: 'active' }
+  if (days <= 120) return { label: `Ultima attività ${days} giorni fa`, tone: 'quiet' }
+  return { label: `Inattivo da ${days} giorni`, tone: 'inactive' }
+}
+
+function formatAdminDate(value: string) {
+  return new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium' }).format(new Date(value))
 }
 
 function DefaultMovementAccountSettings({ data, user, personalOnly, defaultMovementAccountId, onSave }: {

@@ -38,6 +38,29 @@ describe('TransferForm', () => {
     expect(onSubmit.mock.calls[0][0].amount).toBe(12.5)
   })
 
+  it('registra le spese bancarie separatamente dall’importo trasferito', () => {
+    const onSubmit = vi.fn()
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('Spese bancarie'), { target: { value: '1,75' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 100, feeAmount: 1.75 }))
+  })
+
+  it('rifiuta spese bancarie negative', () => {
+    const onSubmit = vi.fn()
+    render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('Spese bancarie'), { target: { value: '-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('non possono essere negative')
+  })
+
   it('spiega perché non può spostare denaro verso lo stesso conto', () => {
     const onSubmit = vi.fn()
     render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
@@ -78,12 +101,13 @@ describe('TransferForm', () => {
     const initial = {
       id: 'transfer-edit', authorId: users[0].id,
       fromAccountId: 'simone-bank', toAccountId: 'simone-card',
-      amount: 25.5, date: '2026-07-20', description: 'Ricarica carta',
+      amount: 25.5, feeAmount: 1.2, date: '2026-07-20', description: 'Ricarica carta',
     }
     const onSubmit = vi.fn()
     render(<TransferForm data={structuredClone(defaultData)} user={users[0]} initial={initial} onSubmit={onSubmit} onCancel={vi.fn()} />)
 
     expect((screen.getByLabelText('Importo') as HTMLInputElement).value).toBe('25,50')
+    expect((screen.getByLabelText('Spese bancarie') as HTMLInputElement).value).toBe('1,20')
     expect((screen.getByLabelText('Descrizione') as HTMLInputElement).value).toBe('Ricarica carta')
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))

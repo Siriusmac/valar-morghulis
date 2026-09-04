@@ -557,7 +557,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? cloud.registeredUserCount : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}

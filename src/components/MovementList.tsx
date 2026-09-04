@@ -36,7 +36,7 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
         const canEdit = user?.id === transfer.authorId
         return <article className="movement-row movement-row--account-transfer" key={`transfer-${transfer.id}`}>
           <span className="movement-row__icon movement-row__icon--transfer"><ArrowLeftRight /></span>
-          <div className="movement-row__name"><strong>{transfer.description}</strong><small>{isOutgoing ? `Verso ${otherAccount?.name ?? 'conto non visibile'}` : `Da ${otherAccount?.name ?? 'conto non visibile'}`}</small></div>
+          <div className="movement-row__name"><strong>{transfer.description}</strong><small>{isOutgoing ? `Verso ${otherAccount?.name ?? 'conto non visibile'}` : `Da ${otherAccount?.name ?? 'conto non visibile'}`}{transfer.feeAmount ? ` · spese ${formatMoney(transfer.feeAmount)}` : ''}</small></div>
           <div className="movement-row__meta"><small>Dal conto</small><span>{from?.name ?? 'Conto non visibile'}</span></div>
           <div className="movement-row__meta"><small>Al conto</small><span>{to?.name ?? 'Conto non visibile'}</span></div>
           <span className="scope-label"><ArrowLeftRight />Giro fondi</span>

@@ -137,6 +137,23 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .settings-card__heading svg { width: 20px; }
 .settings-card__heading h2 { font-size: 23px; }
 .settings-card__heading p, .settings-card__note { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.platform-admin-console { margin-bottom: 24px; }
+.platform-admin-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+.platform-admin-metrics > span { min-width: 0; display: grid; gap: 4px; padding: 14px; border-radius: 8px; background: var(--sand); }
+.platform-admin-metrics small { color: var(--muted); font-size: 9px; line-height: 1.35; }
+.platform-admin-metrics strong { font: 600 25px/1 'Newsreader', Georgia, serif; }
+.platform-admin-table-wrap { overflow-x: auto; margin-bottom: 15px; border: 1px solid var(--line); border-radius: 8px; }
+.platform-admin-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 10px; }
+.platform-admin-table th, .platform-admin-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.platform-admin-table th { color: var(--muted); background: var(--sand); font-size: 8px; text-transform: uppercase; letter-spacing: .6px; }
+.platform-admin-table tbody tr:last-child td { border-bottom: 0; }
+.platform-admin-table td:first-child { display: grid; gap: 2px; }
+.platform-admin-table td:first-child small { color: var(--muted); }
+.platform-user-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; white-space: nowrap; background: #eef0f2; color: var(--muted); font-size: 8px; font-weight: 700; }
+.platform-user-status--active { color: var(--positive); background: var(--positive-soft); }
+.platform-user-status--pending { color: #8a621c; background: #fbf2dd; }
+.platform-user-status--inactive { color: #9b3c35; background: #fbedeb; }
+.field-help { color: var(--muted); font-size: 9px; font-weight: 400; line-height: 1.45; }
 .family-switcher { display: grid; border-top: 1px solid var(--line); }
 .family-choice { min-height: 61px; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
 .family-choice > span { display: grid; }
@@ -461,6 +478,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .transfer-form > .reimbursement-form__icon { margin: 0 auto 8px; }
 .transfer-form label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
 .transfer-form input, .transfer-form select, .reimbursement-form select { height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
+.transfer-form .money-input input { width: 100%; padding-left: 30px; }
 
 .modal-layer { position: fixed; inset: 0; z-index: 100; background: rgba(20,36,58,.44); display: flex; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(3px); animation: fade-in .18s ease; }
 .modal { width: min(460px, 100%); max-height: calc(100vh - 48px); overflow: auto; overflow-x: hidden; border-radius: 10px; background: #fff; box-shadow: var(--shadow); animation: modal-in .22s ease; }
@@ -931,6 +949,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .account-settings-page .page-heading { margin-bottom: 18px; }
   .settings-profile { padding-bottom: 22px; margin-bottom: 18px; }
   .settings-card { padding: 20px 17px; }
+  .platform-admin-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-form--password { grid-template-columns: 1fr; }
   .settings-form--password .button { grid-column: auto; }
   .settings-form--profile { grid-template-columns: 1fr; }

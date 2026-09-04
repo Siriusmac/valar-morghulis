@@ -70,7 +70,7 @@ function TransferList({ data, transfers }: { data: AppData; transfers: Transfer[
     const to = data.accounts.find((account) => account.id === transfer.toAccountId)
     return <article className="movement-row transfer-row" key={transfer.id}>
       <span className="movement-row__icon movement-row__icon--transfer"><ArrowLeftRight /></span>
-      <div className="movement-row__name"><strong>{transfer.description}</strong><small>Giro fondi</small></div>
+      <div className="movement-row__name"><strong>{transfer.description}</strong><small>Giro fondi{transfer.feeAmount ? ` · spese ${formatMoney(transfer.feeAmount)}` : ''}</small></div>
       <div className="movement-row__meta"><small>Dal conto</small><span>{from?.name ?? 'Conto non visibile'}</span></div>
       <div className="movement-row__meta"><small>Al conto</small><span>{to?.name ?? 'Conto non visibile'}</span></div>
       <time>{formatDate(transfer.date)}</time>

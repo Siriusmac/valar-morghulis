@@ -172,6 +172,12 @@ conti familiari e relative anagrafiche sono invece conservati come record
 familiari normalizzati e aggiornati in tempo reale. Entrambi i livelli sono
 protetti da RLS. Il browser conserva una copia locale come cache.
 
+La sezione “Account e famiglie” include una console utenti esclusivamente per
+gli amministratori globali della piattaforma, separati dagli amministratori
+delle singole famiglie. Espone soltanto iscrizione, conferma, ultima apertura e
+numero di famiglie; movimenti e dati contabili non sono consultabili. Avvisi ed
+eliminazione degli account inattivi restano disattivati.
+
 Controlli prima di pubblicare:
 
 ```bash
@@ -180,11 +186,12 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica web completata il 29 agosto 2026: 153 test, lint e build Vite.
+Ultima verifica web completata il 4 settembre 2026: 192 test, lint e build Vite.
 I test coprono anche la distinzione fra account esistente, account nuovo e
 account creato da un invito ma non ancora completato, i rimborsi diretti o
 tramite acquisto, la modifica dei piani rateali sul totale e i menu ricercabili
-uniformi per categorie, beneficiari, mittenti e tag. La verifica Apple comprende
+uniformi per categorie, beneficiari, mittenti e tag, la console amministrativa
+globale e le spese bancarie opzionali dei giri fondi. La verifica Apple comprende
 build iOS/macOS e 30 test unitari. Il precedente collaudo browser desktop e
 mobile ha confermato il menu unificato per acquisto ordinario, per conto terzi e
 rimborso tramite acquisto, disponibile sia sul movimento singolo sia su ogni

@@ -126,6 +126,7 @@ export interface Transfer {
   fromAccountId: string
   toAccountId: string
   amount: number
+  feeAmount?: number
   date: string
   description: string
 }

@@ -30,6 +30,11 @@ I dati personali sono visibili all'utente; gli altri membri ricevono solo le por
 - `Secrets.xcconfig` locale escluso da Git; template senza valori versionato.
 - Redazione di email, token, UUID e descrizioni nei log.
 
+La console globale è consultabile soltanto dagli utenti inseriti esplicitamente
+in `platform_admins`. Mostra dati minimi di account e attività, mai saldi,
+movimenti o descrizioni contabili. La semplice apertura autenticata aggiorna
+`last_seen_at`; il rinnovo automatico del token non costituisce attività.
+
 ## Offline e conflitti
 
 La cache conserva l'ultimo snapshot e una coda persistente. La UI mostra “Non sincronizzato” finché la modifica non arriva al server. Ogni elemento ha ID idempotente, utente/famiglia, tipo, payload minimo, data e tentativi.

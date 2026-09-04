@@ -26,7 +26,7 @@ export interface FamilySession {
   invitations: FamilyInvitation[]
   sharedAccounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]
-  registeredUserCount?: number
+  platformAdminUsers?: PlatformAdminUserOverview[]
   switchFamily: (familyId: string) => Promise<void>
   createFamily: (input: CreateFamilyInput) => Promise<void>
   renameFamily: (name: string) => Promise<void>
@@ -55,6 +55,18 @@ export interface FamilySession {
   respondToReimbursementChange: (requestId: string, accepted: boolean) => Promise<void>
   withdrawReimbursementChange: (requestId: string) => Promise<void>
   signOut: () => Promise<void>
+}
+
+export interface PlatformAdminUserOverview {
+  id: string
+  name: string
+  email: string
+  createdAt: string
+  emailConfirmedAt?: string
+  lastSignInAt?: string
+  lastSeenAt?: string
+  lastActivityAt?: string
+  familyCount: number
 }
 
 export interface FamilyOption {
@@ -199,7 +211,8 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
-    const registeredUserCountPromise = supabase.rpc('registered_user_count')
+    const activityPromise = supabase.rpc('record_user_activity')
+    const platformAdminUsersPromise = loadPlatformAdminUsers(supabase)
     const { data: profile, error: profileError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
 
@@ -209,11 +222,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       .eq('user_id', session.user.id)
     if (membershipError) { setError(membershipError.message); setLoading(false); return }
     const familyIds = memberships.map((item) => item.family_id)
-    const registeredUserCountResult = await registeredUserCountPromise
-    const parsedRegisteredUserCount = Number(registeredUserCountResult.data)
-    const registeredUserCount = !registeredUserCountResult.error && Number.isSafeInteger(parsedRegisteredUserCount) && parsedRegisteredUserCount >= 0
-      ? parsedRegisteredUserCount
-      : undefined
+    const [platformAdminUsers] = await Promise.all([platformAdminUsersPromise, activityPromise])
     const [familiesResult, reimbursementAccountsResult] = familyIds.length ? await Promise.all([
       supabase.from('families').select('id, name, onboarding_completed').in('id', familyIds),
       supabase.from('family_reimbursement_accounts')
@@ -252,7 +261,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           accountId: account.account_id,
           name: account.display_name,
         })),
-        registeredUserCount,
+        platformAdminUsers,
       })
       setLoading(false); return
     }
@@ -307,7 +316,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         accountId: account.account_id,
         name: account.display_name,
       })),
-      registeredUserCount,
+      platformAdminUsers,
     })
     setLoading(false)
   }, [session.user.id, supabase])
@@ -369,7 +378,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     invitations: snapshot.invitations,
     sharedAccounts: snapshot.accounts,
     reimbursementAccountReferences: snapshot.reimbursementAccountReferences,
-    registeredUserCount: snapshot.registeredUserCount,
+    platformAdminUsers: snapshot.platformAdminUsers,
     switchFamily: async (familyId) => { await load(familyId) },
     createFamily: async (input) => {
       const { data: familyId, error: createError } = await supabase.rpc('create_family_with_optional_account', {
@@ -1006,7 +1015,25 @@ interface FamilySnapshot {
   invitations: FamilyInvitation[]
   accounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]
-  registeredUserCount?: number
+  platformAdminUsers?: PlatformAdminUserOverview[]
+}
+
+async function loadPlatformAdminUsers(supabase: ReturnType<typeof getSupabase>): Promise<PlatformAdminUserOverview[] | undefined> {
+  const adminResult = await supabase.rpc('is_platform_admin')
+  if (adminResult.error || adminResult.data !== true) return undefined
+  const overviewResult = await supabase.rpc('platform_admin_user_overview')
+  if (overviewResult.error || !Array.isArray(overviewResult.data)) return undefined
+  return overviewResult.data.map((row) => ({
+    id: row.user_id,
+    name: row.full_name,
+    email: row.email,
+    createdAt: row.created_at,
+    emailConfirmedAt: row.email_confirmed_at ?? undefined,
+    lastSignInAt: row.last_sign_in_at ?? undefined,
+    lastSeenAt: row.last_seen_at ?? undefined,
+    lastActivityAt: row.last_activity_at ?? undefined,
+    familyCount: Number(row.family_count) || 0,
+  }))
 }
 
 function activeFamilyKey(userId: string) {

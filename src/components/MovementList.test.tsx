@@ -16,7 +16,7 @@ describe('MovementList account activity', () => {
     data.transfers = [{
       id: 'transfer-account-history', authorId: 'simone',
       fromAccountId: 'simone-bank', toAccountId: 'simone-card',
-      amount: 25, date: '2026-07-20', description: 'Ricarica carta',
+      amount: 25, feeAmount: 1.5, date: '2026-07-20', description: 'Ricarica carta',
     }]
     const movements = data.movements.filter((movement) => movement.accountId === 'simone-bank')
 
@@ -25,6 +25,7 @@ describe('MovementList account activity', () => {
     expect(screen.getByText('Ricarica carta')).toBeTruthy()
     expect(screen.getByText('−25,00 €')).toBeTruthy()
     expect(screen.getByText('20 lug 2026')).toBeTruthy()
+    expect(screen.getByText(/spese 1,50 €/)).toBeTruthy()
     expect(container.querySelector('.movement-row')?.textContent).toContain('Ricarica carta')
   })
 

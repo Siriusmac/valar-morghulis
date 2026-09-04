@@ -20,10 +20,14 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 | `contact_invitations` | Inviti email alla rubrica | Solo mittente e destinatario autenticato |
 | `contact_links` | Relazioni canoniche fra due utenti | Solo i due partecipanti |
 | `commissioned_purchases` | Richieste e conferme di acquisti per conto terzi | Solo pagante e destinatario |
+| `platform_admins` | Amministratori globali della piattaforma | Nessun accesso diretto dal client |
+| `user_activity` | Ultima apertura autenticata, limitata a una scrittura ogni 12 ore | Nessun accesso diretto dal client |
 
 ## RPC
 
-- `registered_user_count()`
+- `is_platform_admin()`
+- `record_user_activity()`
+- `platform_admin_user_overview()`
 - `complete_personal_onboarding()`
 - `create_family_with_optional_account(...)`
 - `complete_family_onboarding(target_family_id)`
@@ -42,6 +46,8 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 - `respond_to_commissioned_purchase(...)`
 
 Mappare i codici errore SQL/RPC a errori italiani; non mostrare dettagli interni.
+Le RPC amministrative usano funzioni `security definer`, verificano sempre
+`auth.uid()` e non ereditano il ruolo amministrativo di una famiglia.
 
 ## Edge Function e record condivisi
 
