@@ -60,10 +60,12 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 230px minmax(0, 1fr); background: #fbfaf8; }
 .sidebar { position: fixed; inset: 0 auto 0 0; width: 230px; border-right: 1px solid var(--line); background: rgba(255,255,255,.85); display: flex; flex-direction: column; z-index: 30; }
-.sidebar__top { height: 126px; display: flex; align-items: center; padding: 0 28px; border-bottom: 1px solid #ece9e4; }
+.sidebar__top { height: 126px; display: flex; align-items: center; padding: 0 28px; border-bottom: 1px solid var(--accent-dark); background: var(--accent); color: white; }
 .sidebar__brand { min-width: 0; }
-.app-usage { display: block; max-width: 174px; margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+.sidebar__top .brand__name { color: white; }
+.app-usage { display: block; max-width: 174px; margin-top: 7px; color: rgba(255,255,255,.78); font-size: 9px; line-height: 1.35; }
 .sidebar__close { display: none; margin-left: auto; }
+.sidebar__top .sidebar__close { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: white; }
 .sidebar__nav { padding: 26px 0; display: grid; gap: 3px; }
 .nav-item { position: relative; height: 52px; width: 100%; padding: 0 26px; border: 0; background: transparent; display: flex; align-items: center; gap: 14px; font-size: 14px; text-align: left; cursor: pointer; }
 .nav-item svg { width: 20px; stroke-width: 1.8; color: #536174; }
