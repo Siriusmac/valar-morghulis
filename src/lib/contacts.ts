@@ -52,6 +52,13 @@ export async function loadContactData(userId: UserId): Promise<ContactData> {
       recipientCategoryId: purchase.recipient_category_id ?? undefined,
       recipientAccountId: purchase.recipient_account_id ?? undefined,
       createdAt: purchase.created_at,
+      resolvedAt: purchase.resolved_at ?? undefined,
+      reimbursementStatus: purchase.reimbursement_status ?? undefined,
+      reimbursementSourceAccountId: purchase.reimbursement_source_account_id ?? undefined,
+      reimbursementDestinationAccountId: purchase.reimbursement_destination_account_id ?? undefined,
+      reimbursementIssuedAt: purchase.reimbursement_issued_at ?? undefined,
+      reimbursementConfirmedAt: purchase.reimbursement_confirmed_at ?? undefined,
+      reimbursementCancelledAt: purchase.reimbursement_cancelled_at ?? undefined,
     })),
   }
 }
@@ -114,6 +121,27 @@ export async function respondToCommissionedPurchase(input: {
     target_recipient_movement_id: input.movementId ?? null,
     target_category_id: input.categoryId ?? null,
     target_account_id: input.accountId ?? null,
+  })
+  if (error) throw error
+}
+
+export async function issueCommissionedPurchaseReimbursement(id: string, sourceAccountId: string) {
+  const { error } = await getSupabase().rpc('issue_commissioned_purchase_reimbursement', {
+    target_purchase_id: id,
+    target_source_account_id: sourceAccountId,
+  })
+  if (error) throw error
+}
+
+export async function respondToCommissionedPurchaseReimbursement(input: {
+  id: string
+  accepted: boolean
+  destinationAccountId?: string
+}) {
+  const { error } = await getSupabase().rpc('respond_to_commissioned_purchase_reimbursement', {
+    target_purchase_id: input.id,
+    accept_reimbursement: input.accepted,
+    target_destination_account_id: input.destinationAccountId ?? null,
   })
   if (error) throw error
 }

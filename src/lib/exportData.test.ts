@@ -19,6 +19,7 @@ describe('account data export', () => {
     const xml = serializeAccountExport(data, 'xml')
     expect(xml).toContain('Simone &amp; Anna')
     expect(xml).toContain('Famiglia &lt;Test&gt;')
+    expect(xml).toContain('<sKeyExport>')
   })
   it('produces normalized CSV rows', () => {
     const csv = serializeAccountExport(data, 'csv')

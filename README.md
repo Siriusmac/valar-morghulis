@@ -1,15 +1,15 @@
-# Valar Morghulis
+# sKey
 
-<img src="public/valar-logo.png" alt="Logo Valar Morghulis" width="120" />
+<img src="public/skey-logo.png" alt="Logo sKey" width="120" />
 
 Web app mobile-first che riunisce contabilità personale, conti e spese
 familiari, acquisti fatti per altre persone e rimborsi tra utenti. I dati
 personali restano privati; le operazioni condivise seguono regole trasparenti e
 aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
-![Spese ed Entrate di Valar Morghulis](docs/movements-desktop.png)
+![Spese ed Entrate di sKey](docs/movements-desktop.png)
 
-**App online:** [www.valarmorghulis.it](https://www.valarmorghulis.it/)
+**Nuovo dominio:** [www.skeyapp.com](https://www.skeyapp.com/)
 
 ## Funzioni della prima versione
 
@@ -27,6 +27,8 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - scelta esplicita della famiglia proprietaria quando si crea un conto familiare e, per i conti personali, selezione indipendente delle famiglie alle quali pubblicare il solo nome utilizzabile nei rimborsi; saldo, istituto e movimenti restano privati;
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
 - nuovo movimento aperto soltanto da quattro grandi scelte in colonna: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; dopo la scelta i tasti lasciano posto alla scheda relativa, con transizione animata sulla web app; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
+- conto personale predefinito configurabile nel profilo e preselezionato nei nuovi movimenti;
+- giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine;
 - PayPal come conto personale;
 - categorie, beneficiari, mittenti e tag ricercabili mentre si scrive attraverso lo stesso menu; quando il nome non esiste compare il comando “Aggiungi …” e la voce viene creata con il movimento; la web app accetta fino a tre tag per movimento e, negli acquisti multipli, fino a tre tag indipendenti per ogni parziale;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
@@ -35,7 +37,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - nuovo movimento ordinato per importo, conto/rate, beneficiario e data, seguito dal “Tipo di acquisto” (unico o multiplo); l’acquisto unico e ogni parziale usano “Tipo di spesa” con le opzioni personale, condivisa, per conto di un’altra persona o rimborso tramite acquisto;
 - suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, fino a tre tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari, acquisti per conto di contatti e acquisti che compensano debiti verso membri diversi, con residuo automatico in coda;
 - “Paga alla romana” per dividere automaticamente ai centesimi una spesa occasionale fra il pagante e i contatti aggiunti; ogni quota genera una richiesta ordinaria, oppure per un familiare può compensare un debito sufficiente verso di lui;
-- movimenti modificabili ed eliminabili dal loro autore direttamente dal pannello di modifica, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
+- movimenti modificabili ed eliminabili dal loro autore in ogni elenco, inclusi dettagli del conto e filtri per categoria, beneficiario, mittente o tag; dopo la modifica si ritorna alla vista di origine, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
@@ -46,7 +48,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - piano rateale privato e visibile soltanto all'autore, sempre calcolato sul totale dello scontrino anche quando contiene quote personali, condivise o acquistate per altri;
 - sezione “Rimborsi e prestiti” con viste “Attesi” e “Dovuti” separate;
 - prestiti tra membri della famiglia con conferma del beneficiario, capitale residuo sempre visibile e restituzioni parziali confermate singolarmente in denaro, tramite acquisto o compensando un credito familiare disponibile;
-- acquisti per conto terzi presenti anche in “Rimborsi e prestiti”: il destinatario li cataloga tra i dovuti e, dopo la conferma, il pagante vede un'entrata di rimborso tra gli attesi e nella propria contabilità;
+- acquisti per conto terzi presenti anche in “Rimborsi e prestiti”: il destinatario conferma e cataloga l’acquisto, poi emette il rimborso scegliendo il conto di origine; il pagante registra l’entrata soltanto dopo avere confermato l’incasso e scelto il conto di destinazione;
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, possono ritirare o reinviare gli inviti in attesa, reinviare quelli scaduti e rimuovere quelli rifiutati;
@@ -96,11 +98,12 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260830110000_fix_reimbursement_change_account_validation.sql`,
    `supabase/migrations/20260901100000_family_loans.sql`,
    `supabase/migrations/20260904120000_platform_admin_console.sql` e
-   `supabase/migrations/20260905130000_resilient_app_data_sync.sql`;
+   `supabase/migrations/20260905130000_resilient_app_data_sync.sql` e
+   `supabase/migrations/20260905150000_commissioned_reimbursement_confirmation.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
-   `APP_URL=https://www.valarmorghulis.it`;
+   `APP_URL=https://www.skeyapp.com`;
 5. copia `.env.example` in `.env.local` e inserisci URL e chiave pubblica del
    progetto;
 6. aggiungi l'URL Cloudflare e `http://127.0.0.1:5173` agli URL di redirect
@@ -114,7 +117,7 @@ supabase db push
 supabase functions deploy invite-family-member
 supabase functions deploy notify-family-reimbursement
 supabase functions deploy invite-contact
-supabase secrets set APP_URL=https://www.valarmorghulis.it
+supabase secrets set APP_URL=https://www.skeyapp.com
 ```
 
 Gli inviti usano due flussi separati: il template Supabase Auth **Magic Link**
@@ -131,7 +134,7 @@ annullate anche le richieste d’acquisto ancora pendenti e prive di destinatari
 il movimento del pagante resta nella sua contabilità.
 
 Per le notifiche push Apple occorre inoltre abilitare la capability Push
-Notifications per l'App ID `it.valarmorghulis.skey` e impostare come segreti
+Notifications per l'App ID `com.skeyapp.skey` e impostare come segreti
 della funzione `APNS_KEY_ID`, `APNS_TEAM_ID` e `APNS_PRIVATE_KEY` (contenuto
 della chiave APNs `.p8`). Non inserire questi valori nel client o nei file
 `.xcconfig`.
@@ -159,12 +162,16 @@ pnpm cloudflare:deploy
 ```
 
 `cloudflare:check` interrompe il rilascio se la build non contiene la
-configurazione Supabase, evitando di pubblicare accidentalmente la modalità
-locale al posto dell'accesso email/password.
+configurazione Supabase oppure produce un chunk JavaScript superiore a 500 kB,
+evitando di pubblicare accidentalmente la modalità locale o di reintrodurre un
+bundle iniziale eccessivo.
 
-Produzione: [www.valarmorghulis.it](https://www.valarmorghulis.it/). Il dominio
-usa un CNAME esterno verso `valar-morghulis-web.pages.dev`, mantenendo DNS ed
-email presso Tophost.
+Produzione: [www.skeyapp.com](https://www.skeyapp.com/). Il dominio
+personalizzato è attivo sul progetto Cloudflare Pages e in Tophost il CNAME
+`www` punta a `valar-morghulis-web.pages.dev`.
+`valarmorghulis.it` resta collegato alla stessa applicazione e il middleware
+Pages lo reindirizza permanentemente al nuovo host, conservando percorso e
+parametri. DNS ed email restano presso Tophost.
 
 Il backend gestisce account, appartenenze multiple, ruoli per famiglia, inviti e
 conti condivisi. La famiglia attiva, oppure la vista solo personale, viene
@@ -198,7 +205,8 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica web completata il 5 settembre 2026: 200 test, lint e build Vite.
+Ultima verifica web completata il 5 settembre 2026: 207 test, lint, build Vite
+e gate Cloudflare.
 I test coprono anche la distinzione fra account esistente, account nuovo e
 account creato da un invito ma non ancora completato, i rimborsi diretti o
 tramite acquisto, la modifica dei piani rateali sul totale e i menu ricercabili

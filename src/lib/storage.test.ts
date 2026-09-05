@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createStarterData } from './seed'
-import { hasMeaningfulUserData, hydrateData, mergeAppData, mergePendingAppData } from './storage'
+import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergePendingAppData } from './storage'
 import type { Account, Movement } from '../types'
 
 const sharedAccount: Account = {
@@ -28,6 +28,21 @@ const movement: Movement = {
 }
 
 describe('persistenza dei dati operativi', () => {
+  it('migra la cache del nome precedente senza perdere i movimenti', () => {
+    const values = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    })
+    localStorage.setItem('valar-morghulis:v3', JSON.stringify({
+      ...createStarterData('user-1', [sharedAccount]),
+      movements: [movement],
+    }))
+
+    expect(loadData().movements).toContainEqual(movement)
+    vi.unstubAllGlobals()
+  })
+
   it('riconosce come significativi conti aggiunti e movimenti locali', () => {
     const starter = createStarterData('user-1', [sharedAccount])
     expect(hasMeaningfulUserData(starter, 'user-1')).toBe(false)

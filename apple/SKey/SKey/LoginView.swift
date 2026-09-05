@@ -52,7 +52,7 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Accedi")
                     .font(.title2.bold())
-                Text("Usa l’account già registrato su Valar Morghulis.")
+                Text("Usa l’account già registrato su sKey.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

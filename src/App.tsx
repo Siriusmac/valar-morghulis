@@ -12,7 +12,7 @@ import { deleteMovementData, saveMovementData, type MovementAdditions } from './
 import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readPendingCloudSave, recordCloudSaveFailure, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
-import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
+import { createCommissionedPurchase, familyContacts, inviteContact, issueCommissionedPurchaseReimbursement, loadContactData, removeContact, respondToCommissionedPurchase, respondToCommissionedPurchaseReimbursement, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { reconcileConfirmedLoanPurchases } from './lib/loans'
 import { cloudAuthEnabled } from './lib/supabase'
@@ -71,13 +71,16 @@ export default function App() {
 
 function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const appUsers = cloud?.members ?? users
-  const storageKey = cloud ? `valar-morghulis:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
+  const storageKey = cloud ? `skey:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
+  if (cloud && storageKey) {
+    migrateBrowserStorageKey(`valar-morghulis:family:${cloud.familyId}:user:${cloud.user.id}:v3`, storageKey)
+  }
   const starterData = cloud ? (cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)) : undefined
   const initialUserId = (() => {
     if (cloud) return cloud.user.id
     const demoUser = new URLSearchParams(window.location.search).get('demo')
     if (demoUser === 'simone' || demoUser === 'anna') return demoUser
-    return sessionStorage.getItem('vm:user') as UserId | null
+    return (sessionStorage.getItem('skey:user') ?? sessionStorage.getItem('vm:user')) as UserId | null
   })()
   const [data, setData] = useState<AppData>(() => {
     const loaded = cloud ? loadData(storageKey, starterData!) : loadData()
@@ -291,15 +294,25 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     const timer = window.setTimeout(() => { void refreshContacts() }, 0)
     return () => window.clearTimeout(timer)
   }, [cloud, page, refreshContacts])
+  useEffect(() => {
+    if (!cloud?.subscribeToContactData) return
+    const unsubscribe = cloud.subscribeToContactData(
+      () => { void refreshContacts() },
+      (status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setToast('Aggiornamento rimborsi in tempo reale interrotto: aggiorneremo al prossimo accesso alla sezione')
+      },
+    )
+    return unsubscribe
+  }, [cloud, refreshContacts])
   const user = useMemo(() => appUsers.find((item) => item.id === userId), [appUsers, userId])
   const contacts = useMemo(() => mergeContacts(
     familyContacts(appUsers, userId ?? '', cloud?.familyName ?? 'Famiglia demo'),
     cloud ? contactData.friends : [],
   ), [appUsers, cloud, contactData.friends, userId])
-  const login = (id: UserId) => { sessionStorage.setItem('vm:user', id); setData((current) => reconcileConfirmedLoanPurchases(current, id, appUsers)); setUserId(id) }
+  const login = (id: UserId) => { sessionStorage.setItem('skey:user', id); setData((current) => reconcileConfirmedLoanPurchases(current, id, appUsers)); setUserId(id) }
   const logout = () => {
     if (cloud) { void cloud.signOut(); return }
-    sessionStorage.removeItem('vm:user'); setUserId(null); setPage('dashboard')
+    sessionStorage.removeItem('skey:user'); sessionStorage.removeItem('vm:user'); setUserId(null); setPage('dashboard')
   }
   if (!user) return <Login onLogin={login} />
   if (cloud && !cloudDataReady) return <main className="access-status"><LoaderCircle className="spin" /><p>Sincronizziamo i tuoi dati…</p></main>
@@ -535,10 +548,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       return
     }
     const settlesFamilyDebt = isPurchaseReimbursement(purchase)
-    if (!categoryId || (!settlesFamilyDebt && !accountId)) {
-      throw new Error(settlesFamilyDebt ? 'Scegli una categoria.' : 'Scegli categoria e conto personale.')
+    if (!categoryId) {
+      throw new Error('Scegli una categoria.')
     }
-    const movementAccountId = settlesFamilyDebt ? debtCompensationAccountId : accountId!
+    const movementAccountId = settlesFamilyDebt ? debtCompensationAccountId : undefined
     const movementId = makeId('movement')
     try {
       await respondToCommissionedPurchase({ id: purchase.id, accepted: true, movementId, categoryId, accountId: movementAccountId })
@@ -551,17 +564,37 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     const beneficiary = data.beneficiaries.some((item) => item.id === beneficiaryId) ? undefined : {
       id: beneficiaryId, name: payer?.name ?? 'Acquisto per mio conto', scope: 'personal' as const, ownerId: user.id,
     }
+    if (!settlesFamilyDebt) {
+      setData((current) => ({
+        ...current,
+        categories: category && !current.categories.some((item) => item.id === category.id) ? [...current.categories, category] : current.categories,
+        beneficiaries: beneficiary ? [...current.beneficiaries, beneficiary] : current.beneficiaries,
+      }))
+      await refreshContacts()
+      setToast('Acquisto ricevuto e catalogato: ora puoi emettere il rimborso')
+      return
+    }
     setData((current) => saveMovementData(current, {
       id: movementId,
       type: 'expense', authorId: user.id, memberId: user.id, amount: purchase.amount,
       date: purchase.purchaseDate, description: purchase.description, categoryId,
-      beneficiaryId, accountId: movementAccountId, shared: false,
-      ...(settlesFamilyDebt ? { affectsAccountBalance: false } : {}),
+      beneficiaryId, accountId: debtCompensationAccountId, shared: false,
+      affectsAccountBalance: false,
       commissionedPurchaseId: purchase.id, paidByUserId: purchase.payerId,
       createdAt: new Date().toISOString(),
     }, { beneficiary, category }))
     await refreshContacts()
-    setToast(settlesFamilyDebt ? 'Acquisto confermato e debito compensato' : 'Acquisto confermato e catalogato')
+    setToast('Acquisto confermato e debito compensato')
+  }
+  const issuePurchaseReimbursement = async (purchase: CommissionedPurchase, sourceAccountId: string) => {
+    await issueCommissionedPurchaseReimbursement(purchase.id, sourceAccountId)
+    await refreshContacts()
+    setToast('Rimborso emesso: attendi la conferma di ricezione')
+  }
+  const respondToPurchaseReimbursement = async (purchase: CommissionedPurchase, accepted: boolean, destinationAccountId?: string) => {
+    await respondToCommissionedPurchaseReimbursement({ id: purchase.id, accepted, destinationAccountId })
+    await refreshContacts()
+    setToast(accepted ? 'Rimborso ricevuto e registrato' : 'Rimborso annullato')
   }
   const submitCommissionedPurchase = async (draft: CommissionedPurchaseDraft) => {
     let invitationId: string | undefined
@@ -615,9 +648,9 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     personalMode: cloud.personalMode,
     onSwitch: cloud.switchFamily,
   } : undefined} />
-    : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
+    : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} onEditTransfer={(transfer) => setModal({ type: 'transfer', transfer })} onDeleteTransfer={deleteTransfer} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
-    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} onCreateLoan={!cloud || !cloud.personalMode ? createLoan : undefined} onRespondLoan={!cloud || !cloud.personalMode ? respondToLoan : undefined} onCreateLoanRepayment={!cloud || !cloud.personalMode ? createLoanRepayment : undefined} onRespondLoanRepayment={!cloud || !cloud.personalMode ? respondToLoanRepayment : undefined} />
+    : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onIssuePurchaseReimbursement={cloud ? issuePurchaseReimbursement : undefined} onRespondPurchaseReimbursement={cloud ? respondToPurchaseReimbursement : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} onCreateLoan={!cloud || !cloud.personalMode ? createLoan : undefined} onRespondLoan={!cloud || !cloud.personalMode ? respondToLoan : undefined} onCreateLoanRepayment={!cloud || !cloud.personalMode ? createLoanRepayment : undefined} onRespondLoanRepayment={!cloud || !cloud.personalMode ? respondToLoanRepayment : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')
@@ -678,7 +711,22 @@ function FeatureLoading({ compact = false }: { compact?: boolean }) {
 }
 
 function cloudImportKey(familyId: string, userId: string) {
-  return `valar-morghulis:cloud-imported:${familyId}:${userId}:v1`
+  const key = `skey:cloud-imported:${familyId}:${userId}:v1`
+  migrateBrowserStorageKey(`valar-morghulis:cloud-imported:${familyId}:${userId}:v1`, key)
+  return key
+}
+
+function migrateBrowserStorageKey(previousKey: string, nextKey: string) {
+  if (localStorage.getItem(nextKey) === null) {
+    const previousValue = localStorage.getItem(previousKey)
+    if (previousValue !== null) localStorage.setItem(nextKey, previousValue)
+  }
+
+  const pendingSuffix = ':cloud-sync-pending'
+  const previousPending = localStorage.getItem(`${previousKey}${pendingSuffix}`)
+  if (previousPending !== null && localStorage.getItem(`${nextKey}${pendingSuffix}`) === null) {
+    localStorage.setItem(`${nextKey}${pendingSuffix}`, previousPending)
+  }
 }
 
 function browserIsOffline() {

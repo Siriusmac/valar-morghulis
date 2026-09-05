@@ -43,6 +43,7 @@ export interface FamilySession {
   saveAppData: (data: AppData, mutationId?: string) => Promise<void>
   deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
+  subscribeToContactData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   createSharedAccount: (account: Account, familyId: string) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
   setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
@@ -595,6 +596,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         .subscribe((status, error) => onStatus?.(status, error))
       return () => { void supabase.removeChannel(channel) }
     } : undefined,
+    subscribeToContactData: (onChange, onStatus) => {
+      const channel = supabase
+        .channel(`commissioned-purchases:${snapshot.profile.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'commissioned_purchases',
+        }, onChange)
+        .subscribe((status, error) => onStatus?.(status, error))
+      return () => { void supabase.removeChannel(channel) }
+    },
     createSharedAccount: async (account, familyId) => {
       if (!snapshot.families.some((family) => family.id === familyId)) {
         throw new Error('La famiglia selezionata non è disponibile.')
@@ -1042,5 +1054,11 @@ async function loadPlatformAdminUsers(supabase: ReturnType<typeof getSupabase>):
 }
 
 function activeFamilyKey(userId: string) {
-  return `valar-morghulis:active-family:${userId}`
+  const key = `skey:active-family:${userId}`
+  const previousKey = `valar-morghulis:active-family:${userId}`
+  if (localStorage.getItem(key) === null) {
+    const previousValue = localStorage.getItem(previousKey)
+    if (previousValue !== null) localStorage.setItem(key, previousValue)
+  }
+  return key
 }

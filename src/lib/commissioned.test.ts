@@ -3,13 +3,14 @@ import { reconcileConfirmedCommissionedIncomes, reconcilePurchaseReimbursementMo
 import { defaultData, users } from './seed'
 
 describe('commissioned purchase reimbursements', () => {
-  it('creates one personal income after the recipient confirms', () => {
+  it('creates one personal income only after the payer confirms the reimbursement', () => {
     const data = structuredClone(defaultData)
     const payerMovement = data.movements.find((item) => item.authorId === users[0].id)!
     const purchase = {
       id: 'purchase-confirmed', payerId: users[0].id, recipientId: users[1].id,
       payerMovementId: payerMovement.id, amount: 35, purchaseDate: '2026-08-29',
-      description: 'Farmaci', status: 'confirmed' as const, createdAt: '2026-08-29T10:00:00Z',
+      description: 'Farmaci', status: 'confirmed' as const, reimbursementStatus: 'confirmed' as const,
+      reimbursementDestinationAccountId: 'simone-cash', reimbursementConfirmedAt: '2026-08-30T10:00:00Z', createdAt: '2026-08-29T10:00:00Z',
     }
     const contacts = [{ ...users[1], source: 'family' as const }]
 
@@ -19,9 +20,33 @@ describe('commissioned purchase reimbursements', () => {
 
     expect(incomes).toHaveLength(1)
     expect(incomes[0]).toMatchObject({
-      type: 'income', amount: 35, accountId: payerMovement.accountId, shared: false,
+      type: 'income', amount: 35, accountId: 'simone-cash', date: '2026-08-30', shared: false,
     })
     expect(second.categories.find((item) => item.id === `category-commissioned-reimbursement-${users[0].id}`)?.movementType).toBe('income')
+  })
+
+  it('removes both linked entries when an ordinary reimbursement is cancelled', () => {
+    const data = structuredClone(defaultData)
+    data.movements.push({
+      ...data.movements[0], id: 'commissioned-reimbursement-cancelled-purchase', authorId: users[0].id,
+      memberId: users[0].id, type: 'income', commissionedPurchaseId: 'cancelled-purchase',
+    })
+    const purchase = {
+      id: 'cancelled-purchase', payerId: users[0].id, recipientId: users[1].id, payerMovementId: 'payer-movement',
+      amount: 35, purchaseDate: '2026-08-29', description: 'Farmaci', status: 'confirmed' as const,
+      reimbursementStatus: 'cancelled' as const, createdAt: '2026-08-29T10:00:00Z',
+    }
+
+    const reconciled = reconcileConfirmedCommissionedIncomes(data, [purchase], users[0].id, [])
+    expect(reconciled.movements.some((movement) => movement.id === 'commissioned-reimbursement-cancelled-purchase')).toBe(false)
+
+    const recipientData = structuredClone(defaultData)
+    recipientData.movements.push({
+      ...recipientData.movements[0], id: 'recipient-reimbursement-expense', authorId: users[1].id,
+      memberId: users[1].id, type: 'expense', commissionedPurchaseId: 'cancelled-purchase', paidByUserId: users[0].id,
+    })
+    const recipientReconciled = reconcileConfirmedCommissionedIncomes(recipientData, [purchase], users[1].id, [])
+    expect(recipientReconciled.movements.some((movement) => movement.id === 'recipient-reimbursement-expense')).toBe(false)
   })
 
   it('does not create an income for a purchase used to compensate a family reimbursement', () => {

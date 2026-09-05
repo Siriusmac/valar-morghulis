@@ -14,8 +14,8 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'reimbursements', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
   { id: 'categories', label: 'Categorie', icon: Tags },
-  { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
   { id: 'tags', label: 'Tag', icon: Tag },
+  { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
   { id: 'contacts', label: 'Contatti', icon: ContactRound },
   { id: 'guide', label: 'Guida', icon: BookOpen },
 ]

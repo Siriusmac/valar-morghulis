@@ -3,7 +3,7 @@
 ## Progetto esistente
 
 Aprire `apple/SKey/SKey.xcodeproj`. Il prodotto si chiama `sKey`, usa il bundle
-identifier `it.valarmorghulis.skey` e supporta iPhone, iPad e macOS come target
+identifier `com.skeyapp.skey` e supporta iPhone, iPad e macOS come target
 nativi SwiftUI. Mac Catalyst è disattivato.
 
 Il package `supabase-swift` è già collegato. Non aggiungerlo una seconda volta.
@@ -26,7 +26,7 @@ non inserire mai SMTP, password o chiavi server.
 
 Per provare le push su dispositivo reale:
 
-1. abilitare Push Notifications per l'App ID `it.valarmorghulis.skey` nel
+1. abilitare Push Notifications per l'App ID `com.skeyapp.skey` nel
    portale Apple e aggiornare i profili di firma;
 2. applicare `20260815143000_push_notifications.sql`;
 3. configurare in Supabase `APNS_KEY_ID`, `APNS_TEAM_ID` e

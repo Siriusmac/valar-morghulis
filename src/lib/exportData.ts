@@ -17,7 +17,7 @@ export interface AccountExportData {
 
 export function serializeAccountExport(data: AccountExportData, format: ExportFormat) {
   if (format === 'json') return JSON.stringify(data, null, 2)
-  if (format === 'xml') return `<?xml version="1.0" encoding="UTF-8"?>\n${toXml('valarMorghulisExport', data)}`
+  if (format === 'xml') return `<?xml version="1.0" encoding="UTF-8"?>\n${toXml('sKeyExport', data)}`
   return toCsv(data)
 }
 
@@ -28,7 +28,7 @@ export function downloadAccountExport(data: AccountExportData, format: ExportFor
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `valar-morghulis-${new Date().toISOString().slice(0, 10)}.${format}`
+  anchor.download = `skey-${new Date().toISOString().slice(0, 10)}.${format}`
   anchor.click()
   URL.revokeObjectURL(url)
 }

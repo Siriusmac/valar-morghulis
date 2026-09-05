@@ -8,7 +8,7 @@ import { MovementsPage } from './MovementsPage'
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 function renderPage() {
-  render(<MovementsPage data={structuredClone(defaultData)} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  render(<MovementsPage data={structuredClone(defaultData)} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onEditTransfer={vi.fn()} onDeleteTransfer={vi.fn()} />)
   return screen.getByLabelText('Mese') as HTMLSelectElement
 }
 
@@ -30,7 +30,7 @@ describe('MovementsPage', () => {
     fireEvent.change(select, { target: { value: '2025-12' } })
     expect(select.value).toBe('2025-12')
 
-    for (const section of ['Entrate', 'Condivise', 'Giri fondi', 'Spese']) {
+    for (const section of ['Entrate', 'Condivise', 'Giro fondi', 'Spese']) {
       fireEvent.click(screen.getByRole('button', { name: section }))
       expect((screen.getByLabelText('Mese') as HTMLSelectElement).value).toBe('2025-12')
     }
@@ -44,14 +44,18 @@ describe('MovementsPage', () => {
       fromAccountId: 'simone-bank', toAccountId: 'simone-card',
       amount: 42.5, feeAmount: 0.8, date: '2026-07-31', description: 'Ricarica carta',
     })
-    render(<MovementsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const onEditTransfer = vi.fn()
+    const onDeleteTransfer = vi.fn()
+    render(<MovementsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onEditTransfer={onEditTransfer} onDeleteTransfer={onDeleteTransfer} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Giri fondi' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Giro fondi' }))
 
     expect(screen.getByText('Ricarica carta')).toBeTruthy()
     expect(screen.getByText('Conto corrente')).toBeTruthy()
     expect(screen.getByText('Carta di credito')).toBeTruthy()
     expect(screen.getAllByText('42,50 €').length).toBeGreaterThan(0)
     expect(screen.getByText(/spese 0,80 €/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica Ricarica carta' }))
+    expect(onEditTransfer).toHaveBeenCalledWith(expect.objectContaining({ id: 'transfer-visible' }))
   })
 })

@@ -3,9 +3,10 @@ import { materializeDuePayments } from './scheduled'
 import { todayISO } from './format'
 import type { AppData, Reimbursement, UserId } from '../types'
 
-const STORAGE_KEY = 'valar-morghulis:v3'
-const VERSION_2_KEY = 'valar-morghulis:v2'
-const LEGACY_KEY = 'valar-morghulis:v1'
+const STORAGE_KEY = 'skey:v3'
+const VERSION_2_KEY = 'skey:v2'
+const LEGACY_KEY = 'skey:v1'
+const PREVIOUS_STORAGE_KEYS = ['valar-morghulis:v3', 'valar-morghulis:v2', 'valar-morghulis:v1'] as const
 
 interface LegacyExpense {
   id: string
@@ -33,14 +34,15 @@ interface LegacyData {
 export function loadData(storageKey = STORAGE_KEY, fallbackData: AppData = defaultData): AppData {
   try {
     const raw = localStorage.getItem(storageKey)
+      ?? (storageKey === STORAGE_KEY ? localStorage.getItem(PREVIOUS_STORAGE_KEYS[0]) : null)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppData>
       if (parsed.version === 3) return hydrateData(parsed, fallbackData)
     }
     if (storageKey !== STORAGE_KEY) return structuredClone(fallbackData)
-    const version2Raw = localStorage.getItem(VERSION_2_KEY)
+    const version2Raw = localStorage.getItem(VERSION_2_KEY) ?? localStorage.getItem(PREVIOUS_STORAGE_KEYS[1])
     if (version2Raw) return hydrateData(JSON.parse(version2Raw) as Partial<AppData>, fallbackData)
-    const legacyRaw = localStorage.getItem(LEGACY_KEY)
+    const legacyRaw = localStorage.getItem(LEGACY_KEY) ?? localStorage.getItem(PREVIOUS_STORAGE_KEYS[2])
     if (!legacyRaw) return structuredClone(fallbackData)
     return hydrateData(migrateLegacy(JSON.parse(legacyRaw) as LegacyData), fallbackData)
   } catch {

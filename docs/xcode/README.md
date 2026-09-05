@@ -1,7 +1,7 @@
-# Valar Morghulis per Apple — documentazione di sviluppo
+# sKey per Apple — documentazione di sviluppo
 
 Questo fascicolo accompagna lo sviluppo in Xcode di `sKey`, la versione nativa
-Apple di Valar Morghulis per iPhone, iPad e Mac, mantenendo compatibilità
+Apple di sKey per iPhone, iPad e Mac, mantenendo compatibilità
 funzionale e dati condivisi con la web app.
 
 Il progetto esiste in `apple/SKey/SKey.xcodeproj`. La documentazione descrive
@@ -43,7 +43,7 @@ sono ancora state portate o coperte da test equivalenti in Swift.
 
 ## Configurazione attuale
 
-- Nome prodotto: `sKey`; bundle identifier app: `it.valarmorghulis.skey`.
+- Nome prodotto: `sKey`; bundle identifier app: `com.skeyapp.skey`.
 - UI SwiftUI nativa con target iPhone, iPad e macOS; Mac Catalyst è disattivato.
 - Supabase Swift 2.55.1 come client del backend esistente.
 - Configurazioni Debug e Release collegate ai rispettivi `.xcconfig`.

@@ -29,10 +29,10 @@ export function GuidePage() {
       </header>
 
       <section className="guide-intro" aria-labelledby="guide-intro-title">
-        <h2 id="guide-intro-title">Perché Valar Morghulis è diversa</h2>
+        <h2 id="guide-intro-title">Perché sKey è diversa</h2>
         <p>
           Esistono molte app per gestire le finanze personali e molte altre per dividere
-          un conto tra più persone. Valar Morghulis riunisce entrambe le esigenze in un
+          un conto tra più persone. sKey riunisce entrambe le esigenze in un
           solo spazio: contabilità personale, conti e spese familiari, acquisti fatti per
           altri e rimborsi tra utenti restano collegati senza confondere ciò che è privato
           con ciò che deve essere condiviso.
@@ -84,10 +84,12 @@ export function GuidePage() {
         <section id="movimenti" className="guide-chapter">
           <ChapterHeading number="02" title="Nuovo movimento" icon={ReceiptText} />
           <p>
-            La parte alta del modulo sceglie fra <strong>Spesa</strong>, <strong>Entrata</strong>
-            e <strong>Giro fondi</strong>. Per una spesa o un’entrata inserisci l’importo,
-            il conto, l’eventuale rateizzazione, beneficiario o mittente e data. Descrizione,
-            commenti e tag aiutano a riconoscere e ritrovare l’operazione.
+            All’apertura compaiono soltanto quattro grandi scelte in colonna:
+            <strong> Spesa</strong>, <strong>Entrata</strong>, <strong>Giro fondi</strong> e
+            <strong> Paga alla romana</strong>. Dopo la scelta i pulsanti lasciano posto alla
+            scheda relativa. Per una spesa o un’entrata inserisci importo, conto,
+            beneficiario o mittente e data; descrizione, commenti e fino a tre tag aiutano
+            a riconoscere e ritrovare l’operazione.
           </p>
           <div className="guide-note">
             <strong>Acquisto unico</strong>
@@ -108,9 +110,19 @@ export function GuidePage() {
               la riga successiva fino a esaurire il totale.
             </p>
           </div>
+          <div className="guide-note">
+            <strong>Paga alla romana</strong>
+            <p>
+              Indica l’importo della spesa e aggiungi i contatti: sKey ricalcola in parti
+              uguali la quota del pagante e quella di ogni partecipante. Per i contatti
+              genera una normale richiesta di rimborso; per un familiare puoi invece
+              compensare la sua quota con un debito già esistente nei suoi confronti.
+            </p>
+          </div>
           <p>
-            Se rateizzi, l’importo del movimento e delle sue voci resta sempre il totale:
-            le rate regolano soltanto gli addebiti futuri sul conto di origine.
+            Se attivi il pagamento a rate, l’importo del movimento e delle sue voci resta
+            sempre il totale. Prima di salvare puoi vedere tutte le rate successive e
+            modificare le singole date; le rate regolano soltanto gli addebiti sul conto.
           </p>
         </section>
 
@@ -118,12 +130,13 @@ export function GuidePage() {
           <ChapterHeading number="03" title="Consultare e correggere i movimenti" icon={Scale} />
           <p>
             In <strong>Spese ed Entrate</strong> puoi cambiare mese e passare fra spese,
-            entrate e movimenti condivisi. I grafici mostrano importi e percentuali mensili
+            entrate, movimenti condivisi e giro fondi. I grafici mostrano importi e percentuali mensili
             per categoria; ricerca e gruppi per giorno aiutano a trovare rapidamente una voce.
           </p>
           <ul>
             <li>Apri un movimento per controllarne conto, autore, categoria, tag, condivisione e parziali.</li>
-            <li>Solo l’autore può modificarlo o eliminarlo; saldi, statistiche e dati familiari vengono ricalcolati.</li>
+            <li>Ogni elenco di movimenti — anche quello filtrato per conto, categoria, beneficiario, mittente o tag — offre all’autore modifica ed eliminazione senza dover ritrovare la voce nello storico.</li>
+            <li>Dopo la modifica si torna all’elenco dal quale si era aperto il movimento; saldi, statistiche e dati familiari vengono ricalcolati.</li>
             <li>Su smartphone usa lo scorrimento da destra verso sinistra; su desktop le azioni restano visibili.</li>
             <li>Eliminando la prima rata puoi rimuovere l’intero piano; le modifiche alle anagrafiche raggiungono anche le rate future.</li>
             <li>I movimenti anteriori al saldo iniziale possono restare nelle statistiche senza modificare il conto.</li>
@@ -160,7 +173,11 @@ export function GuidePage() {
             <li>Per un conto personale scegli separatamente le famiglie alle quali rendere visibile soltanto il nome come destinazione di rimborso; saldo, istituto e movimenti restano privati.</li>
             <li>L’icona di visibilità identifica i conti pubblicati ad almeno una famiglia.</li>
             <li>Da <strong>Nuovo movimento</strong> scegli <strong>Giro fondi</strong> per spostare denaro fra due conti senza creare una spesa.</li>
+            <li>Nel profilo puoi scegliere il conto personale predefinito, che viene preselezionato nei nuovi movimenti.</li>
+            <li>Puoi annotare eventuali spese bancarie: il conto di origine diminuisce dell’importo trasferito più la commissione, mentre quello di destinazione riceve soltanto l’importo.</li>
+            <li>I giro fondi sono modificabili o eliminabili dallo storico generale e dall’elenco del conto interessato.</li>
             <li>Un trasferimento dal conto familiare a uno personale genera il debito relativo alle quote degli altri membri.</li>
+            <li>Un trasferimento da un conto personale a uno familiare riduce il debito verso la famiglia per la quota che appartiene agli altri membri.</li>
           </ul>
         </section>
 
@@ -169,14 +186,17 @@ export function GuidePage() {
           <p>
             Attiva <strong>Pagamento a rate</strong> nel nuovo movimento, indica intermediario e
             numero di rate. La prima rata incide subito sul conto; le altre vengono raccolte
-            per acquisto in <strong>Pagamenti programmati</strong>, con totale residuo,
-            rate pagate e prossime scadenze.
+            per acquisto in <strong>Pagamenti programmati</strong>. Intestazione e riepilogo
+            mostrano data di inizio, importo totale dell’acquisto, totale residuo, rate
+            pagate e prossime scadenze.
           </p>
           <ul>
             <li>Sono disponibili piani in 3 o 5 rate e un intermediario personalizzabile.</li>
             <li>Le scadenze future diventano automaticamente movimenti alla data prevista.</li>
             <li>Gli arrotondamenti vengono distribuiti senza perdere centesimi.</li>
             <li>Categorie, tag e destinazioni di un acquisto multiplo vengono preservati in ogni rata.</li>
+            <li>Un piano si modifica con la stessa scheda usata per crearlo, mantenendo parziali, acquisti per altre persone e condivisioni originali.</li>
+            <li>Puoi modificare le date delle rate successive oppure eliminare il piano dall’intestazione del pagamento programmato.</li>
           </ul>
         </section>
 
@@ -200,9 +220,11 @@ export function GuidePage() {
             </div>
           </div>
           <ul>
-            <li>Ogni rimborso resta in attesa finché il destinatario non lo conferma o rifiuta.</li>
+            <li>Ogni rimborso resta in attesa finché la controparte prevista per quella fase non lo conferma o rifiuta.</li>
             <li>Il destinatario può completare il proprio conto personale se non era visibile al pagatore.</li>
-            <li>Per il rimborso con acquisto, il destinatario sceglie categoria e conto per inserirlo nella propria contabilità senza un secondo addebito.</li>
+            <li>Per il rimborso tramite acquisto, il creditore sceglie la categoria: l’intero acquisto entra nelle sue statistiche e riduce il debito senza transitare da un conto.</li>
+            <li>I rimborsi confermati possono essere corretti o annullati dall’autore, ma la rettifica diventa effettiva soltanto dopo la conferma reciproca.</li>
+            <li>Lo storico indica esplicitamente richieste confermate o annullate e la data dell’ultima interazione; annullare un rimborso rimuove anche i movimenti contabili collegati per entrambe le parti.</li>
             <li>La sezione <strong>Rimborsi e prestiti</strong> separa quelli <strong>Attesi</strong> da quelli <strong>Dovuti</strong>.</li>
             <li>Un prestito sposta il capitale soltanto dopo la conferma del beneficiario e mostra sempre quanto resta da restituire.</li>
             <li>La restituzione può essere parziale, in denaro, tramite un acquisto catalogato dal prestatore oppure compensando un credito familiare realmente disponibile.</li>
@@ -221,8 +243,10 @@ export function GuidePage() {
             <li>Invita un amico tramite email, anche in occasione del primo acquisto fatto per lui.</li>
             <li>Nel nuovo movimento scegli “Acquisto per conto di un’altra persona” e indica il committente.</li>
             <li>Il tuo conto viene addebitato, ma la voce resta fuori dalle tue statistiche personali e familiari.</li>
-            <li>Il destinatario conferma oppure rifiuta; accettando sceglie categoria e conto per catalogare l’acquisto senza duplicare il saldo.</li>
-            <li>Seleziona un contatto per vedere i movimenti che lo coinvolgono.</li>
+            <li>Il destinatario conferma di avere ricevuto l’acquisto e sceglie la categoria con cui catalogarlo.</li>
+            <li>Dopo la ricezione compare <strong>Emetti rimborso</strong>: il destinatario sceglie il proprio conto di origine e registra il pagamento.</li>
+            <li>Infine chi aveva anticipato la spesa conferma l’incasso e sceglie il conto di destinazione; soltanto allora l’entrata viene contabilizzata.</li>
+            <li>Seleziona un contatto per vedere i movimenti che lo coinvolgono e, quando sei l’autore, modificarli o eliminarli direttamente.</li>
             <li>Rimuovere un amico interrompe il collegamento ma conserva lo storico per entrambi.</li>
           </ul>
         </section>
@@ -232,13 +256,15 @@ export function GuidePage() {
           <p>
             Le anagrafiche rendono ordinati movimenti, grafici e ricerche. Puoi crearle
             dalle rispettive pagine; categorie, beneficiari e mittenti possono essere
-            aggiunti anche mentre registri un movimento.
+            aggiunti anche mentre registri o modifichi un movimento. Tutti i menu usano
+            la stessa ricerca progressiva e propongono <strong>Aggiungi…</strong> quando la
+            voce digitata non esiste.
           </p>
           <ul>
             <li>Le <strong>categorie</strong> alimentano importi e percentuali dei grafici mensili.</li>
             <li>I <strong>beneficiari</strong> indicano a chi hai pagato; i <strong>mittenti</strong> da chi hai ricevuto un’entrata.</li>
-            <li>I <strong>tag</strong> collegano movimenti diversi e producono un bilancio dedicato.</li>
-            <li>Seleziona una voce per vedere i relativi movimenti, il totale e la data dell’operazione più vecchia.</li>
+            <li>I <strong>tag</strong> collegano movimenti diversi e producono un bilancio dedicato; puoi assegnarne fino a tre al movimento e fino a tre a ogni voce di un acquisto multiplo.</li>
+            <li>Seleziona una voce per vedere i relativi movimenti, il totale e la data dell’operazione più vecchia, con modifica ed eliminazione disponibili per l’autore.</li>
             <li>Puoi rinominare tutte le anagrafiche mantenendo aggiornati movimenti e rate.</li>
             <li>Quando elimini una categoria, un beneficiario o un mittente puoi riassegnare lo storico oppure lasciarlo senza classificazione; eliminando un tag viene rimosso il solo collegamento.</li>
           </ul>
@@ -258,6 +284,8 @@ export function GuidePage() {
             <li>I dati personali restano privati: vengono condivisi soltanto record familiari, nomi dei conti autorizzati e operazioni che coinvolgono un altro utente.</li>
             <li>L’amministratore può eliminare una famiglia conservando come personali i movimenti creati dai singoli membri oppure cancellando i dati condivisi.</li>
             <li>Prima di eliminare definitivamente l’account puoi esportare i dati in JSON, CSV o XML.</li>
+            <li>Le modifiche vengono prima conservate in una coda locale e sincronizzate con retry automatico; l’indicatore in alto segnala dati in attesa e consente di riprovare manualmente.</li>
+            <li>La console utenti è riservata all’amministratore globale della piattaforma e mostra soltanto iscrizione e attività essenziali, senza movimenti né dati contabili. Avvisi ed eliminazione automatica degli inattivi non sono ancora attivi.</li>
             <li>Esci dall’app dal pulsante <strong>Esci</strong> nel menù laterale.</li>
           </ul>
         </section>

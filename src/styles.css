@@ -424,7 +424,7 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .movement-row__amount { text-align: right; font: 600 15px/1 'Newsreader', Georgia, serif; }
 .movement-row__amount--expense { color: var(--accent); }
 .movement-row__amount--transfer { color: #526b82; }
-.transfer-row { grid-template-columns: 40px minmax(170px, 1.25fr) minmax(130px, .8fr) minmax(130px, .8fr) 92px 105px; }
+.transfer-row { grid-template-columns: 40px minmax(170px, 1.25fr) minmax(130px, .8fr) minmax(130px, .8fr) 92px 105px 76px; }
 .movement-row__amount--income { color: var(--positive); }
 .movement-list--compact .movement-row { grid-template-columns: 38px minmax(145px, 1fr) 105px 105px 84px 90px; }
 .movement-list--compact .scope-label, .movement-list--compact:not(.movement-list--editable) .row-actions { display: none; }

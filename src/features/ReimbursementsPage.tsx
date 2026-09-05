@@ -1,10 +1,10 @@
-import { Check, HandCoins, Landmark, Plus, RotateCcw, X } from 'lucide-react'
+import { Check, Clock3, HandCoins, Landmark, Plus, RotateCcw, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { ReimbursementReview } from './Dashboard'
 import { PurchaseReview } from './ContactsPage'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { loanAvailableToRepay, loanOutstanding, sharedBalance } from '../lib/calculations'
-import { formatMoney } from '../lib/format'
+import { formatDate, formatMoney } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
 import { isOrdinaryCommissionedPurchase } from '../lib/commissioned'
 import type { AppData, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, LoanRepaymentMethod, Reimbursement, User } from '../types'
@@ -34,6 +34,8 @@ interface Props {
   purchases?: CommissionedPurchase[]
   onRespond?: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   onRespondPurchase?: (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string, category?: Category) => Promise<void>
+  onIssuePurchaseReimbursement?: (purchase: CommissionedPurchase, sourceAccountId: string) => Promise<void>
+  onRespondPurchaseReimbursement?: (purchase: CommissionedPurchase, accepted: boolean, destinationAccountId?: string) => Promise<void>
   onRequestChange?: (reimbursementId: string, change: { kind: 'update' | 'delete'; amount?: number; date?: string; selectedAccountId?: string }) => Promise<void>
   onRespondChange?: (requestId: string, accepted: boolean) => Promise<void>
   onWithdrawChange?: (requestId: string) => Promise<void>
@@ -43,7 +45,7 @@ interface Props {
   onRespondLoanRepayment?: (repaymentId: string, accepted: boolean, selectedAccountId?: string, category?: Category) => Promise<void>
 }
 
-export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase, onRequestChange, onRespondChange, onWithdrawChange, onCreateLoan, onRespondLoan, onCreateLoanRepayment, onRespondLoanRepayment }: Props) {
+export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase, onIssuePurchaseReimbursement, onRespondPurchaseReimbursement, onRequestChange, onRespondChange, onWithdrawChange, onCreateLoan, onRespondLoan, onCreateLoanRepayment, onRespondLoanRepayment }: Props) {
   const [section, setSection] = useState<'expected' | 'owed'>('expected')
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [repayingLoanId, setRepayingLoanId] = useState<string>()
@@ -103,9 +105,54 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
       })}
       {commissioned.map((purchase) => purchase.status === 'pending' && purchase.recipientId === user.id
         ? <PurchaseReview key={purchase.id} purchase={purchase} data={data} userId={user.id} payer={contacts.find((item) => item.id === purchase.payerId)} busy={busyPurchaseId === purchase.id} onRespond={(accepted, categoryId, accountId, category) => respondToPurchase(purchase, accepted, categoryId, accountId, category)} />
-        : <CommissionedReimbursementStatus key={purchase.id} amount={purchase.amount} status={purchase.status} label={purchase.description} />)}
+        : <CommissionedPurchaseCard key={purchase.id} purchase={purchase} data={data} user={user} contacts={contacts} onIssue={onIssuePurchaseReimbursement} onRespond={onRespondPurchaseReimbursement} />)}
     </div> : <div className="empty-state"><HandCoins /><h3>Nessun rimborso o prestito {section === 'expected' ? 'atteso' : 'dovuto'}</h3><p>Le richieste compariranno qui quando verranno registrate.</p></div>}
   </div>
+}
+
+function CommissionedPurchaseCard({ purchase, data, user, contacts, onIssue, onRespond }: {
+  purchase: CommissionedPurchase
+  data: AppData
+  user: User
+  contacts: Contact[]
+  onIssue?: (purchase: CommissionedPurchase, sourceAccountId: string) => Promise<void>
+  onRespond?: (purchase: CommissionedPurchase, accepted: boolean, destinationAccountId?: string) => Promise<void>
+}) {
+  const accounts = data.accounts.filter((account) => account.scope === 'personal' && (!account.ownerId || account.ownerId === user.id))
+  const defaultAccount = data.defaultMovementAccountIds?.[user.id]
+  const [accountId, setAccountId] = useState(defaultAccount && accounts.some((account) => account.id === defaultAccount) ? defaultAccount : accounts[0]?.id ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const recipient = contacts.find((contact) => contact.id === purchase.recipientId)
+  const payer = contacts.find((contact) => contact.id === purchase.payerId)
+  const reimbursementStatus = purchase.reimbursementStatus ?? (purchase.status === 'confirmed' ? 'pending' : undefined)
+  const lastInteraction = purchase.reimbursementCancelledAt
+    ?? purchase.reimbursementConfirmedAt
+    ?? purchase.reimbursementIssuedAt
+    ?? purchase.resolvedAt
+    ?? purchase.createdAt
+  const act = async (action: () => Promise<void>) => {
+    setBusy(true); setError('')
+    try { await action() }
+    catch (reason) { setError(reimbursementResponseMessage(reason)) }
+    finally { setBusy(false) }
+  }
+
+  if (purchase.status === 'rejected') return <CommissionedReimbursementStatus amount={purchase.amount} status="rejected" label={purchase.description} lastInteraction={lastInteraction} />
+  if (purchase.status === 'pending') return <CommissionedReimbursementStatus amount={purchase.amount} status="pending" label={purchase.description} lastInteraction={lastInteraction} />
+  if (reimbursementStatus === 'cancelled') return <CommissionedReimbursementStatus amount={purchase.amount} status="cancelled" label={purchase.description} lastInteraction={lastInteraction} />
+  if (reimbursementStatus === 'confirmed') return <CommissionedReimbursementStatus amount={purchase.amount} status="confirmed" label={purchase.description} lastInteraction={lastInteraction} />
+
+  if (purchase.recipientId === user.id && reimbursementStatus === 'not_issued') return <article className="reimbursement-review reimbursement-review--action">
+    <span><HandCoins /></span><div><strong>{purchase.description}</strong><small>{formatMoney(purchase.amount)} · acquisto ricevuto e catalogato</small><label>Dal tuo conto<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Seleziona un conto</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><small>Il conto verrà addebitato solo quando emetti il rimborso a {payer?.name ?? 'chi ha anticipato la spesa'}.</small>{error ? <small className="field-error" role="alert">{error}</small> : null}</div><div className="reimbursement-review__actions"><button className="button button--primary" type="button" disabled={busy || !accountId || !onIssue} onClick={() => void act(() => onIssue!(purchase, accountId))}><Check /> Emetti rimborso</button></div>
+  </article>
+
+  if (purchase.payerId === user.id && reimbursementStatus === 'pending') return <article className="reimbursement-review reimbursement-review--action">
+    <span><HandCoins /></span><div><strong>{recipient?.name ?? 'Il destinatario'} ha emesso un rimborso di {formatMoney(purchase.amount)}</strong><small>{purchase.description} · emesso il {formatDate((purchase.reimbursementIssuedAt ?? purchase.purchaseDate).slice(0, 10))}</small><label>Il tuo conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Seleziona un conto</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>{error ? <small className="field-error" role="alert">{error}</small> : null}</div><div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy || !onRespond} onClick={() => void act(() => onRespond!(purchase, false))}><X /> Rifiuta</button><button className="button button--primary" type="button" disabled={busy || !accountId || !onRespond} onClick={() => void act(() => onRespond!(purchase, true, accountId))}><Check /> Conferma ricezione</button></div>
+  </article>
+
+  const pendingLabel = reimbursementStatus === 'pending' ? 'Rimborso emesso, in attesa della conferma di ricezione' : `Acquisto ricevuto: ${recipient?.name ?? 'il destinatario'} deve emettere il rimborso`
+  return <article className="reimbursement-review"><span><Clock3 /></span><div><strong>{purchase.description}</strong><small>{formatMoney(purchase.amount)} · {pendingLabel}</small><small>Ultima interazione: {formatDate(lastInteraction.slice(0, 10))}</small></div></article>
 }
 
 function LoanForm({ data, user, members, onSubmit, onCancel }: {
@@ -245,15 +292,18 @@ function reimbursementResponseMessage(reason: unknown) {
   if (message.includes('reimbursement_accounts_required')) return 'Il rimborso non contiene ancora entrambi i conti necessari. Chi lo ha creato deve indicare il proprio conto e inviarlo nuovamente.'
   if (message.includes('purchase_catalog_required')) return 'Scegli la categoria prima di confermare l’acquisto.'
   if (message.includes('reimbursement_purchase_mismatch')) return 'Questo acquisto non è più collegato correttamente al rimborso. La richiesta deve essere reinviata.'
+  if (message.includes('reimbursement_account_not_owned')) return 'Il conto scelto non risulta tra i tuoi conti personali sincronizzati. Aggiorna i dati e riprova.'
+  if (message.includes('reimbursement_source_account_required') || message.includes('reimbursement_destination_account_required')) return 'Scegli il conto da usare per il rimborso.'
   if (message.includes('already_resolved')) return 'Questa richiesta è già stata gestita. Aggiorna la pagina per vedere lo stato corrente.'
   return message || 'Non è stato possibile confermare il rimborso. Riprova tra poco.'
 }
 
-function CommissionedReimbursementStatus({ amount, status, label }: {
+function CommissionedReimbursementStatus({ amount, status, label, lastInteraction }: {
   amount: number
-  status: CommissionedPurchase['status']
+  status: CommissionedPurchase['status'] | 'cancelled'
   label: string
+  lastInteraction?: string
 }) {
-  const state = status === 'pending' ? 'In attesa di conferma' : status === 'confirmed' ? 'Confermato e registrato' : 'Rifiutato'
-  return <article className={`reimbursement-review ${status === 'rejected' ? 'reimbursement-review--rejected' : ''}`}><span><HandCoins /></span><div><strong>{label}</strong><small>{formatMoney(amount)} · {state}</small></div></article>
+  const state = status === 'pending' ? 'In attesa di conferma' : status === 'confirmed' ? 'Confermato e registrato' : status === 'cancelled' ? 'Annullato' : 'Rifiutato'
+  return <article className={`reimbursement-review ${status === 'rejected' || status === 'cancelled' ? 'reimbursement-review--rejected' : ''}`}><span>{status === 'cancelled' ? <Trash2 /> : <HandCoins />}</span><div><strong>{label}</strong><small>{formatMoney(amount)} · {state}</small>{lastInteraction ? <small>Ultima interazione: {formatDate(lastInteraction.slice(0, 10))}</small> : null}</div></article>
 }

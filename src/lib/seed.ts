@@ -1,8 +1,8 @@
 import type { Account, AppData, User, UserId } from '../types'
 
 export const users: User[] = [
-  { id: 'simone', name: 'Simone', email: 'simone@valarmorghulis.demo', initials: 'SM' },
-  { id: 'anna', name: 'Anna', email: 'anna@valarmorghulis.demo', initials: 'AN' },
+  { id: 'simone', name: 'Simone', email: 'simone@skeyapp.demo', initials: 'SM' },
+  { id: 'anna', name: 'Anna', email: 'anna@skeyapp.demo', initials: 'AN' },
 ]
 
 export const defaultData: AppData = {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppShell } from './AppShell'
 import { users } from '../lib/seed'
@@ -22,7 +22,12 @@ describe('AppShell sidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apri menu' }))
     expect(sidebar.hasAttribute('inert')).toBe(false)
     expect(sidebar.hasAttribute('aria-hidden')).toBe(false)
-    expect(screen.getByRole('navigation', { name: 'Navigazione principale' })).toBeTruthy()
+    const navigation = screen.getByRole('navigation', { name: 'Navigazione principale' })
+    const categories = within(navigation).getByRole('button', { name: 'Categorie' })
+    const tags = within(navigation).getByRole('button', { name: 'Tag' })
+    const beneficiaries = within(navigation).getByRole('button', { name: 'Beneficiari e mittenti' })
+    expect(categories.compareDocumentPosition(tags) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tags.compareDocumentPosition(beneficiaries) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('mantiene navigabile la sidebar desktop chiusa', () => {

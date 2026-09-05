@@ -254,17 +254,17 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
     finally { setChangeBusy(false) }
   }
   if (reimbursement.status === 'rejected') return <article className="reimbursement-review reimbursement-review--rejected">
-    <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small></div>
+    <span><X /></span><div><strong>Rimborso rifiutato</strong><small>{formatMoney(reimbursement.amount)} · registrato da {author?.name ?? 'un membro'}</small>{reimbursement.rejectedAt ? <small>Ultima interazione: {formatDate(reimbursement.rejectedAt.slice(0, 10))}</small> : null}</div>
   </article>
   if (reimbursement.status === 'cancelled') return <article className="reimbursement-review reimbursement-review--rejected">
-    <span><Trash2 /></span><div><strong>Rimborso annullato</strong><small>{formatMoney(reimbursement.amount)} · conservato nello storico</small></div>
+    <span><Trash2 /></span><div><strong>Rimborso annullato</strong><small>{formatMoney(reimbursement.amount)} · Annullato · conservato nello storico</small>{reimbursement.cancelledAt ? <small>Ultima interazione: {formatDate(reimbursement.cancelledAt.slice(0, 10))}</small> : null}</div>
   </article>
   if (reimbursement.status !== 'pending') {
     const change = reimbursement.changeRequest
     const requestedByMe = change?.requestedBy === user.id
     return <article className="reimbursement-review reimbursement-review--confirmed">
       <span><Check /></span>
-      <div><strong>Rimborso confermato</strong><small>{formatMoney(reimbursement.amount)} · {formatDate(reimbursement.date)} · registrato da {author?.name ?? 'un membro'}</small>
+      <div><strong>Rimborso confermato</strong><small>{formatMoney(reimbursement.amount)} · {formatDate(reimbursement.date)} · registrato da {author?.name ?? 'un membro'}</small>{reimbursement.confirmedAt ? <small>Ultima interazione: {formatDate(reimbursement.confirmedAt.slice(0, 10))}</small> : null}
         {change ? <div className="reimbursement-change-summary">
           <b>{change.kind === 'delete' ? 'Annullamento richiesto' : 'Modifica richiesta'}</b>
           {change.kind === 'update' ? <small>Nuovo importo {formatMoney(change.amount ?? reimbursement.amount)} · nuova data {formatDate(change.date ?? reimbursement.date)}{change.selectedAccountId ? ' · conto personale aggiornato' : ''}</small> : <small>Il rimborso resterà valido finché l’altra parte non approva.</small>}

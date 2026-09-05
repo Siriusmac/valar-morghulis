@@ -1,4 +1,4 @@
-# Handoff — Valar Morghulis
+# Handoff — sKey
 
 Aggiornato il 5 settembre 2026.
 
@@ -18,7 +18,8 @@ Funzioni disponibili:
 - pagina “Spese ed Entrate” con lo stesso menu dei mesi non editabile nelle viste Spese, Entrate e Condivise;
 - saldo iniziale modificabile con data di riferimento e sincronizzazione dei conti condivisi;
 - movimenti retrodatati registrabili come “solo statistiche”, senza effetto sul saldo del conto;
-- conti personali, conti condivisi, carte, contanti e giro fondi;
+- conti personali, conti condivisi, carte, contanti e giro fondi; il profilo
+  consente di scegliere il conto predefinito dei nuovi movimenti;
 - categorie, beneficiari e mittenti ricercabili per testo e creati automaticamente dal modulo del movimento quando non esiste una corrispondenza; tag creabili durante l’uso, fino a tre sul movimento web e fino a tre per ogni parziale di un acquisto multiplo;
 - beneficiari associati alle spese e mittenti associati alle entrate, gestiti in due schede della stessa pagina;
 - modifica del nome di categorie, beneficiari e mittenti; mantenendo invariato l’ID, anche i movimenti storici mostrano subito il nuovo nome;
@@ -35,13 +36,23 @@ Funzioni disponibili:
 - migration `20260901100000_family_loans.sql` applicata al progetto Supabase remoto il 1 settembre 2026: aggiunge record autorevoli `loan`/`loan_repayment`, RPC di creazione e risposta reciproca e controllo server del credito familiare; il client Apple decodifica e contabilizza questi record e dispone delle chiamate repository, mentre la relativa UI nativa resta da completare;
 - compensazione di un rimborso mediante acquisto diretto per il creditore, con descrizione obbligatoria e classificazione personale da parte del destinatario;
 - rubrica Contatti composta automaticamente dai membri delle famiglie e da amici invitati via email, rimovibili senza cancellare lo storico;
-- spese su commissione personali: il pagante sceglie un contatto o lo invita durante l'inserimento, il proprio conto viene addebitato ma l'operazione resta fuori dalle statistiche, mentre il destinatario conferma categoria e conto senza una seconda variazione di saldo; alla conferma il pagante riceve una sola entrata personale “Rimborsi ricevuti” sul conto di origine, con ID deterministico per impedire duplicazioni;
+- spese su commissione personali: il pagante sceglie un contatto o lo invita
+  durante l'inserimento e il proprio conto viene addebitato senza includere la
+  voce nelle statistiche. Il destinatario conferma e cataloga l’acquisto, poi
+  emette il rimborso dal proprio conto; il pagante contabilizza l’entrata solo
+  dopo avere confermato l’incasso e scelto il conto di destinazione;
 - “Paga alla romana” registra un unico addebito del totale e calcola in centesimi la quota del pagante e una quota per ogni contatto. Le quote dei contatti riusano le richieste commissionate; per un familiare la quota può invece essere collegata a un rimborso `purchase` solo se il credito disponibile la copre interamente;
 - il record familiare confermato o rifiutato prevale sulla copia privata precedente dell’autore, evitando che un rimborso approvato torni a risultare “in attesa” dopo il login;
 - pubblicazione facoltativa e distinta per famiglia del solo nome dei conti personali usabili nei rimborsi; saldo, istituto e movimenti non vengono condivisi;
 - completamento del conto personale mancante da parte del proprietario durante la conferma e possibilità di rifiutare il rimborso;
 - modifica dei movimenti riservata all’autore;
-- modifica ed eliminazione dei movimenti visibili anche su smartphone e direttamente nel pannello di modifica; un movimento esistente può passare da personale a condiviso o viceversa, con ricalcolo derivato di saldi, conti e statistiche;
+- modifica ed eliminazione disponibili in ogni elenco che mostra movimenti,
+  compresi dettagli del conto e filtri per categoria, beneficiario, mittente e
+  tag; dopo il salvataggio si torna all’elenco di origine;
+- giro fondi modificabili ed eliminabili nello storico e nei dettagli del conto,
+  con data visibile e spese bancarie sottratte soltanto dal conto di origine;
+- un movimento esistente può passare da personale a condiviso o viceversa, con
+  ricalcolo derivato di saldi, conti e statistiche;
 - modifica dei movimenti importati basata anche sull'identità stabile
   autore/data di creazione, per sostituire l'originale e rimuovere eventuali
   copie con ID divergenti;
@@ -52,11 +63,10 @@ Funzioni disponibili:
 - logo, favicon, Apple touch icon e manifest installabile;
 - iscrizione e accesso email/password con conferma email e recupero password;
 - pagina Account raggiungibile dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
-- pagina Guida raggiungibile dal menù laterale, con premessa sulla continuità
-  fra finanze personali, conti condivisi e rapporti fra utenti, indice a
-  collegamenti interni e dieci capitoli responsive che documentano anche
-  acquisti multipli, commissioni, contatti, rimborsi tramite acquisto, pagamenti
-  programmati, gestione delle anagrafiche e privacy multi-famiglia;
+- pagina Guida raggiungibile dal menù laterale, aggiornata alle quattro scelte
+  del nuovo movimento, acquisti multipli, Paga alla romana, commissioni dei giro
+  fondi, piano rateale completo, iter reciproco di rimborsi e prestiti, azioni
+  contestuali in tutti gli elenchi, sincronizzazione resiliente e privacy;
 - più famiglie per utente, famiglia attiva selezionabile e ruoli `admin`/`member` distinti per appartenenza;
 - vista condivisa selezionabile direttamente dalla bacheca, mantenendo un unico archivio personale fra tutte le famiglie;
 - onboarding utilizzabile anche senza creare subito una famiglia;
@@ -88,7 +98,7 @@ Funzioni disponibili:
 - Una spesa personale rateizzata pesa sul conto soltanto per le rate scadute.
 - Una spesa familiare rateizzata regola subito l’intero debito/credito in base al numero di membri; le rate successive non lo modificano di nuovo.
 - Le rate scadute vengono trasformate automaticamente in movimenti quando l’app viene caricata.
-- Una richiesta ordinaria per conto terzi resta nei rimborsi attesi/dovuti finché il destinatario non la conferma o rifiuta; la conferma genera in modo idempotente l'entrata di rimborso del pagante. Una richiesta collegata a `settlementMethod = purchase` regola invece il solo rimborso familiare e non genera quell'entrata aggiuntiva.
+- Una richiesta ordinaria per conto terzi usa tre passaggi distinti: il destinatario conferma e cataloga l’acquisto senza muovere denaro, poi sceglie il conto e usa “Emetti rimborso”; il pagante sceglie infine il conto di destinazione e conferma l’incasso. L’addebito nasce all’emissione e l’entrata soltanto all’ultima conferma. Una richiesta collegata a `settlementMethod = purchase` regola invece il solo rimborso familiare e non genera quell'entrata aggiuntiva.
 - Un nuovo utente parte soltanto con `Contanti` e l’eventuale conto condiviso della famiglia.
 - Il rimborso è una registrazione contabile: l’app non trasferisce realmente denaro.
 - Un rimborso nuovo non modifica il saldo familiare né i conti finché la controparte non lo conferma. L’autore non può auto-confermarlo.
@@ -266,7 +276,7 @@ Le migration `20260815143000_push_notifications.sql` e
 Supabase remoto il 15 agosto 2026; il successivo `migration list` è allineato e
 `db lint --linked --schema public` non rileva errori. La Edge Function non è
 ancora stata distribuita. Per attivare l'invio servono la capability Apple Push
-Notifications per il bundle `it.valarmorghulis.skey`, profili di firma aggiornati
+Notifications per il bundle `com.skeyapp.skey`, profili di firma aggiornati
 e i segreti Supabase `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. Un errore
 APNs non annulla né duplica il rimborso: il client segnala separatamente il
 mancato avviso.
@@ -490,15 +500,45 @@ Supabase remoto il 5 settembre 2026; `migration list` è allineato e
 web, lint e build Vite superati. La prova visuale in browser non è stata
 eseguita perché in questa sessione non è disponibile il browser di collaudo.
 
+La build cloud separa ora `@supabase/*` dal codice applicativo tramite il
+`codeSplitting` nativo di Vite 8/Rolldown. Con la configurazione cloud attiva il
+chunk principale passa da 513,57 kB a 307,42 kB e il chunk Supabase misura
+205,72 kB; nessun file JavaScript supera quindi la soglia Vite di 500 kB. Il
+gate `cloudflare:check` verifica anche questa soglia e blocca il rilascio in caso
+di regressione, oltre a continuare a controllare la presenza della
+configurazione Supabase.
+
+La migration `20260905150000_commissioned_reimbursement_confirmation.sql`
+separa la ricezione di un acquisto per conto terzi dall’emissione e dall’incasso
+del relativo rimborso. I record ordinari già confermati vengono convertiti in
+rimborsi emessi ancora da confermare dal pagante; le compensazioni familiari
+tramite acquisto restano invariate. Le scritture private vengono riconciliate in
+entrambi i versi: un rimborso annullato rimuove sia l’eventuale entrata del
+pagante sia l’addebito del destinatario. La tabella è aggiunta a Realtime per
+aggiornare le due parti mentre la pagina è aperta. La migration è stata
+applicata al progetto remoto il 5 settembre 2026; `migration list` è allineato e
+`db lint --linked --schema public` non segnala errori. Verifica locale aggiornata dopo il rebranding sKey:
+207 test web, lint, build e gate cloud superati; la build iOS Simulator compila
+con il nuovo bundle `com.skeyapp.skey`. Il browser locale ha confermato il nuovo
+marchio, la guida aggiornata, la voce singolare “Giro fondi”, i comandi
+modifica/elimina e la navigazione interna senza errori console.
+
 ## Hosting Cloudflare
 
 Il progetto è configurato per Cloudflare Pages tramite `wrangler.jsonc`.
 `pnpm cloudflare:check` esegue la build e verifica che l'autenticazione Supabase
-sia inclusa; `pnpm cloudflare:deploy` pubblica la SPA nel progetto
+sia inclusa e che ogni chunk JavaScript resti entro 500 kB;
+`pnpm cloudflare:deploy` pubblica la SPA nel progetto
 `valar-morghulis-web`. Il file locale ignorato `.env.production.local` deve
 contenere `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`: senza questi valori il
 controllo fallisce prima del deploy, impedendo di pubblicare la modalità demo.
 
-Produzione: `https://www.valarmorghulis.it/`, collegata tramite CNAME Tophost a
-`valar-morghulis-web.pages.dev`. Il certificato del dominio Pages è attivo dal
-23 luglio 2026.
+Produzione: `https://www.skeyapp.com/`. Il dominio è attivo nei Custom domains
+del progetto Pages esistente e in Tophost il CNAME `www` punta a
+`valar-morghulis-web.pages.dev`. Il segreto Supabase `APP_URL`, il Site URL Auth
+e la relativa allow list usano il nuovo indirizzo; il vecchio dominio resta
+temporaneamente consentito nella allow list durante la transizione.
+Il middleware `functions/_middleware.js` reindirizza permanentemente
+`valarmorghulis.it`, con e senza `www`, verso `www.skeyapp.com`, conservando
+percorso e query. I record DNS relativi alla posta e i nameserver Tophost non
+sono stati modificati.

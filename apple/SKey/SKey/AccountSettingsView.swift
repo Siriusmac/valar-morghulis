@@ -458,7 +458,7 @@ nonisolated private enum AccountExportSerializer {
         case .json:
             return jsonData
         case .xml:
-            return Data("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\(xml(name: "valarMorghulisExport", value: object))".utf8)
+            return Data("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\(xml(name: "sKeyExport", value: object))".utf8)
         case .csv:
             return Data(("\u{FEFF}" + csv(from: object)).utf8)
         }

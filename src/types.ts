@@ -238,6 +238,13 @@ export interface CommissionedPurchase {
   recipientCategoryId?: string
   recipientAccountId?: string
   createdAt: string
+  resolvedAt?: string
+  reimbursementStatus?: 'not_issued' | 'pending' | 'confirmed' | 'cancelled'
+  reimbursementSourceAccountId?: string
+  reimbursementDestinationAccountId?: string
+  reimbursementIssuedAt?: string
+  reimbursementConfirmedAt?: string
+  reimbursementCancelledAt?: string
 }
 
 export interface ReimbursementAccountReference {

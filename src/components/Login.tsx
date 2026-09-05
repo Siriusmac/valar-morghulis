@@ -5,7 +5,7 @@ import { users } from '../lib/seed'
 import type { UserId } from '../types'
 
 export function Login({ onLogin }: { onLogin: (id: UserId) => void }) {
-  const [email, setEmail] = useState('simone@valarmorghulis.demo')
+  const [email, setEmail] = useState('simone@skeyapp.demo')
   const [password, setPassword] = useState('demo1234')
 
   const submit = (event: React.FormEvent) => {

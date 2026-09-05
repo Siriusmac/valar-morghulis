@@ -139,7 +139,7 @@ describe('ReimbursementsPage', () => {
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Cene occasionali' } })
     expect(screen.getByRole('option', { name: 'Aggiungi “Cene occasionali”' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Conferma e cataloga' }))
-    await waitFor(() => expect(onRespondPurchase).toHaveBeenCalledWith(purchase, true, expect.any(String), expect.any(String), expect.objectContaining({ name: 'Cene occasionali' })))
+    await waitFor(() => expect(onRespondPurchase).toHaveBeenCalledWith(purchase, true, expect.any(String), undefined, expect.objectContaining({ name: 'Cene occasionali' })))
   })
 
   it('shows ordinary commissioned purchases among expected and owed reimbursements', () => {
@@ -153,7 +153,40 @@ describe('ReimbursementsPage', () => {
     rerender(<ReimbursementsPage data={structuredClone(defaultData)} user={users[1]} members={users} purchases={[purchase]} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
     expect(screen.getByRole('button', { name: 'Conferma e cataloga' })).toBeTruthy()
-    expect(screen.getByLabelText('Conto personale')).toBeTruthy()
+    expect(screen.queryByLabelText('Conto personale')).toBeNull()
+  })
+
+  it('asks the recipient to issue and the payer to confirm an ordinary reimbursement', async () => {
+    const data = structuredClone(defaultData)
+    const receivedPurchase = {
+      id: 'ordinary-purchase', payerId: users[0].id, recipientId: users[1].id, payerMovementId: 'payer-movement',
+      recipientMovementId: 'recipient-movement', recipientCategoryId: 'food',
+      amount: 35, purchaseDate: '2026-08-29', description: 'Farmaci', status: 'confirmed' as const,
+      reimbursementStatus: 'not_issued' as const, createdAt: '2026-08-29T10:00:00Z', resolvedAt: '2026-08-29T11:00:00Z',
+    }
+    const onIssue = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(<ReimbursementsPage data={data} user={users[1]} members={users} purchases={[receivedPurchase]} onIssuePurchaseReimbursement={onIssue} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Emetti rimborso' }))
+    await waitFor(() => expect(onIssue).toHaveBeenCalledWith(receivedPurchase, expect.any(String)))
+
+    const issuedPurchase = { ...receivedPurchase, reimbursementStatus: 'pending' as const, reimbursementSourceAccountId: 'anna-bank', reimbursementIssuedAt: '2026-08-30T09:00:00Z' }
+    const onRespond = vi.fn().mockResolvedValue(undefined)
+    rerender(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[issuedPurchase]} onRespondPurchaseReimbursement={onRespond} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Attesi' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma ricezione' }))
+    await waitFor(() => expect(onRespond).toHaveBeenCalledWith(issuedPurchase, true, expect.any(String)))
+  })
+
+  it('labels a cancelled reimbursement and shows its latest interaction', () => {
+    const purchase = {
+      id: 'cancelled-purchase', payerId: users[0].id, recipientId: users[1].id, payerMovementId: 'payer-movement',
+      amount: 35, purchaseDate: '2026-08-29', description: 'Farmaci', status: 'confirmed' as const,
+      reimbursementStatus: 'cancelled' as const, reimbursementCancelledAt: '2026-09-05T12:30:00Z', createdAt: '2026-08-29T10:00:00Z',
+    }
+    render(<ReimbursementsPage data={structuredClone(defaultData)} user={users[0]} members={users} purchases={[purchase]} />)
+    expect(screen.getByText(/Annullato/)).toBeTruthy()
+    expect(screen.getByText(/Ultima interazione: 05 set 2026/)).toBeTruthy()
   })
 })
 

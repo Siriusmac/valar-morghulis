@@ -69,7 +69,7 @@ final class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDeleg
             token: Self.hexadecimalToken(from: deviceToken),
             platform: Self.platform,
             environment: Self.environment,
-            bundleID: Bundle.main.bundleIdentifier ?? "it.valarmorghulis.skey"
+            bundleID: Bundle.main.bundleIdentifier ?? "com.skeyapp.skey"
         )
         currentDevice = registration
         NotificationCenter.default.post(name: .sKeyDidReceivePushToken, object: registration)

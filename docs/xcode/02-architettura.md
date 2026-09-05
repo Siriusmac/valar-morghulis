@@ -3,24 +3,24 @@
 ## Struttura
 
 L'app SwiftUI multipiattaforma vive attualmente in `apple/SKey`. La separazione
-in un package locale `ValarCore` rimane l'obiettivo quando verranno portati i
+in un package locale `SKeyCore` rimane l'obiettivo quando verranno portati i
 calcoli contabili completi: la UI dipenderà dal core, mentre il core non dovrà
 importare SwiftUI né Supabase.
 
 ```text
-ValarMorghulis/
+SKey/
 ├── App/                 # entry point, sessione, router, configurazione
 ├── Features/            # auth, dashboard, movimenti, conti, directory, impostazioni
 ├── DesignSystem/
 ├── Infrastructure/      # Supabase, cache, sync, export
-├── Packages/ValarCore/  # dominio e calcoli puri
+├── Packages/SKeyCore/   # dominio e calcoli puri
 └── Tests/
 ```
 
 ```mermaid
 flowchart LR
   UI["SwiftUI Features"] --> Session["AppSession e router"]
-  UI --> Core["ValarCore"]
+  UI --> Core["SKeyCore"]
   Session --> Repo["Protocolli repository"]
   Repo --> Supabase["Supabase adapter"]
   Repo --> Cache["Cache locale"]
@@ -40,7 +40,7 @@ flowchart LR
 
 ## Livelli
 
-### ValarCore
+### SKeyCore
 
 Tipi di dominio, validazioni, allocazione parziali, rate, saldi e aggregazioni. Testabile senza rete, database o UI.
 
