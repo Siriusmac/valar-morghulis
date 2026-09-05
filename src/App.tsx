@@ -35,11 +35,13 @@ const AccountSettings = lazy(() => import('./features/AccountSettings').then((mo
 const ContactsPage = lazy(() => import('./features/ContactsPage').then((module) => ({ default: module.ContactsPage })))
 const ReimbursementsPage = lazy(() => import('./features/ReimbursementsPage').then((module) => ({ default: module.ReimbursementsPage })))
 
+type DetailsModalState = { type: 'details'; title: string; filter: (movement: Movement) => boolean; amount?: (movement: Movement) => number; accountId?: string }
+
 type ModalState =
-  | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType }
+  | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType; returnTo?: DetailsModalState }
   | { type: 'reimburse' }
-  | { type: 'transfer'; transfer?: Transfer }
-  | { type: 'details'; title: string; filter: (movement: Movement) => boolean; amount?: (movement: Movement) => number; accountId?: string }
+  | { type: 'transfer'; transfer?: Transfer; returnTo?: DetailsModalState }
+  | DetailsModalState
   | null
 
 interface ReimbursementSubmission {
@@ -203,11 +205,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
 
   const saveMovement = (movement: Movement, additions: MovementAdditions) => {
     setData((current) => saveMovementData(current, movement, additions))
-    setModal(null); setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
+    setModal((current) => current?.type === 'movement' ? current.returnTo ?? null : null)
+    setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
   }
   const deleteMovement = (id: string) => {
     setData((current) => deleteMovementData(current, id))
-    setModal(null)
+    setModal((current) => current?.type === 'movement' ? current.returnTo ?? null : current)
     setToast('Movimento eliminato e saldi aggiornati')
   }
   const deleteDirectory = (kind: DirectoryDeletionKind, id: string, replacementId?: string) => {
@@ -376,7 +379,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     const nextData = saveTransferData(data, transfer)
     if (cloud) await cloud.saveAppData(nextData)
     setData((current) => saveTransferData(current, transfer))
-    setModal(null)
+    setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : null)
     setToast('Giro fondi salvato e saldi aggiornati')
   }
   const deleteTransfer = async (id: string) => {
@@ -384,7 +387,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       const nextData = deleteTransferData(data, id)
       if (cloud) await cloud.saveAppData(nextData)
       setData((current) => deleteTransferData(current, id))
-      setModal(null)
+      setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : current)
       setToast('Giro fondi eliminato e saldi aggiornati')
     } catch {
       setToast('Non è stato possibile eliminare il giro fondi')
@@ -560,10 +563,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'transfer' ? <Modal title={modal.transfer ? 'Modifica giro fondi' : 'Nuovo movimento'} onClose={() => setModal(null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} initial={modal.transfer} onSubmit={saveTransfer} onDelete={modal.transfer ? deleteTransfer : undefined} onCancel={() => setModal(null)} /></Suspense></Modal> : null}
-    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} accountId={modal.accountId} compact user={user} onEdit={modal.accountId ? (movement) => setModal({ type: 'movement', movement }) : undefined} onDelete={modal.accountId ? deleteMovement : undefined} onEditTransfer={modal.accountId ? (transfer) => setModal({ type: 'transfer', transfer }) : undefined} onDeleteTransfer={modal.accountId ? deleteTransfer : undefined} /></Suspense></Modal> : null}
+    {modal?.type === 'transfer' ? <Modal title={modal.transfer ? 'Modifica giro fondi' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} initial={modal.transfer} onSubmit={saveTransfer} onDelete={modal.transfer ? deleteTransfer : undefined} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
+    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} accountId={modal.accountId} compact user={user} onEdit={(movement) => setModal({ type: 'movement', movement, returnTo: modal })} onDelete={deleteMovement} onEditTransfer={modal.accountId ? (transfer) => setModal({ type: 'transfer', transfer, returnTo: modal }) : undefined} onDeleteTransfer={modal.accountId ? deleteTransfer : undefined} /></Suspense></Modal> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
 }
