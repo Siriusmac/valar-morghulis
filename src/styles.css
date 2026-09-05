@@ -54,7 +54,7 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .text-button:hover svg { transform: translateX(3px); }
 
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand__mark { width: 54px; height: 54px; display: block; object-fit: cover; border-radius: 50%; }
+.brand__mark { width: 54px; height: 54px; display: block; object-fit: contain; }
 .brand__name { font: 600 17px/1.05 'Newsreader', Georgia, serif; letter-spacing: -.2px; }
 .brand--compact .brand__mark { width: 40px; height: 40px; }
 
