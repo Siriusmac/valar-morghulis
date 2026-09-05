@@ -1,6 +1,6 @@
 # Handoff — Valar Morghulis
 
-Aggiornato il 28 agosto 2026.
+Aggiornato il 5 settembre 2026.
 
 ## Stato del prodotto
 
@@ -67,6 +67,9 @@ Funzioni disponibili:
 - accettazione o rifiuto esplicito da parte del destinatario prima di entrare nella famiglia;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
+- salvataggi web protetti da coda locale persistente, retry automatico/manuale,
+  identificatori idempotenti e revisioni optimistic-lock; l’interfaccia distingue
+  gli stati sincronizzato, in corso, offline, pendente ed errore;
 - conteggio aggregato degli utenti iscritti mostrato sotto il logo agli utenti autenticati, senza accesso all’elenco globale dei profili;
 - caricamento differito delle pagine e dei moduli secondari per ridurre il bundle JavaScript iniziale;
 
@@ -109,6 +112,8 @@ Funzioni disponibili:
 - `src/lib/movements.ts`: inserimento, modifica, eliminazione e coerenza delle rate dipendenti.
 - `src/lib/scheduled.ts`: trasformazione delle rate scadute in movimenti effettivi.
 - `src/lib/storage.ts`: persistenza locale e migrazione delle versioni dei dati.
+- `src/lib/cloudSync.ts`: metadati persistenti della coda cloud, retry e
+  riconoscimento dei conflitti di revisione.
 - `src/lib/cloudData.ts`: separazione fra snapshot privato e record familiari, inclusa la copia sicura dei soli parziali condivisi.
 - `src/lib/seed.ts`: utenti e dati iniziali.
 - `src/features/CloudAccess.tsx`: autenticazione e onboarding famiglia.
@@ -464,6 +469,26 @@ Verifiche locali al 4 settembre 2026: 192 test web superati, lint e build Vite
 verdi; il browser locale ha verificato anche presenza, spiegazione e allineamento
 del campo “Spese bancarie” nel giro fondi. Anche il build non firmato del target
 Apple per simulatore è riuscito nell’ultima verifica dedicata.
+
+Il lavoro del 5 settembre 2026 rende resiliente la sincronizzazione ordinaria
+della web app. Ogni modifica aggiorna subito la copia locale e crea un marker
+persistente per utente e famiglia; il marker viene eliminato soltanto dopo la
+conferma del server. I retry usano lo stesso UUID, così una risposta di rete
+persa non duplica l’operazione. In presenza di revisioni divergenti il client
+ricarica il remoto, mantiene autorevoli i movimenti, le rate e i girofondi
+dell’autore ancora pendenti (incluse le cancellazioni), conserva i record degli
+altri membri e riprova con una nuova revisione. Gli eventi Realtime vengono
+rinviati finché la coda locale non è vuota.
+
+La migration locale `20260905130000_resilient_app_data_sync.sql` aggiunge le
+revisioni agli snapshot, il registro idempotente delle mutation e la RPC
+transazionale `save_app_data_snapshot`. I trigger incrementano le revisioni
+anche per i client precedenti che usano ancora gli upsert diretti, mantenendo la
+compatibilità col client Apple. La migration è stata applicata al progetto
+Supabase remoto il 5 settembre 2026; `migration list` è allineato e
+`db lint --linked --schema public` non rileva errori. Verifica locale: 200 test
+web, lint e build Vite superati. La prova visuale in browser non è stata
+eseguita perché in questa sessione non è disponibile il browser di collaudo.
 
 ## Hosting Cloudflare
 

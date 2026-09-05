@@ -39,4 +39,14 @@ describe('AppShell sidebar', () => {
 
     expect(screen.getByText('27 utenti stanno utilizzando questa app')).toBeTruthy()
   })
+
+  it('mostra lo stato cloud e permette di riprovare un salvataggio fallito', () => {
+    setMobile(false)
+    const onRetrySync = vi.fn()
+    render(<AppShell page="dashboard" user={users[0]} syncStatus="error" onRetrySync={onRetrySync} onPageChange={vi.fn()} onAddMovement={vi.fn()} onLogout={vi.fn()}>Contenuto</AppShell>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova sincronizzazione' }))
+    expect(screen.getByText('Sincronizzazione non riuscita')).toBeTruthy()
+    expect(onRetrySync).toHaveBeenCalledOnce()
+  })
 })

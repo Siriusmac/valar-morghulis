@@ -92,8 +92,11 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260816170000_multiple_commissioned_purchase_allocations.sql` e
    `supabase/migrations/20260829160000_withdraw_invitations.sql` e
    `supabase/migrations/20260829230000_repair_reimbursement_responses.sql` e
-   `supabase/migrations/20260830100000_confirmed_reimbursement_changes.sql` e
-   `supabase/migrations/20260830110000_fix_reimbursement_change_account_validation.sql`;
+   `supabase/migrations/20260830100000_confirmed_reimbursement_changes.sql`,
+   `supabase/migrations/20260830110000_fix_reimbursement_change_account_validation.sql`,
+   `supabase/migrations/20260901100000_family_loans.sql`,
+   `supabase/migrations/20260904120000_platform_admin_console.sql` e
+   `supabase/migrations/20260905130000_resilient_app_data_sync.sql`;
 3. pubblica le funzioni `invite-family-member` e
    `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
 4. configura il segreto della funzione con
@@ -172,6 +175,15 @@ conti familiari e relative anagrafiche sono invece conservati come record
 familiari normalizzati e aggiornati in tempo reale. Entrambi i livelli sono
 protetti da RLS. Il browser conserva una copia locale come cache.
 
+La web app conserva inoltre una coda locale persistente per ogni utente e
+famiglia. Se la rete o Supabase non rispondono, il dato resta marcato “Da
+sincronizzare” e viene ritentato automaticamente al ritorno online, al focus e
+alla riapertura dell’app; l’indicatore nella barra superiore permette anche il
+retry manuale. Ogni salvataggio usa un identificatore idempotente e aggiorna in
+un’unica transazione snapshot personale, snapshot familiare e record condivisi.
+Le revisioni impediscono a un aggiornamento Realtime o a un altro dispositivo
+di sovrascrivere silenziosamente modifiche locali ancora pendenti.
+
 La sezione “Account e famiglie” include una console utenti esclusivamente per
 gli amministratori globali della piattaforma, separati dagli amministratori
 delle singole famiglie. Espone soltanto iscrizione, conferma, ultima apertura e
@@ -186,7 +198,7 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica web completata il 4 settembre 2026: 192 test, lint e build Vite.
+Ultima verifica web completata il 5 settembre 2026: 200 test, lint e build Vite.
 I test coprono anche la distinzione fra account esistente, account nuovo e
 account creato da un invito ma non ancora completato, i rimborsi diretti o
 tramite acquisto, la modifica dei piani rateali sul totale e i menu ricercabili

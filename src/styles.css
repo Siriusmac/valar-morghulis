@@ -81,6 +81,11 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
 .avatar--large { width: 62px; height: 62px; font-size: 16px; }
 .main { grid-column: 2; min-width: 0; }
 .topbar { height: 86px; padding: 0 5vw; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid rgba(222,219,214,.65); background: rgba(251,250,248,.9); position: sticky; top: 0; z-index: 15; backdrop-filter: blur(12px); }
+.sync-indicator { min-height: 34px; margin-right: 12px; padding: 7px 11px; border: 1px solid transparent; border-radius: 999px; display: inline-flex; align-items: center; gap: 7px; background: var(--positive-soft); color: var(--positive); font-size: 9px; font-weight: 700; white-space: nowrap; }
+button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-weight: 700; }
+.sync-indicator svg { width: 15px; height: 15px; }
+.sync-indicator--pending { border-color: #ead7a7; background: #fff8e8; color: #86631f; }
+.sync-indicator--offline, .sync-indicator--error { border-color: #e2c2bf; background: #fff1ef; color: #9b3c35; }
 .menu-button, .mobile-brand { display: none; }
 .topbar__action { padding-inline: 20px; }
 .fab, .bottom-nav { display: none; }
@@ -771,6 +776,8 @@ h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
   .scrim { display: block; position: fixed; inset: 0; z-index: 25; border: 0; background: rgba(20,36,58,.35); }
   .main { min-height: 100vh; padding-bottom: 68px; }
   .topbar { height: 64px; padding: 0 17px; justify-content: space-between; }
+  .sync-indicator { min-height: 30px; margin: 0 8px 0 auto; padding: 6px 9px; font-size: 8px; }
+  .sync-indicator--synced { display: none; }
   .menu-button, .mobile-brand { display: inline-grid; }
   .mobile-brand { position: absolute; left: 50%; transform: translateX(-50%); }
   .topbar__action { display: none; }

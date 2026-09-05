@@ -40,9 +40,9 @@ export interface FamilySession {
   exportAccountData: () => Promise<AccountExportData>
   deleteAccount: () => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
-  saveAppData: (data: AppData) => Promise<void>
+  saveAppData: (data: AppData, mutationId?: string) => Promise<void>
   deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
-  subscribeToSharedData?: (onChange: () => void) => () => void
+  subscribeToSharedData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   createSharedAccount: (account: Account, familyId: string) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
   setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
@@ -208,6 +208,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   const [snapshot, setSnapshot] = useState<FamilySnapshot | null>(null)
   const [loading, setLoading] = useState(!needsPasswordSetup && !inviteToken && !contactInviteToken)
   const [error, setError] = useState('')
+  const [dataRevisions] = useState(() => new Map<string, { personalRevision: number; familyRevision: number }>())
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
@@ -367,6 +368,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   }
   const personalMode = !snapshot.family
   const activeFamilyId = snapshot.family?.id
+  const revisionKey = activeFamilyId ?? PERSONAL_WORKSPACE_ID
   return children({
     familyId: activeFamilyId ?? PERSONAL_WORKSPACE_ID,
     familyName: snapshot.family?.name ?? 'Contabilità personale',
@@ -491,11 +493,15 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     },
     loadAppData: async () => {
       const [privateResult, familyPrivateResult] = await Promise.all([
-        supabase.from('user_app_data').select('data').eq('user_id', snapshot.profile.id).maybeSingle(),
-        activeFamilyId ? supabase.from('family_user_app_data').select('data')
+        supabase.from('user_app_data').select('data, revision').eq('user_id', snapshot.profile.id).maybeSingle(),
+        activeFamilyId ? supabase.from('family_user_app_data').select('data, revision')
           .eq('family_id', activeFamilyId).eq('user_id', snapshot.profile.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       ])
       if (privateResult.error || familyPrivateResult.error) throw privateResult.error ?? familyPrivateResult.error
+      dataRevisions.set(revisionKey, {
+        personalRevision: Number(privateResult.data?.revision ?? 0),
+        familyRevision: Number(familyPrivateResult.data?.revision ?? 0),
+      })
       const [sharedResult, changeRequestsResult] = activeFamilyId ? await Promise.all([
         supabase.from('family_shared_records')
           .select('record_type, record_id, data').eq('family_id', activeFamilyId),
@@ -532,27 +538,26 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         })),
       }), snapshot.profile.id, snapshot.members)
     },
-    saveAppData: async (appData) => {
+    saveAppData: async (appData, mutationId) => {
       const payload = buildCloudPersistence(appData, snapshot.profile.id)
-      const [privateResult, sharedResult] = await Promise.all([
-        supabase.from('user_app_data').upsert({
-          user_id: snapshot.profile.id,
-          data: payload.privateData,
-        }, { onConflict: 'user_id' }),
-        activeFamilyId ? Promise.all([
-          supabase.from('family_user_app_data').upsert({
-            family_id: activeFamilyId,
-            user_id: snapshot.profile.id,
-            data: payload.familyPrivateData,
-          }, { onConflict: 'family_id,user_id' }),
-          supabase.rpc('sync_family_shared_records', {
-            target_family_id: activeFamilyId,
-            records: payload.sharedRecords,
-            owned_keys: payload.ownedKeys,
-          }),
-        ]).then(([familyPrivate, shared]) => ({ error: familyPrivate.error ?? shared.error })) : Promise.resolve({ error: null }),
-      ])
-      if (privateResult.error || sharedResult.error) throw privateResult.error ?? sharedResult.error
+      const revisions = dataRevisions.get(revisionKey) ?? { personalRevision: 0, familyRevision: 0 }
+      const { data: syncResult, error: syncError } = await supabase.rpc('save_app_data_snapshot', {
+        target_family_id: activeFamilyId ?? null,
+        personal_snapshot: payload.privateData,
+        family_snapshot: payload.familyPrivateData,
+        shared_records: payload.sharedRecords,
+        owned_keys: payload.ownedKeys,
+        expected_personal_revision: revisions.personalRevision,
+        expected_family_revision: revisions.familyRevision,
+        client_mutation_id: mutationId ?? globalThis.crypto.randomUUID(),
+      })
+      if (syncError) throw syncError
+      const nextRevisions = syncResult as { personalRevision?: number; familyRevision?: number | null } | null
+      if (!nextRevisions || typeof nextRevisions.personalRevision !== 'number') throw new Error('invalid_sync_revision')
+      dataRevisions.set(revisionKey, {
+        personalRevision: nextRevisions.personalRevision,
+        familyRevision: Number(nextRevisions.familyRevision ?? revisions.familyRevision),
+      })
       if (activeFamilyId) {
         const pendingAuthoredReimbursements = appData.reimbursements.filter((reimbursement) =>
           reimbursement.authorId === snapshot.profile.id && reimbursement.status === 'pending')
@@ -572,7 +577,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       })
       if (deleteError) throw deleteError
     },
-    subscribeToSharedData: activeFamilyId ? (onChange) => {
+    subscribeToSharedData: activeFamilyId ? (onChange, onStatus) => {
       const channel = supabase
         .channel(`family-shared-data:${activeFamilyId}:${snapshot.profile.id}`)
         .on('postgres_changes', {
@@ -587,7 +592,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           table: 'family_reimbursement_change_requests',
           filter: `family_id=eq.${activeFamilyId}`,
         }, onChange)
-        .subscribe()
+        .subscribe((status, error) => onStatus?.(status, error))
       return () => { void supabase.removeChannel(channel) }
     } : undefined,
     createSharedAccount: async (account, familyId) => {

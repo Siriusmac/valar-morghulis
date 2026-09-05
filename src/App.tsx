@@ -7,8 +7,9 @@ import { CloudAccess, type FamilySession } from './features/CloudAccess'
 import { accountBalance, reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
-import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, saveData } from './lib/storage'
+import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergePendingAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
+import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readPendingCloudSave, recordCloudSaveFailure, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
 import { createCommissionedPurchase, familyContacts, inviteContact, loadContactData, removeContact, respondToCommissionedPurchase, withdrawContactInvitation, type ContactData } from './lib/contacts'
@@ -91,63 +92,172 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [toast, setToast] = useState('')
   const [contactData, setContactData] = useState<ContactData>(emptyContactData)
   const [cloudDataReady, setCloudDataReady] = useState(!cloud)
-  const cloudSaveQueue = useRef<Promise<void>>(Promise.resolve())
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(cloud ? 'pending' : 'synced')
+  const [runCloudWrite] = useState(() => createCloudWriteQueue())
+  const cloudSaveRunning = useRef(false)
+  const cloudRetryTimer = useRef<number | undefined>(undefined)
+  const flushCloudSave = useRef<() => Promise<void>>(async () => undefined)
+  const refreshRemoteData = useRef<() => Promise<void>>(async () => undefined)
+  const remoteRefreshPending = useRef(false)
   const skipNextCloudSave = useRef(false)
   const sharedRefreshTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => { if (storageKey) saveData(data, storageKey); else saveData(data) }, [data, storageKey])
   useEffect(() => {
     if (!cloud || !storageKey) return
+    const fallback = () => cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
+    const scheduleRetry = (delay: number) => {
+      window.clearTimeout(cloudRetryTimer.current)
+      cloudRetryTimer.current = window.setTimeout(() => { void flushCloudSave.current() }, delay)
+    }
+    refreshRemoteData.current = async () => {
+      if (cloudSaveRunning.current || readPendingCloudSave(storageKey)) {
+        remoteRefreshPending.current = true
+        return
+      }
+      const remoteData = await cloud.loadAppData()
+      if (!remoteData) return
+      skipNextCloudSave.current = true
+      setData(hydrateData(remoteData, fallback()))
+    }
+    flushCloudSave.current = async () => {
+      if (cloudSaveRunning.current) return
+      const pending = readPendingCloudSave(storageKey)
+      if (!pending) {
+        setCloudSyncStatus('synced')
+        return
+      }
+      if (navigator.onLine === false) {
+        setCloudSyncStatus('offline')
+        return
+      }
+      cloudSaveRunning.current = true
+      window.clearTimeout(cloudRetryTimer.current)
+      setCloudSyncStatus('syncing')
+      let retryImmediately = false
+      let refreshAfterSave = false
+      try {
+        await runCloudWrite(() => cloud.saveAppData(loadData(storageKey, fallback()), pending.mutationId))
+        const cleared = clearCloudSavePending(storageKey, pending.mutationId)
+        if (cleared) {
+          setCloudSyncStatus('synced')
+          refreshAfterSave = remoteRefreshPending.current
+          remoteRefreshPending.current = false
+        } else {
+          setCloudSyncStatus('pending')
+          retryImmediately = true
+        }
+      } catch (reason) {
+        if (isCloudRevisionConflict(reason)) {
+          try {
+            const localData = loadData(storageKey, fallback())
+            const remoteData = await cloud.loadAppData()
+            const resolved = remoteData ? mergePendingAppData(remoteData, localData, fallback(), cloud.user.id) : localData
+            saveData(resolved, storageKey)
+            skipNextCloudSave.current = true
+            setData(resolved)
+            markCloudSavePending(storageKey)
+            setCloudSyncStatus('pending')
+            retryImmediately = true
+          } catch {
+            const failed = recordCloudSaveFailure(storageKey, pending.mutationId)
+            setCloudSyncStatus(browserIsOffline() ? 'offline' : 'error')
+            scheduleRetry(cloudSaveRetryDelay(failed?.attempts ?? 1))
+          }
+        } else {
+          const failed = recordCloudSaveFailure(storageKey, pending.mutationId)
+          setCloudSyncStatus(browserIsOffline() ? 'offline' : 'error')
+          scheduleRetry(cloudSaveRetryDelay(failed?.attempts ?? 1))
+        }
+      } finally {
+        cloudSaveRunning.current = false
+        if (retryImmediately) scheduleRetry(0)
+        else if (refreshAfterSave) void refreshRemoteData.current().catch(() => {
+          remoteRefreshPending.current = true
+        })
+      }
+    }
+    return () => window.clearTimeout(cloudRetryTimer.current)
+  }, [cloud, runCloudWrite, storageKey])
+  useEffect(() => {
+    if (!cloud || !storageKey) return
     let cancelled = false
     const sync = async () => {
       const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
       const localData = loadData(storageKey, fallback)
+      const pending = readPendingCloudSave(storageKey)
       const remoteData = await cloud.loadAppData()
       const importKey = cloudImportKey(cloud.familyId, cloud.user.id)
       const shouldImportLocal = !localStorage.getItem(importKey) && hasMeaningfulUserData(localData, cloud.user.id)
       const resolved = remoteData
-        ? (shouldImportLocal ? mergeAppData(remoteData, localData, fallback) : hydrateData(remoteData, fallback))
+        ? (pending
+            ? mergePendingAppData(remoteData, localData, fallback, cloud.user.id)
+            : shouldImportLocal ? mergeAppData(remoteData, localData, fallback) : hydrateData(remoteData, fallback))
         : localData
 
-      if (!remoteData || shouldImportLocal) await cloud.saveAppData(resolved)
+      const saveRequest = pending ?? ((!remoteData || shouldImportLocal) ? markCloudSavePending(storageKey) : null)
+      if (saveRequest) {
+        setCloudSyncStatus('syncing')
+        await runCloudWrite(() => cloud.saveAppData(resolved, saveRequest.mutationId))
+        clearCloudSavePending(storageKey, saveRequest.mutationId)
+      }
       if (cancelled) return
       saveData(resolved, storageKey)
       localStorage.setItem(importKey, '1')
+      skipNextCloudSave.current = true
       setData(resolved)
       setCloudDataReady(true)
+      setCloudSyncStatus('synced')
     }
     void sync().catch(() => {
       if (cancelled) return
+      skipNextCloudSave.current = true
       setCloudDataReady(true)
+      setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'error')
       setToast('Cloud non raggiungibile: i dati restano salvati su questo dispositivo')
     })
     return () => { cancelled = true }
-  }, [cloud, storageKey])
+  }, [cloud, runCloudWrite, storageKey])
   useEffect(() => {
-    if (!cloud || !cloudDataReady) return
+    if (!cloud || !cloudDataReady || !storageKey) return
     if (skipNextCloudSave.current) {
       skipNextCloudSave.current = false
       return
     }
-    cloudSaveQueue.current = cloudSaveQueue.current
-      .catch(() => undefined)
-      .then(() => cloud.saveAppData(data))
-      .catch(() => { setToast('Salvataggio cloud non riuscito: riproveremo alla prossima modifica') })
-  }, [cloud, cloudDataReady, data])
+    markCloudSavePending(storageKey)
+    setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'pending')
+    const timer = window.setTimeout(() => { void flushCloudSave.current() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [cloud, cloudDataReady, data, storageKey])
+  useEffect(() => {
+    if (!cloud || !storageKey) return
+    const retry = () => { if (readPendingCloudSave(storageKey)) void flushCloudSave.current() }
+    const handleOffline = () => { if (readPendingCloudSave(storageKey)) setCloudSyncStatus('offline') }
+    const handleVisibility = () => { if (document.visibilityState === 'visible') retry() }
+    window.addEventListener('online', retry)
+    window.addEventListener('focus', retry)
+    window.addEventListener('offline', handleOffline)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('online', retry)
+      window.removeEventListener('focus', retry)
+      window.removeEventListener('offline', handleOffline)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [cloud, storageKey])
   useEffect(() => {
     if (!cloud || !cloudDataReady || !cloud.subscribeToSharedData) return
     const refresh = () => {
       window.clearTimeout(sharedRefreshTimer.current)
       sharedRefreshTimer.current = window.setTimeout(() => {
-        void cloud.loadAppData().then((remoteData) => {
-          if (!remoteData) return
-          const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
-          skipNextCloudSave.current = true
-          setData(hydrateData(remoteData, fallback))
-        }).catch(() => setToast('Aggiornamento familiare non riuscito: riproveremo automaticamente'))
+        void refreshRemoteData.current().catch(() => setToast('Aggiornamento familiare non riuscito: riproveremo automaticamente'))
       }, 250)
     }
-    const unsubscribe = cloud.subscribeToSharedData(refresh)
+    const unsubscribe = cloud.subscribeToSharedData(refresh, (status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setToast('Collegamento in tempo reale interrotto: i salvataggi continuano e la connessione verrà ripristinata')
+      }
+    })
     return () => {
       window.clearTimeout(sharedRefreshTimer.current)
       unsubscribe()
@@ -271,7 +381,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       try {
         // La conferma controlla il collegamento server-side: il rimborso deve
         // esistere prima della richiesta d'acquisto che lo referenzia.
-        await cloud.saveAppData(nextData)
+        await runCloudWrite(() => cloud.saveAppData(nextData))
         await Promise.all(prepared.flatMap((item) => item.purchaseId && item.payerMovementId ? [createCommissionedPurchase({
           id: item.purchaseId,
           recipientId: item.reimbursement.toId,
@@ -283,7 +393,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
           description: item.submission.description ?? 'Acquisto in compensazione del rimborso',
         })] : []))
       } catch {
-        await cloud.saveAppData(data).catch(() => undefined)
+        await runCloudWrite(() => cloud.saveAppData(data)).catch(() => undefined)
         setToast('Non è stato possibile inviare la richiesta di compensazione')
         return
       }
@@ -375,23 +485,15 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     await cloud.withdrawReimbursementChange(requestId)
     setToast('Richiesta di rettifica ritirata')
   }
-  const saveTransfer = async (transfer: Transfer) => {
-    const nextData = saveTransferData(data, transfer)
-    if (cloud) await cloud.saveAppData(nextData)
+  const saveTransfer = (transfer: Transfer) => {
     setData((current) => saveTransferData(current, transfer))
     setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : null)
-    setToast('Giro fondi salvato e saldi aggiornati')
+    setToast(cloud ? 'Giro fondi salvato sul dispositivo e accodato per la sincronizzazione' : 'Giro fondi salvato e saldi aggiornati')
   }
-  const deleteTransfer = async (id: string) => {
-    try {
-      const nextData = deleteTransferData(data, id)
-      if (cloud) await cloud.saveAppData(nextData)
-      setData((current) => deleteTransferData(current, id))
-      setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : current)
-      setToast('Giro fondi eliminato e saldi aggiornati')
-    } catch {
-      setToast('Non è stato possibile eliminare il giro fondi')
-    }
+  const deleteTransfer = (id: string) => {
+    setData((current) => deleteTransferData(current, id))
+    setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : current)
+    setToast(cloud ? 'Giro fondi eliminato sul dispositivo e accodato per la sincronizzazione' : 'Giro fondi eliminato e saldi aggiornati')
   }
   const updateAccount = (account: AppData['accounts'][number]) => {
     setData((current) => ({ ...current, accounts: current.accounts.map((item) => item.id === account.id ? account : item) }))
@@ -485,7 +587,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       : data
     if (cloud) {
       try {
-        if (reimbursement) await cloud.saveAppData(dataWithReimbursement)
+        if (reimbursement) await runCloudWrite(() => cloud.saveAppData(dataWithReimbursement))
         await createCommissionedPurchase({
           id: draft.id, recipientId: draft.recipientId, invitationId,
           familyId: isFamilyMember && !cloud.personalMode ? cloud.familyId : undefined,
@@ -494,7 +596,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
           purchaseDate: draft.purchaseDate, description: draft.description,
         })
       } catch (reason) {
-        if (reimbursement) await cloud.saveAppData(data).catch(() => undefined)
+        if (reimbursement) await runCloudWrite(() => cloud.saveAppData(data)).catch(() => undefined)
         throw reason
       }
       await refreshContacts()
@@ -560,7 +662,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
@@ -577,6 +679,10 @@ function FeatureLoading({ compact = false }: { compact?: boolean }) {
 
 function cloudImportKey(familyId: string, userId: string) {
   return `valar-morghulis:cloud-imported:${familyId}:${userId}:v1`
+}
+
+function browserIsOffline() {
+  return navigator.onLine === false
 }
 
 function mergeContacts(family: Contact[], friends: Contact[]) {

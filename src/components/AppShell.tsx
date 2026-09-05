@@ -1,9 +1,10 @@
 import {
-  BookOpen, Building2, CalendarClock, ContactRound, CreditCard, HandCoins, LayoutDashboard, LogOut, Menu, Plus,
-  ReceiptText, Tag, Tags, X,
+  BookOpen, Building2, CalendarClock, CheckCircle2, CloudOff, ContactRound, CreditCard, HandCoins, LayoutDashboard,
+  LoaderCircle, LogOut, Menu, Plus, ReceiptText, RefreshCw, Tag, Tags, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Brand } from './Brand'
+import type { CloudSyncStatus } from '../lib/cloudSync'
 import type { PageId, User } from '../types'
 
 const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
@@ -25,12 +26,14 @@ interface Props {
   user: User
   registeredUserCount?: number
   contactsEnabled?: boolean
+  syncStatus?: CloudSyncStatus
+  onRetrySync?: () => void
   onPageChange: (page: PageId) => void
   onAddMovement: () => void
   onLogout: () => void
 }
 
-export function AppShell({ children, page, user, registeredUserCount, contactsEnabled = false, onPageChange, onAddMovement, onLogout }: Props) {
+export function AppShell({ children, page, user, registeredUserCount, contactsEnabled = false, syncStatus, onRetrySync, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches)
   useEffect(() => {
@@ -78,6 +81,7 @@ export function AppShell({ children, page, user, registeredUserCount, contactsEn
         <header className="topbar">
           <button className="icon-button menu-button" onClick={() => setMenuOpen(true)} aria-label="Apri menu"><Menu /></button>
           <div className="mobile-brand"><Brand compact /></div>
+          {syncStatus ? <SyncIndicator status={syncStatus} onRetry={onRetrySync} /> : null}
           <button className="button button--primary topbar__action" onClick={onAddMovement}><Plus /> <span>Aggiungi movimento</span></button>
         </header>
         {children}
@@ -92,4 +96,20 @@ export function AppShell({ children, page, user, registeredUserCount, contactsEn
       </main>
     </div>
   )
+}
+
+function SyncIndicator({ status, onRetry }: { status: CloudSyncStatus; onRetry?: () => void }) {
+  const content = status === 'synced'
+    ? <><CheckCircle2 />Sincronizzato</>
+    : status === 'syncing'
+      ? <><LoaderCircle className="spin" />Sincronizzazione…</>
+      : status === 'offline'
+        ? <><CloudOff />Offline · da sincronizzare</>
+        : status === 'error'
+          ? <><RefreshCw />Sincronizzazione non riuscita</>
+          : <><RefreshCw />Da sincronizzare</>
+  if (status === 'synced' || status === 'syncing') {
+    return <span className={`sync-indicator sync-indicator--${status}`} role="status">{content}</span>
+  }
+  return <button type="button" className={`sync-indicator sync-indicator--${status}`} onClick={onRetry} aria-label="Riprova sincronizzazione">{content}</button>
 }

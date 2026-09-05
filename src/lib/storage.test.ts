@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createStarterData } from './seed'
-import { hasMeaningfulUserData, hydrateData, mergeAppData } from './storage'
+import { hasMeaningfulUserData, hydrateData, mergeAppData, mergePendingAppData } from './storage'
 import type { Account, Movement } from '../types'
 
 const sharedAccount: Account = {
@@ -102,5 +102,16 @@ describe('persistenza dei dati operativi', () => {
     expect(hydrated.movements).toEqual([movement])
     expect(hydrated.accounts.some((account) => account.id === 'user-1-cash')).toBe(true)
     expect(hydrated.categories.length).toBeGreaterThan(0)
+  })
+
+  it('non resuscita una cancellazione locale ancora da sincronizzare', () => {
+    const fallback = createStarterData('user-1', [sharedAccount])
+    const otherMovement = { ...movement, id: 'movement-2', authorId: 'user-2', memberId: 'user-2' }
+    const local = { ...fallback, movements: [] }
+    const remote = { ...fallback, movements: [movement, otherMovement] }
+
+    const merged = mergePendingAppData(remote, local, fallback, 'user-1')
+
+    expect(merged.movements).toEqual([otherMovement])
   })
 })

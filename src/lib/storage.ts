@@ -128,6 +128,24 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
   }, fallbackData)
 }
 
+export function mergePendingAppData(remote: Partial<AppData>, local: AppData, fallbackData: AppData, userId: UserId): AppData {
+  const remoteData = hydrateData(remote, fallbackData)
+  const merged = mergeAppData(remoteData, local, fallbackData)
+  const preserveLocalAuthoredState = <T extends { authorId: UserId }>(localItems: T[], remoteItems: T[]) => [
+    ...localItems.filter((item) => item.authorId === userId),
+    ...remoteItems.filter((item) => item.authorId !== userId),
+  ]
+  return hydrateData({
+    ...merged,
+    // Se esiste un salvataggio locale pendente, l'elenco dell'autore è
+    // autorevole anche per le cancellazioni. I record degli altri membri
+    // continuano invece ad arrivare dal database.
+    movements: preserveLocalAuthoredState(local.movements, remoteData.movements),
+    scheduledPayments: preserveLocalAuthoredState(local.scheduledPayments, remoteData.scheduledPayments),
+    transfers: preserveLocalAuthoredState(local.transfers, remoteData.transfers),
+  }, fallbackData)
+}
+
 function mergePreferredById<T extends { id: string }>(preferred: T[], existing: T[]) {
   const preferredIds = new Set(preferred.map((item) => item.id))
   return [...preferred, ...existing.filter((item) => !preferredIds.has(item.id))]
