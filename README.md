@@ -70,6 +70,21 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ## Configurare iscrizione e famiglie
 
+Dal 7 settembre gli inviti familiari richiedono anche l'approvazione
+dell'amministratore dopo il consenso dell'invitato. La migration
+`20260907120000_family_admission_approval.sql` è applicata in produzione. Gli inviti ai contatti
+restano distinti e non concedono accesso alla famiglia. La rimozione dei membri
+è ancora da implementare con due scelte concordate: mantenere movimenti e
+quote storiche oppure eliminare i movimenti familiari del membro e ricalcolare
+fra i membri rimasti. Account e dati personali non vengono cancellati; vedi HANDOFF.
+
+I cinque template Auth sKey sono pubblicati e il mittente SMTP è “Attivazione
+sKey”. La migration degli avvisi di inattività e la funzione server sono
+distribuite, ma l'invio resta disattivato: non esistono scheduler o cancellazioni
+automatiche e la policy nasce disabilitata. La proposta resta 180 giorni + 30
+di preavviso, con annullamento al ritorno nell'app. Vedi
+[Email e inattività](docs/email-e-inattivita.md).
+
 L’ambiente di produzione utilizza Supabase per autenticazione, famiglie, inviti
 e conti condivisi. Per configurare un nuovo ambiente:
 
@@ -99,9 +114,12 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260901100000_family_loans.sql`,
    `supabase/migrations/20260904120000_platform_admin_console.sql` e
    `supabase/migrations/20260905130000_resilient_app_data_sync.sql` e
-   `supabase/migrations/20260905150000_commissioned_reimbursement_confirmation.sql`;
-3. pubblica le funzioni `invite-family-member` e
-   `notify-family-reimbursement`, oltre a `invite-contact` per la rubrica;
+   `supabase/migrations/20260905150000_commissioned_reimbursement_confirmation.sql`,
+   `supabase/migrations/20260905220000_inactivity_notices.sql` e
+   `supabase/migrations/20260907120000_family_admission_approval.sql`;
+3. pubblica le funzioni `invite-family-member`, `notify-family-reimbursement`
+   e `invite-contact`; `send-inactivity-notices` va pubblicata senza verifica
+   JWT soltanto insieme alle protezioni descritte nella documentazione;
 4. configura il segreto della funzione con
    `APP_URL=https://www.skeyapp.com`;
 5. copia `.env.example` in `.env.local` e inserisci URL e chiave pubblica del
@@ -122,8 +140,8 @@ supabase secrets set APP_URL=https://www.skeyapp.com
 
 Gli inviti usano due flussi separati: il template Supabase Auth **Magic Link**
 per chi possiede già un account e il template **Invite user** per chi deve
-crearlo. I contenuti HTML versionati in `supabase/email-templates/` vanno
-copiati nei corrispondenti template del progetto Supabase ospitato. In questo
+crearlo. I contenuti HTML versionati in `supabase/email-templates/` sono
+pubblicati nei corrispondenti template del progetto Supabase ospitato. In questo
 modo la mail propone rispettivamente “Usa il tuo account esistente” oppure
 “Crea il tuo account”, senza chiedere una seconda registrazione allo stesso
 indirizzo.

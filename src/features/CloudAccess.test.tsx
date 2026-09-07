@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { afterEach, vi } from 'vitest'
-import { CloudLogin, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
+import { CloudLogin, ContactInvitationDecision, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
 import { functionErrorMessage, invitationInvokeError } from '../lib/functionErrors'
 
 const { rpc, updateUser } = vi.hoisted(() => ({ rpc: vi.fn(), updateUser: vi.fn() }))
@@ -44,6 +44,17 @@ describe('functionErrorMessage', () => {
 })
 
 describe('InvitationDecision', () => {
+  it('waits for administrator approval without granting or selecting a family', async () => {
+    const onResolved = vi.fn()
+    rpc.mockResolvedValue({ data: null, error: null })
+    render(<InvitationDecision token="pending-token" onResolved={onResolved} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Accetta invito' }))
+    await screen.findByText('In attesa dell’amministratore')
+    expect(onResolved).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Continua nel tuo spazio' }))
+    expect(onResolved).toHaveBeenCalledWith(null)
+  })
+
   it('accepts an invitation explicitly', async () => {
     const onResolved = vi.fn()
     rpc.mockResolvedValue({ data: 'family-one', error: null })
@@ -64,6 +75,17 @@ describe('InvitationDecision', () => {
 
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('decline_family_invitation', { invitation_token: 'token-two' }))
     expect(onResolved).toHaveBeenCalledWith(null)
+  })
+})
+
+describe('ContactInvitationDecision', () => {
+  it('accepts a circle invitation without calling any family RPC', async () => {
+    const onResolved = vi.fn()
+    rpc.mockResolvedValue({ data: 'inviter', error: null })
+    render(<ContactInvitationDecision token="contact-token" onResolved={onResolved} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Accetta invito' }))
+    await waitFor(() => expect(onResolved).toHaveBeenCalledOnce())
+    expect(rpc.mock.calls).toEqual([['accept_contact_invitation', { invitation_token: 'contact-token' }]])
   })
 })
 

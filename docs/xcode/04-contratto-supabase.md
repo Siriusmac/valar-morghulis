@@ -25,6 +25,15 @@ Usare il progetto Supabase esistente. URL e chiave pubblicabile arrivano dalla c
 
 ## RPC
 
+Revisione del 7 settembre applicata al progetto Supabase di produzione:
+`accept_family_invitation` registra il consenso e restituisce null, senza
+creare membership. `review_family_admission(target_invitation_id, approve)`
+è riservata agli amministratori e concede l'accesso solo dopo consenso valido.
+`family_invitations.requested_at` identifica le richieste da approvare; un
+reinvio invalida il consenso precedente. La UI nativa deve distinguere questo
+stato dal semplice invito in attesa e aggiungere le due azioni amministrative.
+Le membership già esistenti non cambiano e la rimozione è ancora da definire.
+
 - `is_platform_admin()`
 - `record_user_activity()`
 - `platform_admin_user_overview()`

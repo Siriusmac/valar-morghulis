@@ -302,6 +302,17 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
     } catch (reason) { setError(errorText(reason)) }
     finally { setInvitationBusy('') }
   }
+  const reviewAdmission = async (invitationId: string, invitationEmail: string, approve: boolean) => {
+    if (!cloud.reviewFamilyAdmission || !confirm(approve
+      ? `Consentire a ${invitationEmail} di entrare in ${cloud.familyName} e vedere i dati condivisi? Non è un semplice contatto della cerchia.`
+      : `Rifiutare l’ingresso di ${invitationEmail} nella famiglia?`)) return
+    setInvitationBusy(invitationId); setError(''); setMessage('')
+    try {
+      await cloud.reviewFamilyAdmission(invitationId, approve)
+      setMessage(approve ? 'Ingresso in famiglia approvato.' : 'Ingresso in famiglia rifiutato.')
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setInvitationBusy('') }
+  }
 
   return <section className="settings-card">
     <div className="settings-card__heading"><span><UsersRound /></span><div><h2>Amministra {cloud.familyName}</h2><p>Il tuo ruolo in questa famiglia è amministratore.</p></div></div>
@@ -316,11 +327,14 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
       <label>Email del nuovo membro<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@email.it" required /></label>
       <button className="button button--primary" disabled={Boolean(busy)}><Mail /> Invia invito</button>
     </form>
+    <p className="settings-card__note">Per aggiungere solo un contatto usa “Contatti”, non questo invito familiare. L’ingresso in famiglia richiede l’accettazione dell’invitato e la tua successiva approvazione.</p>
     <div className="family-invitation-list" aria-label={`${cloud.invitations.length} inviti non accettati`}>
-      <div className="family-invitation-list__heading"><strong>Inviti inviati</strong><small>Gli utenti che hanno accettato sono già elencati tra i membri.</small></div>
+      <div className="family-invitation-list__heading"><strong>Inviti inviati</strong><small>Solo dopo la tua approvazione l’invitato diventa un membro.</small></div>
       {cloud.invitations.length ? cloud.invitations.map((invitation) => <div className={`family-invitation family-invitation--${invitation.status}`} key={invitation.id}>
-        <span><strong>{invitation.email}</strong><small>{invitation.status === 'declined' ? 'Invito rifiutato' : invitation.status === 'expired' ? 'Invito scaduto' : `In attesa · scade il ${formatInvitationDate(invitation.expiresAt)}`}</small></span>
-        {invitation.status === 'declined'
+        <span><strong>{invitation.email}</strong><small>{invitation.status === 'awaiting_admin' ? 'Accettato · attende la tua approvazione' : invitation.status === 'declined' ? 'Invito rifiutato' : invitation.status === 'expired' ? 'Invito scaduto' : `In attesa · scade il ${formatInvitationDate(invitation.expiresAt)}`}</small></span>
+        {invitation.status === 'awaiting_admin'
+          ? <span className="family-invitation__actions"><button type="button" className="button button--primary button--small" disabled={Boolean(invitationBusy) || !cloud.reviewFamilyAdmission} onClick={() => void reviewAdmission(invitation.id, invitation.email, true)}>Approva ingresso</button><button type="button" className="button button--ghost button--small button--danger" disabled={Boolean(invitationBusy) || !cloud.reviewFamilyAdmission} onClick={() => void reviewAdmission(invitation.id, invitation.email, false)}>Rifiuta ingresso</button></span>
+          : invitation.status === 'declined'
           ? <button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void removeInvitation(invitation.id, invitation.email)}><Trash2 /> Elimina dall’elenco</button>
           : <span className="family-invitation__actions"><button type="button" className="button button--ghost button--small" disabled={Boolean(invitationBusy)} onClick={() => void resend(invitation.id, invitation.email)}><RefreshCw className={invitationBusy === invitation.id ? 'spin' : ''} /> Reinvia invito</button>{invitation.status === 'pending' ? <button type="button" className="button button--ghost button--small button--danger" disabled={Boolean(invitationBusy)} onClick={() => void withdrawInvitation(invitation.id, invitation.email)}><Trash2 /> Ritira invito</button> : null}</span>}
       </div>) : <p className="settings-card__note">Non ci sono inviti in attesa o rifiutati.</p>}

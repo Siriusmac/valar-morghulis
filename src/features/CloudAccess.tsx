@@ -11,6 +11,7 @@ import { reconcilePurchaseReimbursementMovements } from '../lib/commissioned'
 import { reconcileConfirmedLoanPurchases } from '../lib/loans'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
+import { observeUserActivity } from '../lib/userActivity'
 import type { Account, AppData, Loan, LoanRepayment, ReimbursementAccountReference, ReimbursementChangeRequest, User } from '../types'
 
 export const PERSONAL_WORKSPACE_ID = 'personal'
@@ -33,6 +34,7 @@ export interface FamilySession {
   inviteMember: (email: string) => Promise<void>
   withdrawInvitation: (invitationId: string) => Promise<void>
   deleteInvitation: (invitationId: string) => Promise<void>
+  reviewFamilyAdmission?: (invitationId: string, approve: boolean) => Promise<void>
   deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
   updateProfileName: (firstName: string, lastName: string) => Promise<void>
   updateEmail: (email: string) => Promise<void>
@@ -79,7 +81,7 @@ export interface FamilyOption {
 export interface FamilyInvitation {
   id: string
   email: string
-  status: 'pending' | 'expired' | 'declined'
+  status: 'pending' | 'expired' | 'declined' | 'awaiting_admin'
   createdAt: string
   expiresAt: string
 }
@@ -105,6 +107,12 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
     })
     return () => data.subscription.unsubscribe()
   }, [supabase])
+
+  const activityUserId = session?.user.id
+  useEffect(() => {
+    if (!activityUserId) return
+    return observeUserActivity(() => supabase.rpc('record_user_activity'))
+  }, [activityUserId, supabase])
 
   if (loading) return <AccessLoading label="Prepariamo il tuo spazio" />
   if (!session) return <CloudLogin />
@@ -213,7 +221,6 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
-    const activityPromise = supabase.rpc('record_user_activity')
     const platformAdminUsersPromise = loadPlatformAdminUsers(supabase)
     const { data: profile, error: profileError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email, onboarding_completed').eq('id', session.user.id).single()
     if (profileError) { setError(profileError.message); setLoading(false); return }
@@ -224,7 +231,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       .eq('user_id', session.user.id)
     if (membershipError) { setError(membershipError.message); setLoading(false); return }
     const familyIds = memberships.map((item) => item.family_id)
-    const [platformAdminUsers] = await Promise.all([platformAdminUsersPromise, activityPromise])
+    const platformAdminUsers = await platformAdminUsersPromise
     const [familiesResult, reimbursementAccountsResult] = familyIds.length ? await Promise.all([
       supabase.from('families').select('id, name, onboarding_completed').in('id', familyIds),
       supabase.from('family_reimbursement_accounts')
@@ -275,7 +282,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
       supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
       membership.role === 'admin'
-        ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at').eq('family_id', activeFamilyId)
+        ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at, requested_at').eq('family_id', activeFamilyId)
         : Promise.resolve({ data: [], error: null }),
     ])
     if (membershipsResult.error || accountsResult.error || invitationsResult.error) {
@@ -299,7 +306,8 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           email: invitation.email,
           status: invitation.declined_at
             ? 'declined' as const
-            : new Date(invitation.expires_at).getTime() <= Date.now() ? 'expired' as const : 'pending' as const,
+            : new Date(invitation.expires_at).getTime() <= Date.now() ? 'expired' as const
+              : invitation.requested_at ? 'awaiting_admin' as const : 'pending' as const,
           createdAt: invitation.created_at,
           expiresAt: invitation.expires_at,
         })),
@@ -418,6 +426,13 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         target_invitation_id: invitationId,
       })
       if (withdrawError) throw withdrawError
+      await load(activeFamilyId)
+    },
+    reviewFamilyAdmission: async (invitationId, approve) => {
+      const { error: reviewError } = await supabase.rpc('review_family_admission', {
+        target_invitation_id: invitationId, approve,
+      })
+      if (reviewError) throw new Error(onboardingMessage(reviewError.message))
       await load(activeFamilyId)
     },
     deleteInvitation: async (invitationId) => {
@@ -783,7 +798,8 @@ export function InvitationDecision({ token, onResolved }: {
       invitation_token: token,
     })
     if (acceptError) { setError(onboardingMessage(acceptError.message)); setBusy(''); return }
-    onResolved(familyId)
+    if (familyId) onResolved(familyId)
+    else { setSubmitted(true); setBusy('') }
   }
   const decline = async () => {
     setBusy('decline'); setError('')
@@ -794,12 +810,19 @@ export function InvitationDecision({ token, onResolved }: {
     onResolved(null)
   }
 
+  const [submitted, setSubmitted] = useState(false)
+  if (submitted) return <AccessLayout compact><div className="onboarding-card invitation-decision">
+    <h2>In attesa dell’amministratore</h2>
+    <p>Hai accettato l’invito. Non hai ancora accesso ai dati familiari: l’amministratore deve approvare il tuo ingresso.</p>
+    <button type="button" className="button button--primary" onClick={() => onResolved(null)}>Continua nel tuo spazio</button>
+  </div></AccessLayout>
+
   return <AccessLayout compact>
     <div className="onboarding-card invitation-decision">
       <span className="onboarding-icon"><UsersRound /></span>
       <span className="eyebrow">Invito familiare</span>
       <h2>Vuoi entrare nella famiglia?</h2>
-      <p>Se accetti, vedrai i conti e i movimenti condivisi. I tuoi conti e movimenti personali resteranno privati.</p>
+      <p>Questo è un invito alla famiglia, non alla cerchia. Dopo la tua accettazione, un amministratore dovrà approvare l’ingresso prima che tu possa vedere conti e movimenti condivisi. I dati personali resteranno privati.</p>
       {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
       <div className="invitation-decision__actions">
         <button type="button" className="button button--primary button--full" disabled={Boolean(busy)} onClick={() => void accept()}>
@@ -814,7 +837,7 @@ export function InvitationDecision({ token, onResolved }: {
   </AccessLayout>
 }
 
-function ContactInvitationDecision({ token, onResolved }: { token: string; onResolved: () => void }) {
+export function ContactInvitationDecision({ token, onResolved }: { token: string; onResolved: () => void }) {
   const supabase = getSupabase()
   const [busy, setBusy] = useState<'accept' | 'decline' | ''>('')
   const [error, setError] = useState('')
@@ -962,7 +985,7 @@ function InviteFamily({ family, onCompleted }: { family: FamilyRow; onCompleted:
       <OnboardingSteps active={2} />
       <span className="onboarding-icon"><Mail /></span>
       <h2>Invita i membri</h2>
-      <p>Riceveranno un link personale e troveranno già attivi i conti condivisi di <strong>{family.name}</strong>.</p>
+      <p>Riceveranno un invito alla famiglia <strong>{family.name}</strong>. Dopo la loro accettazione dovrai approvare l’ingresso da Account e famiglie. Per aggiungere solo amici alla cerchia usa Contatti.</p>
       <form onSubmit={invite} className="invite-form">
         <label>Email del familiare<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nome@email.it" required /></label>
         <button className="button button--secondary" disabled={busy}><Mail /> Invia invito</button>
@@ -1011,6 +1034,10 @@ function authMessage(message: string) {
 }
 
 function onboardingMessage(message: string) {
+  if (message.includes('admin_required')) return 'Solo un amministratore della famiglia può eseguire questa operazione.'
+  if (message.includes('recipient_consent_required')) return 'L’invitato deve prima accettare l’invito.'
+  if (message.includes('cannot_approve_self')) return 'Non puoi approvare il tuo stesso ingresso.'
+  if (message.includes('invitation_already_resolved')) return 'Questo invito è già stato risolto. Aggiorna l’elenco.'
   if (message.includes('user_already_in_family')) return 'Questo account appartiene già a questa famiglia.'
   if (message.includes('invalid_or_expired_invitation')) return 'Questo invito non è valido o è scaduto.'
   if (message.includes('invitation_declined_requires_removal')) return 'Questo invito è stato rifiutato. Eliminalo dall’elenco prima di invitare nuovamente la persona.'

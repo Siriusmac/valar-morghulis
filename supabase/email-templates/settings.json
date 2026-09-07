@@ -1,0 +1,11 @@
+{
+  "site_url": "https://www.skeyapp.com",
+  "smtp_sender_name": "Attivazione sKey",
+  "templates": {
+    "confirmation": { "subject": "Attiva il tuo account sKey", "file": "confirmation.html" },
+    "invite": { "subject": "Hai ricevuto un invito a sKey", "file": "invite.html" },
+    "magic_link": { "subject": "Accedi al tuo invito sKey", "file": "magic-link.html" },
+    "recovery": { "subject": "Reimposta la password di sKey", "file": "recovery.html" },
+    "email_change": { "subject": "Conferma il nuovo indirizzo email di sKey", "file": "email-change.html" }
+  }
+}

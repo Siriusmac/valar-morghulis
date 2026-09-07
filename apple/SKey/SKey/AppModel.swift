@@ -62,6 +62,9 @@ final class AppModel {
     private var currentUserID: UUID?
 
     @ObservationIgnored
+    private var isForeground = false
+
+    @ObservationIgnored
     private var authObservationTask: Task<Void, Never>?
 
     @ObservationIgnored
@@ -806,6 +809,7 @@ final class AppModel {
         sessionState = .signedIn(email: session.user.email)
 
         if needsWorkspaceLoad {
+            await recordForegroundActivity()
             await reloadWorkspace()
         }
         PushNotificationCoordinator.shared.requestAuthorizationAndRegister()
@@ -818,6 +822,18 @@ final class AppModel {
             pendingCommissionedPurchaseID = purchaseRoute.purchaseID
             await reloadWorkspace()
         }
+    }
+
+    func setForeground(_ active: Bool) async {
+        isForeground = active
+        if active { await recordForegroundActivity() }
+    }
+
+    private func recordForegroundActivity() async {
+        guard isForeground, currentUserID != nil, let supabase else { return }
+        // Server throttles timestamps but cancels an open inactivity notice immediately.
+        // Session refreshes do not call this method.
+        _ = try? await supabase.rpc("record_user_activity").execute()
     }
 
     private func resetSignedOutState() {

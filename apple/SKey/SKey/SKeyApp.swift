@@ -16,10 +16,14 @@ struct SKeyApp: App {
     #endif
 
     @State private var appModel = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView(appModel: appModel)
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    Task { await appModel.setForeground(phase == .active) }
+                }
         }
 
         #if os(macOS)

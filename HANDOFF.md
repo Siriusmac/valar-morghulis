@@ -1,6 +1,61 @@
 # Handoff — sKey
 
-Aggiornato il 5 settembre 2026.
+Aggiornato il 7 settembre 2026.
+
+## Ingressi familiari — pubblicato il 7 settembre
+
+Il controllo dei sorgenti conferma flussi separati: `invite-contact` usa
+`contactInvite` e `accept_contact_invitation` scrive soltanto il collegamento
+tra contatti (e associa eventuali acquisti pendenti). Non scrive membership.
+La causa del singolo ingresso segnalato non è stata verificata sul database
+di produzione: non attribuirla automaticamente a questo flusso.
+
+La migration `20260907120000_family_admission_approval.sql`, applicata al
+progetto Supabase di produzione, sostituisce
+l'ingresso immediato con consenso dell'invitato seguito da approvazione admin.
+`accept_family_invitation` restituisce null senza inserire membri;
+`review_family_admission` verifica amministratore, consenso, scadenza, email
+confermata e impedisce auto-approvazioni. I nuovi campi di consenso non possono
+essere precompilati con un INSERT client. Il reinvio invalida il vecchio consenso.
+La web app mostra attesa, approvazione e rifiuto. Nessuna membership esistente
+è modificata. UI amministrativa Apple ancora da allineare.
+
+Rimozione membri NON ancora implementata. Il titolare ha definito due scelte
+da presentare esplicitamente prima della revoca:
+
+- Mantieni nello storico: conserva i movimenti generati dal membro e le quote
+  passate; il membro perde l'accesso e non partecipa alle operazioni future.
+- Elimina e ricalcola: elimina i suoi movimenti dalla contabilità familiare e
+  ricalcola le quote fra i membri rimasti, come se non fosse entrato.
+
+Nessuna scelta deve cancellare l'account sKey o i dati personali dell'utente.
+La scelta distruttiva richiede conferma esplicita con riepilogo degli effetti.
+Il calcolo corrente dipende dal numero attuale di membri e la FK di
+`family_user_app_data` ha ON DELETE CASCADE: non eliminare direttamente la
+membership. Prima di abilitare la RPC occorre conservare le quote storiche
+per l'opzione Mantieni, gestire rimborsi/prestiti e acquisti collegati in
+entrambi i versi, e impedire la ricomparsa dei dati eliminati dalle cache.
+
+Verifica locale: 217 test web, lint, build e controllo Cloudflare superati.
+Restano da collaudare il flusso autenticato a due utenti, la concorrenza e la UI
+Apple. Nessuna eliminazione reale è stata eseguita.
+
+## Revisione email e inattività — pubblicata in modalità disattivata
+
+La base iniziale è main pulito e allineato a origin/main a `73a5f1c`.
+I cinque template Auth sono pubblicati e il mittente SMTP ospitato è
+“Attivazione sKey”. Gli avvisi usano una coda privata nella migration applicata
+`20260905220000_inactivity_notices.sql`, la Edge Function
+`send-inactivity-notices` distribuita e un adapter Resend opzionale.
+La proposta è 180 giorni senza attività + 30 di preavviso. La web app segnala
+le aperture visibili e il client Apple segnala il primo piano. Nessuna
+cancellazione account automatica o email di inattività è attiva: policy,
+segreti e scheduler sono assenti/disabilitati. Specifiche e collaudo richiesto
+in `docs/email-e-inattivita.md`.
+
+Verifiche complessive: 217 test web, lint, build Vite e controllo Cloudflare
+riusciti; build iOS Simulator non firmata già riuscita. SQL/RLS, consegna reale
+delle email e runtime della Edge Function restano da collaudare in staging.
 
 ## Stato del prodotto
 

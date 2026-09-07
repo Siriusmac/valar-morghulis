@@ -35,6 +35,14 @@ in `platform_admins`. Mostra dati minimi di account e attività, mai saldi,
 movimenti o descrizioni contabili. La semplice apertura autenticata aggiorna
 `last_seen_at`; il rinnovo automatico del token non costituisce attività.
 
+La revisione email del 5 settembre aggiunge il segnale di primo piano Apple e
+il ritorno visibile web. La migration dei preavvisi, applicata ma con policy
+disabilitata, annulla il preavviso quando arriva `record_user_activity`, anche
+entro le dodici ore di throttling. Nessun movimento è richiesto. Politica
+proposta, esclusioni e limiti in [Email e inattività](../email-e-inattivita.md).
+Gli avvisi e ogni futura cancellazione richiedono attivazione distinta;
+questo intervento non implementa cancellazioni automatiche.
+
 ## Offline e conflitti
 
 La cache conserva l'ultimo snapshot e una coda persistente. La UI mostra “Non sincronizzato” finché la modifica non arriva al server. Ogni elemento ha ID idempotente, utente/famiglia, tipo, payload minimo, data e tentativi.

@@ -57,6 +57,34 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
 }
 
 describe('AccountSettings', () => {
+  it('requires administrator confirmation before approving admission', async () => {
+    const reviewFamilyAdmission = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const cloud = familySession({ reviewFamilyAdmission, invitations: [{
+      id: 'request', email: 'friend@example.com', status: 'awaiting_admin',
+      createdAt: '2026-09-07', expiresAt: '2026-09-14',
+    }] })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+    expect(screen.getByText('Accettato · attende la tua approvazione')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Approva ingresso' }))
+    expect(reviewFamilyAdmission).not.toHaveBeenCalled()
+    confirm.mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Approva ingresso' }))
+    await waitFor(() => expect(reviewFamilyAdmission).toHaveBeenCalledWith('request', true))
+  })
+
+  it('lets the administrator refuse a requested admission', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const reviewFamilyAdmission = vi.fn().mockResolvedValue(undefined)
+    const cloud = familySession({ reviewFamilyAdmission, invitations: [{
+      id: 'request', email: 'friend@example.com', status: 'awaiting_admin',
+      createdAt: '2026-09-07', expiresAt: '2026-09-14',
+    }] })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Rifiuta ingresso' }))
+    await waitFor(() => expect(reviewFamilyAdmission).toHaveBeenCalledWith('request', false))
+  })
+
   it('updates the user first name and last name', async () => {
     const cloud = familySession()
     render(<AccountSettings user={simone} cloud={cloud} />)
