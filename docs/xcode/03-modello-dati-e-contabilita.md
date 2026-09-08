@@ -122,3 +122,10 @@ essere rifiutate e reinviate correttamente.
 | Rimborso 100 € su conto familiare, due membri | Debito del versante diminuisce 50 € |
 | Conto familiare → personale A, 100 €, due membri | A acquisisce debito 50 € |
 | Spesa 100 €, parziale condiviso 30 € | Solo 30 € nel bilancio condiviso |
+
+Ogni movimento, rimborso, giro fondi, prestito e restituzione condivisi
+conserva gli ID e i nomi dei membri che componevano la famiglia al momento
+della registrazione. Questo snapshot rende stabile la quota storica se un
+membro viene rimosso. L’opzione amministrativa “Elimina e ricalcola” elimina
+prima i record che coinvolgono il membro e aggiorna lo snapshot dei record
+rimasti con la composizione attuale.

@@ -23,7 +23,7 @@ export interface FamilySession {
   personalMode: boolean
   families: FamilyOption[]
   user: User
-  members: User[]
+  members: FamilyMember[]
   invitations: FamilyInvitation[]
   sharedAccounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]
@@ -35,6 +35,7 @@ export interface FamilySession {
   withdrawInvitation: (invitationId: string) => Promise<void>
   deleteInvitation: (invitationId: string) => Promise<void>
   reviewFamilyAdmission?: (invitationId: string, approve: boolean) => Promise<void>
+  removeMember: (memberId: string, preserveHistory: boolean) => Promise<void>
   deleteFamily: (preserveAuthoredData: boolean) => Promise<void>
   updateProfileName: (firstName: string, lastName: string) => Promise<void>
   updateEmail: (email: string) => Promise<void>
@@ -58,6 +59,10 @@ export interface FamilySession {
   respondToReimbursementChange: (requestId: string, accepted: boolean) => Promise<void>
   withdrawReimbursementChange: (requestId: string) => Promise<void>
   signOut: () => Promise<void>
+}
+
+export interface FamilyMember extends User {
+  role?: 'admin' | 'member'
 }
 
 export interface PlatformAdminUserOverview {
@@ -290,6 +295,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       setLoading(false); return
     }
     const memberIds = membershipsResult.data.map((item) => item.user_id)
+    const memberRoleById = new Map(membershipsResult.data.map((item) => [item.user_id, item.role as FamilyMember['role']]))
     const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, first_name, last_name, full_name, email').in('id', memberIds)
     if (profilesError) { setError(profilesError.message); setLoading(false); return }
     setSnapshot({
@@ -298,7 +304,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       membership,
       family: activeFamily,
       families,
-      members: profiles.map(toUser),
+      members: profiles.map((memberProfile) => ({ ...toUser(memberProfile), role: memberRoleById.get(memberProfile.id) })),
       invitations: invitationsResult.data
         .filter((invitation) => !invitation.accepted_at)
         .map((invitation) => ({
@@ -435,6 +441,16 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       if (reviewError) throw new Error(onboardingMessage(reviewError.message))
       await load(activeFamilyId)
     },
+    removeMember: async (memberId, preserveHistory) => {
+      if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
+      const { error: removalError } = await supabase.rpc('remove_family_member', {
+        target_family_id: activeFamilyId,
+        target_user_id: memberId,
+        preserve_history: preserveHistory,
+      })
+      if (removalError) throw new Error(onboardingMessage(removalError.message))
+      await load(activeFamilyId)
+    },
     deleteInvitation: async (invitationId) => {
       if (!activeFamilyId) throw new Error('Seleziona prima una famiglia.')
       const { error: deleteError } = await supabase.rpc('delete_declined_family_invitation', {
@@ -555,7 +571,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       }), snapshot.profile.id, snapshot.members)
     },
     saveAppData: async (appData, mutationId) => {
-      const payload = buildCloudPersistence(appData, snapshot.profile.id)
+      const payload = buildCloudPersistence(appData, snapshot.profile.id, snapshot.members)
       const revisions = dataRevisions.get(revisionKey) ?? { personalRevision: 0, familyRevision: 0 }
       const { data: syncResult, error: syncError } = await supabase.rpc('save_app_data_snapshot', {
         target_family_id: activeFamilyId ?? null,
@@ -1042,6 +1058,10 @@ function onboardingMessage(message: string) {
   if (message.includes('invalid_or_expired_invitation')) return 'Questo invito non è valido o è scaduto.'
   if (message.includes('invitation_declined_requires_removal')) return 'Questo invito è stato rifiutato. Eliminalo dall’elenco prima di invitare nuovamente la persona.'
   if (message.includes('invitation_declined') || message.includes('invitation_already_declined')) return 'Questo invito è già stato rifiutato.'
+  if (message.includes('cannot_remove_self')) return 'Non puoi revocare il tuo stesso accesso da questa schermata.'
+  if (message.includes('cannot_remove_family_admin')) return 'Un altro amministratore non può essere rimosso: prima occorre trasferire o modificare il suo ruolo.'
+  if (message.includes('family_member_has_open_items')) return 'Il membro ha rimborsi, prestiti o acquisti ancora da completare. Risolvili prima oppure scegli “Elimina e ricalcola”.'
+  if (message.includes('family_member_not_found')) return 'Questo membro non appartiene più alla famiglia. Aggiorna l’elenco.'
   if (message.includes('invitation_email_mismatch')) return 'Accedi con la stessa email a cui è stato inviato l’invito.'
   if (message.includes('invitation_already_pending')) return 'Esiste già un invito in attesa per questa email.'
   if (message.includes('email_delivery_failed')) return 'Non è stato possibile inviare l’email. Riprova tra poco.'
@@ -1055,7 +1075,7 @@ interface FamilySnapshot {
   membership: { family_id: string; role: string } | null
   family: FamilyRow | null
   families: FamilyOption[]
-  members: User[]
+  members: FamilyMember[]
   invitations: FamilyInvitation[]
   accounts: Account[]
   reimbursementAccountReferences: ReimbursementAccountReference[]

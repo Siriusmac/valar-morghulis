@@ -279,6 +279,7 @@ export function GuidePage() {
           </p>
           <ul>
             <li>Gli amministratori possono rinominare la famiglia, invitare membri e reinviare o rimuovere inviti.</li>
+            <li>L’amministratore può revocare l’accesso di un membro mantenendo invariati movimenti e quote storiche oppure eliminando i suoi record familiari e ricalcolando quelli rimasti. L’account personale del membro non viene cancellato.</li>
             <li>Chi riceve un invito sceglie esplicitamente se accettarlo o rifiutarlo.</li>
             <li>Lo spazio personale rimane unico passando fra le famiglie; ogni spazio condiviso conserva separatamente membri, conti e movimenti.</li>
             <li>I dati personali restano privati: vengono condivisi soltanto record familiari, nomi dei conti autorizzati e operazioni che coinvolgono un altro utente.</li>

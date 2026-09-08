@@ -29,7 +29,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   const todayMonth = todayISO().slice(0, 7)
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
   const [selectedMonth, setSelectedMonth] = useState(() => todayMonth)
-  const balance = sharedBalance(data, user.id, members.length)
+  const balance = sharedBalance(data, user.id, members.map((member) => member.id))
   const other = members.find((item) => item.id !== user.id) ?? user
   const multipleOthers = members.length > 2
   const shared = data.movements.filter((item) => movementHasSharedPortion(data, item)).toSorted((a, b) => b.date.localeCompare(a.date))

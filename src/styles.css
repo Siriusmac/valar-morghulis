@@ -13,6 +13,7 @@
   --accent-soft: #f7ebe5;
   --positive: #3f7650;
   --positive-soft: #e9f0e8;
+  --danger: #a93d34;
   --sand: #f4f0eb;
   --line: #dedbd6;
   --white: #fff;
@@ -175,6 +176,16 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .family-member-list strong, .family-member-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .family-member-list strong { font-size: 10px; }
 .family-member-list small { color: var(--muted); font-size: 8px; }
+.family-member-list__remove { margin-left: auto; flex: 0 0 auto; }
+.member-removal-panel { display: grid; gap: 10px; margin: 0 0 20px; padding: 16px; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--danger) 5%, white); }
+.member-removal-panel h3 { margin: 2px 0 4px; font-family: Georgia, serif; font-size: 17px; }
+.member-removal-panel p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.member-removal-choice { display: grid; gap: 3px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); text-align: left; cursor: pointer; }
+.member-removal-choice:hover { border-color: var(--accent); }
+.member-removal-choice strong { font-size: 11px; }
+.member-removal-choice small { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.member-removal-choice--danger { border-color: color-mix(in srgb, var(--danger) 32%, var(--line)); }
+.member-removal-choice--danger strong { color: var(--danger); }
 .family-invitation-list { display: grid; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .family-invitation-list__heading { display: grid; gap: 3px; margin-bottom: 2px; }
 .family-invitation-list__heading strong { font-size: 12px; }

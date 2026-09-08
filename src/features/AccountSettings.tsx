@@ -3,7 +3,7 @@ import {
   Trash2, UserRound, UserRoundCog, UsersRound,
 } from 'lucide-react'
 import { useState } from 'react'
-import { PERSONAL_WORKSPACE_ID, type FamilySession } from './CloudAccess'
+import { PERSONAL_WORKSPACE_ID, type FamilyMember, type FamilySession } from './CloudAccess'
 import type { PlatformAdminUserOverview } from './CloudAccess'
 import { downloadAccountExport, type ExportFormat } from '../lib/exportData'
 import type { AppData, User } from '../types'
@@ -259,6 +259,8 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState<'name' | 'invite' | ''>('')
   const [invitationBusy, setInvitationBusy] = useState('')
+  const [memberBusy, setMemberBusy] = useState('')
+  const [memberRemoval, setMemberRemoval] = useState<FamilyMember | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -313,12 +315,33 @@ function FamilyAdministration({ cloud }: { cloud: FamilySession }) {
     } catch (reason) { setError(errorText(reason)) }
     finally { setInvitationBusy('') }
   }
+  const removeMember = async (preserveHistory: boolean) => {
+    if (!memberRemoval) return
+    const member = memberRemoval
+    const confirmed = confirm(preserveHistory
+      ? `Revocare l’accesso di ${member.name}? I suoi movimenti e le quote storiche resteranno visibili, ma non potrà più accedere alla famiglia né partecipare alle nuove operazioni.`
+      : `Eliminare ${member.name} dalla famiglia e cancellare i suoi movimenti familiari? Le quote dei membri rimasti verranno ricalcolate come se non fosse mai entrato. Questa scelta non può essere annullata.`)
+    if (!confirmed) return
+    setMemberBusy(member.id); setError(''); setMessage('')
+    try {
+      await cloud.removeMember(member.id, preserveHistory)
+      setMemberRemoval(null)
+      setMessage(`Accesso di ${member.name} revocato.`)
+    } catch (reason) { setError(errorText(reason)) }
+    finally { setMemberBusy('') }
+  }
 
   return <section className="settings-card">
     <div className="settings-card__heading"><span><UsersRound /></span><div><h2>Amministra {cloud.familyName}</h2><p>Il tuo ruolo in questa famiglia è amministratore.</p></div></div>
     <div className="family-member-list" aria-label={`${cloud.members.length} membri`}>
-      {cloud.members.map((member) => <span key={member.id}><i className="avatar">{member.initials}</i><span><strong>{member.name}</strong><small>{member.email}</small></span></span>)}
+      {cloud.members.map((member) => <span key={member.id}><i className="avatar">{member.initials}</i><span><strong>{member.name}</strong><small>{member.email}{member.role === 'admin' ? ' · Amministratore' : ''}</small></span>{member.id !== cloud.user.id && member.role !== 'admin' ? <button type="button" className="button button--ghost button--small button--danger family-member-list__remove" disabled={Boolean(memberBusy)} onClick={() => setMemberRemoval(member)}><Trash2 /> Rimuovi</button> : null}</span>)}
     </div>
+    {memberRemoval ? <div className="member-removal-panel" role="dialog" aria-modal="true" aria-labelledby="member-removal-title">
+      <div><span className="eyebrow">Revoca accesso</span><h3 id="member-removal-title">Rimuovi {memberRemoval.name}</h3><p>L’account personale non verrà eliminato. Scegli come trattare la contabilità familiare già registrata.</p></div>
+      <button type="button" className="member-removal-choice" disabled={Boolean(memberBusy)} onClick={() => void removeMember(true)}><strong>Mantieni nello storico</strong><small>Conserva movimenti e quote passate. Il membro non partecipa alle nuove operazioni.</small></button>
+      <button type="button" className="member-removal-choice member-removal-choice--danger" disabled={Boolean(memberBusy)} onClick={() => void removeMember(false)}><strong>Elimina e ricalcola</strong><small>Cancella i suoi dati familiari e ridivide le quote fra i membri rimasti.</small></button>
+      <button type="button" className="button button--ghost" disabled={Boolean(memberBusy)} onClick={() => setMemberRemoval(null)}>Annulla</button>
+    </div> : null}
     <form className="settings-form" onSubmit={rename}>
       <label>Nome della famiglia<input value={name} onChange={(event) => setName(event.target.value)} minLength={2} required /></label>
       <button className="button button--secondary" disabled={Boolean(busy) || name.trim() === cloud.familyName}>Salva nome</button>

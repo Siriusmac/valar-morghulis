@@ -117,6 +117,10 @@ ulteriori azioni.
 - Famiglia: nome, membri, ruoli e inviti.
 - Pending: “Reinvia” e “Ritira”; scaduti: “Reinvia”; accettati: membro;
   rifiutati: “Elimina dall'elenco”.
+- Per un membro non amministratore diverso dall’utente corrente, “Rimuovi”
+  apre due scelte: conservare movimenti e quote storiche oppure eliminare i
+  record familiari del membro e ricalcolare quelli rimasti. Entrambe revocano
+  soltanto l’accesso alla famiglia e non eliminano l’account personale.
 - “Elimina famiglia” solo per admin e separato dalle azioni quotidiane.
 
 ## Design system

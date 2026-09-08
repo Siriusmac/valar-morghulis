@@ -12,6 +12,11 @@ export interface User {
   initials: string
 }
 
+export interface FamilyMembershipSnapshot {
+  familyMemberIds?: UserId[]
+  familyMemberNames?: Record<UserId, string>
+}
+
 export interface Account {
   id: string
   ownerId?: UserId
@@ -66,7 +71,7 @@ export interface MovementSplit {
   excludeFromReports?: boolean
 }
 
-export interface Movement {
+export interface Movement extends FamilyMembershipSnapshot {
   id: string
   type: MovementType
   authorId: UserId
@@ -95,7 +100,7 @@ export interface Movement {
   createdAt: string
 }
 
-export interface ScheduledPayment {
+export interface ScheduledPayment extends FamilyMembershipSnapshot {
   id: string
   planId: string
   authorId: UserId
@@ -120,7 +125,7 @@ export interface ScheduledPayment {
   commissionedPurchaseId?: string
 }
 
-export interface Transfer {
+export interface Transfer extends FamilyMembershipSnapshot {
   id: string
   authorId: UserId
   fromAccountId: string
@@ -131,7 +136,7 @@ export interface Transfer {
   description: string
 }
 
-export interface Reimbursement {
+export interface Reimbursement extends FamilyMembershipSnapshot {
   id: string
   groupId?: string
   fromId: UserId
@@ -166,7 +171,7 @@ export interface ReimbursementChangeRequest {
 export type LoanStatus = 'pending' | 'confirmed' | 'rejected'
 export type LoanRepaymentMethod = 'money' | 'purchase' | 'family_credit'
 
-export interface Loan {
+export interface Loan extends FamilyMembershipSnapshot {
   id: string
   lenderId: UserId
   borrowerId: UserId
@@ -183,7 +188,7 @@ export interface Loan {
   rejectedAt?: string
 }
 
-export interface LoanRepayment {
+export interface LoanRepayment extends FamilyMembershipSnapshot {
   id: string
   loanId: string
   lenderId: UserId

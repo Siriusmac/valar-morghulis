@@ -32,6 +32,7 @@ function familySession(overrides: Partial<FamilySession> = {}): FamilySession {
     inviteMember: vi.fn().mockResolvedValue(undefined),
     withdrawInvitation: vi.fn().mockResolvedValue(undefined),
     deleteInvitation: vi.fn().mockResolvedValue(undefined),
+    removeMember: vi.fn().mockResolvedValue(undefined),
     deleteFamily: vi.fn().mockResolvedValue(undefined),
     updateProfileName: vi.fn().mockResolvedValue(undefined),
     updateEmail: vi.fn().mockResolvedValue(undefined),
@@ -122,6 +123,34 @@ describe('AccountSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /Famiglia Due/ }))
 
     await waitFor(() => expect(cloud.switchFamily).toHaveBeenCalledWith('family-two'))
+  })
+
+  it('revokes a member while preserving movements only after explicit confirmation', async () => {
+    const removeMember = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const cloud = familySession({ removeMember, members: [{ ...simone, role: 'admin' }, { ...anna, role: 'member' }] })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Rimuovi/ }))
+    expect(screen.getByRole('heading', { name: 'Rimuovi Anna' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Mantieni nello storico/ }))
+    expect(removeMember).not.toHaveBeenCalled()
+
+    confirm.mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: /Mantieni nello storico/ }))
+    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('anna', true))
+  })
+
+  it('offers destructive removal with recalculation and never shows it for the current admin', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const removeMember = vi.fn().mockResolvedValue(undefined)
+    const cloud = familySession({ removeMember, members: [{ ...simone, role: 'admin' }, { ...anna, role: 'member' }] })
+    render(<AccountSettings user={simone} cloud={cloud} />)
+
+    expect(screen.getAllByRole('button', { name: /Rimuovi/ })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /Rimuovi/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Elimina e ricalcola/ }))
+    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('anna', false))
   })
 
   it('keeps administration actions hidden for a regular member', () => {

@@ -32,7 +32,10 @@ creare membership. `review_family_admission(target_invitation_id, approve)`
 `family_invitations.requested_at` identifica le richieste da approvare; un
 reinvio invalida il consenso precedente. La UI nativa deve distinguere questo
 stato dal semplice invito in attesa e aggiungere le due azioni amministrative.
-Le membership già esistenti non cambiano e la rimozione è ancora da definire.
+Le membership già esistenti non cambiano automaticamente. La revoca usa
+`remove_family_member`: mantiene lo storico con la composizione originale oppure
+elimina i record del membro e ricalcola quelli rimasti, senza cancellarne
+l’account personale.
 
 - `is_platform_admin()`
 - `record_user_activity()`
@@ -43,6 +46,7 @@ Le membership già esistenti non cambiano e la rimozione è ancora da definire.
 - `accept_family_invitation(invitation_token)`
 - `decline_family_invitation(invitation_token)`
 - `delete_declined_family_invitation(target_invitation_id)`
+- `remove_family_member(target_family_id, target_user_id, preserve_history)`
 - `delete_family(target_family_id, preserve_authored_data)`
 - `delete_my_account()`
 - `sync_family_shared_records(target_family_id, records, owned_keys)`

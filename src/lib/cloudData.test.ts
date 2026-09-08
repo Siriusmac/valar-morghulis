@@ -29,6 +29,38 @@ describe('family cloud persistence', () => {
     expect(merged.movements.some((item) => item.id === 'seed-2')).toBe(true)
   })
 
+  it('adds the current family composition to new shared financial records', () => {
+    const data = structuredClone(defaultData)
+    const members = [
+      { id: 'simone', name: 'Simone', email: 'simone@example.com', initials: 'S' },
+      { id: 'anna', name: 'Anna', email: 'anna@example.com', initials: 'A' },
+    ]
+    const payload = buildCloudPersistence(data, 'simone', members)
+    const movement = payload.sharedRecords.find((item) => item.type === 'movement')?.data as Movement
+
+    expect(movement.familyMemberIds).toEqual(['simone', 'anna'])
+    expect(movement.familyMemberNames).toEqual({ simone: 'Simone', anna: 'Anna' })
+  })
+
+  it('keeps the full private movement while applying the server membership snapshot', () => {
+    const privateData = structuredClone(defaultData)
+    const local = privateData.movements[0]
+    local.amount = 100
+    local.splits = [{ id: 'personal-part', amount: 70, categoryId: 'ristorante', shared: false }]
+    delete local.familyMemberIds
+    const merged = mergeCloudPersistence(privateData, [{
+      record_type: 'movement',
+      record_id: local.id,
+      data: { ...local, amount: 30, splits: [], familyMemberIds: ['simone', 'anna', 'carlo'] },
+    }], privateData)
+
+    expect(merged.movements.find((item) => item.id === local.id)).toMatchObject({
+      amount: 100,
+      splits: [{ amount: 70 }],
+      familyMemberIds: ['simone', 'anna', 'carlo'],
+    })
+  })
+
   it('publishes only the shared portion of a mixed movement', () => {
     const data: AppData = structuredClone(defaultData)
     const movement: Movement = {

@@ -52,6 +52,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - modifica consentita solo all'autore del movimento;
 - creazione della famiglia, conto condiviso facoltativo e inviti email ai membri;
 - scelta esplicita tra accettazione e rifiuto dell’invito; nelle impostazioni gli amministratori vedono membri, possono ritirare o reinviare gli inviti in attesa, reinviare quelli scaduti e rimuovere quelli rifiutati;
+- revoca amministrativa dell’accesso di un membro senza cancellarne l’account personale, scegliendo se conservare movimenti e quote storiche oppure eliminare i suoi record familiari e ricalcolare quelli rimasti;
 - gestione account dal profilo nella barra laterale, con modifica di nome, cognome, email e password;
 - appartenenza a più famiglie, selezione della famiglia attiva e ruoli amministratore/membro indipendenti per ciascuna;
 - archivio personale unico fra tutte le famiglie e selettore della vista condivisa direttamente in bacheca;
@@ -74,9 +75,12 @@ Dal 7 settembre gli inviti familiari richiedono anche l'approvazione
 dell'amministratore dopo il consenso dell'invitato. La migration
 `20260907120000_family_admission_approval.sql` è applicata in produzione. Gli inviti ai contatti
 restano distinti e non concedono accesso alla famiglia. La rimozione dei membri
-è ancora da implementare con due scelte concordate: mantenere movimenti e
-quote storiche oppure eliminare i movimenti familiari del membro e ricalcolare
-fra i membri rimasti. Account e dati personali non vengono cancellati; vedi HANDOFF.
+è disponibile tramite la migration applicata in produzione
+`20260908120000_family_member_removal.sql`: l’amministratore sceglie se
+mantenere movimenti e quote storiche oppure eliminare i record familiari del
+membro e ricalcolare fra i membri rimasti. Account e dati personali non vengono
+cancellati. Ogni record finanziario conserva inoltre la composizione familiare
+usata per la ripartizione, evitando variazioni retroattive involontarie.
 
 I cinque template Auth sKey sono pubblicati e il mittente SMTP è “Attivazione
 sKey”. La migration degli avvisi di inattività e la funzione server sono

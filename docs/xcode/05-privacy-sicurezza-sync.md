@@ -66,6 +66,12 @@ Prima di eliminare l'account offrire JSON completo e CSV in più file o ZIP. XML
 
 Per eliminare una famiglia scegliere esplicitamente se trasformare in personali i dati creati oppure eliminare i dati condivisi.
 
+La revoca di un membro non elimina il suo account né i dati personali. La RPC
+amministrativa elimina la membership in una sola transazione, registra autore e
+modalità della revoca e impedisce la conservazione con pratiche economiche
+ancora aperte. Se viene richiesta l’eliminazione con ricalcolo, rimuove anche i
+record familiari che coinvolgono il membro e le sue cache di sincronizzazione.
+
 ## Checklist rilascio
 
 - Nessuna `service_role`, password SMTP o token nel bundle.

@@ -2,7 +2,7 @@ import { movementAllocations, movementHasSharedPortion } from './calculations'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './directories'
 import { hydrateData } from './storage'
 import type {
-  AppData, Beneficiary, Category, Movement, ScheduledPayment, Sender, Tag, UserId,
+  AppData, Beneficiary, Category, FamilyMembershipSnapshot, Movement, ScheduledPayment, Sender, Tag, User, UserId,
 } from '../types'
 
 export type SharedRecordType =
@@ -134,7 +134,32 @@ function referencedDirectoryIds(movements: Movement[], scheduledPayments: Schedu
   return { categoryIds, beneficiaryIds, senderIds, tagIds }
 }
 
-export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersistencePayload {
+function withMembershipSnapshot<T extends FamilyMembershipSnapshot>(item: T, members: User[]): T {
+  if (!members.length || item.familyMemberIds?.length) return item
+  return {
+    ...item,
+    familyMemberIds: members.map((member) => member.id),
+    familyMemberNames: Object.fromEntries(members.map((member) => [member.id, member.name])),
+  }
+}
+
+function applyServerMembershipSnapshots<T extends FamilyMembershipSnapshot & { id: string }>(
+  localItems: T[],
+  serverItems: T[],
+) {
+  const serverById = new Map(serverItems.map((item) => [item.id, item]))
+  return localItems.map((item) => {
+    const server = serverById.get(item.id)
+    if (!server?.familyMemberIds?.length) return item
+    return {
+      ...item,
+      familyMemberIds: server.familyMemberIds,
+      familyMemberNames: server.familyMemberNames,
+    }
+  })
+}
+
+export function buildCloudPersistence(data: AppData, userId: UserId, members: User[] = []): CloudPersistencePayload {
   const familyAccountIds = new Set(data.accounts.filter((item) => item.scope === 'family').map((item) => item.id))
   const ownMovements = data.movements.filter((item) => item.authorId === userId)
   const ownSharedMovements = ownMovements
@@ -169,9 +194,9 @@ export function buildCloudPersistence(data: AppData, userId: UserId): CloudPersi
     .map(familyCopy)
 
   const sharedRecords: SharedRecordPayload[] = [
-    ...ownSharedMovements.map((item) => ({ type: 'movement' as const, id: item.id, data: item })),
-    ...ownSharedReimbursements.map((item) => ({ type: 'reimbursement' as const, id: item.id, data: item })),
-    ...ownSharedTransfers.map((item) => ({ type: 'transfer' as const, id: item.id, data: item })),
+    ...ownSharedMovements.map((item) => ({ type: 'movement' as const, id: item.id, data: withMembershipSnapshot(item, members) })),
+    ...ownSharedReimbursements.map((item) => ({ type: 'reimbursement' as const, id: item.id, data: withMembershipSnapshot(item, members) })),
+    ...ownSharedTransfers.map((item) => ({ type: 'transfer' as const, id: item.id, data: withMembershipSnapshot(item, members) })),
     ...sharedCategories.map((item) => ({ type: 'category' as const, id: item.id, data: item })),
     ...sharedBeneficiaries.map((item) => ({ type: 'beneficiary' as const, id: item.id, data: item })),
     ...sharedSenders.map((item) => ({ type: 'sender' as const, id: item.id, data: item })),
@@ -291,6 +316,12 @@ export function mergeCloudPersistence(
     if (record.record_type === 'loan_repayment') shared.loanRepayments.push(record.data as AppData['loanRepayments'][number])
   }
   const personal = privateData ?? {}
+  // Per l'autore la copia privata conserva l'intero scontrino, mentre quella
+  // condivisa puo contenerne solo la quota familiare. Manteniamo quindi i dati
+  // privati completi, importando dal record server soltanto lo snapshot membri.
+  const personalMovements = applyServerMembershipSnapshots(personal.movements ?? [], shared.movements)
+  const personalPayments = applyServerMembershipSnapshots(personal.scheduledPayments ?? [], shared.scheduledPayments)
+  const personalTransfers = applyServerMembershipSnapshots(personal.transfers ?? [], shared.transfers)
   const merged = hydrateData({
     ...personal,
     version: 3,
@@ -298,9 +329,9 @@ export function mergeCloudPersistence(
     beneficiaries: mergeById(personal.beneficiaries ?? [], shared.beneficiaries),
     senders: mergeById(personal.senders ?? [], shared.senders),
     tags: mergeById(personal.tags ?? [], shared.tags),
-    movements: mergeById(personal.movements ?? [], shared.movements),
-    scheduledPayments: mergeById(personal.scheduledPayments ?? [], shared.scheduledPayments),
-    transfers: mergeById(personal.transfers ?? [], shared.transfers),
+    movements: mergeById(personalMovements, shared.movements),
+    scheduledPayments: mergeById(personalPayments, shared.scheduledPayments),
+    transfers: mergeById(personalTransfers, shared.transfers),
     // Lo stato approvato o rifiutato dalla controparte vive nel record familiare:
     // deve prevalere sull'eventuale copia privata ancora ferma a "pending".
     reimbursements: mergeById(shared.reimbursements, personal.reimbursements ?? []),

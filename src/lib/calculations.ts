@@ -1,4 +1,4 @@
-import type { AppData, Loan, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
+import type { AppData, FamilyMembershipSnapshot, Loan, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
 
 export interface MovementAllocation {
   categoryId: string
@@ -80,12 +80,23 @@ export function reimbursementIsConfirmed(reimbursement: Reimbursement) {
   return reimbursement.status === undefined || reimbursement.status === 'confirmed'
 }
 
-export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
-  if (memberCount < 2) return 0
+function membershipForRecord(record: FamilyMembershipSnapshot, userId: UserId, fallback: number | UserId[]) {
+  const recordedIds = record.familyMemberIds?.filter(Boolean)
+  if (recordedIds?.length) {
+    const ids = [...new Set(recordedIds)]
+    return ids.includes(userId) && ids.length >= 2 ? ids.length : 0
+  }
+  if (Array.isArray(fallback)) return fallback.includes(userId) && fallback.length >= 2 ? fallback.length : 0
+  return fallback >= 2 ? fallback : 0
+}
+
+export function sharedBalance(data: AppData, userId: UserId, members: number | UserId[] = 2) {
   let net = 0
-  const personalShare = 1 / memberCount
-  const otherMembersShare = (memberCount - 1) / memberCount
   for (const movement of data.movements) {
+    const memberCount = membershipForRecord(movement, userId, members)
+    if (!memberCount) continue
+    const personalShare = 1 / memberCount
+    const otherMembersShare = (memberCount - 1) / memberCount
     const account = data.accounts.find((item) => item.id === movement.accountId)
     if (account?.scope === 'family') continue
     const settlementAmount = sharedMovementAmount(movement)
@@ -99,6 +110,10 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
     if (!reimbursementIsConfirmed(item)) continue
     const destination = data.accounts.find((account) => account.id === item.toAccountId)
     if (destination?.scope === 'family') {
+      const memberCount = membershipForRecord(item, userId, members)
+      if (!memberCount) continue
+      const personalShare = 1 / memberCount
+      const otherMembersShare = (memberCount - 1) / memberCount
       net += item.fromId === userId
         ? item.amount * otherMembersShare
         : -item.amount * personalShare
@@ -118,6 +133,10 @@ export function sharedBalance(data: AppData, userId: UserId, memberCount = 2) {
     const sourceIsFamily = source?.scope === 'family'
     const destinationIsFamily = destination?.scope === 'family'
     if (sourceIsFamily === destinationIsFamily) continue
+    const memberCount = membershipForRecord(transfer, userId, members)
+    if (!memberCount) continue
+    const personalShare = 1 / memberCount
+    const otherMembersShare = (memberCount - 1) / memberCount
     if (sourceIsFamily) {
       const destinationOwnerId = destination?.ownerId ?? transfer.authorId
       net += destinationOwnerId === userId
@@ -144,7 +163,7 @@ export interface ReimbursementPlanItem {
 export function reimbursementPlan(data: AppData, userId: UserId, memberIds: UserId[]): ReimbursementPlanItem[] {
   const memberCount = memberIds.length
   if (memberCount < 2) return []
-  const ownDebt = Math.max(0, -sharedBalance(data, userId, memberCount))
+  const ownDebt = Math.max(0, -sharedBalance(data, userId, memberIds))
   const pendingPersonal = data.reimbursements.filter((item) => {
     if (item.status !== 'pending') return false
     const destination = data.accounts.find((account) => account.id === item.toAccountId)
@@ -158,7 +177,7 @@ export function reimbursementPlan(data: AppData, userId: UserId, memberIds: User
   return memberIds
     .filter((memberId) => memberId !== userId)
     .map((memberId) => {
-      const credit = Math.max(0, sharedBalance(data, memberId, memberCount))
+      const credit = Math.max(0, sharedBalance(data, memberId, memberIds))
       const pendingIncoming = pendingPersonal
         .filter((item) => item.toId === memberId)
         .reduce((sum, item) => sum + item.amount, 0)

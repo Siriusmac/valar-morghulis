@@ -347,7 +347,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast(`${kind === 'category' ? 'Categoria' : kind === 'beneficiary' ? 'Beneficiario' : 'Mittente'} eliminato`)
   }
   const registerReimbursement = async (submissions: ReimbursementSubmission[]) => {
-    const balance = sharedBalance(data, user.id, appUsers.length)
+    const balance = sharedBalance(data, user.id, appUsers.map((member) => member.id))
     if (!submissions.length) return
     const groupId = submissions.length > 1 ? makeId('reimbursement-group') : undefined
     const prepared = submissions.map((submission) => {
@@ -753,7 +753,7 @@ function ReimbursementForm(props: {
   onSubmit: (submissions: ReimbursementSubmission[]) => Promise<void>
   onCancel: () => void
 }) {
-  const balance = sharedBalance(props.data, props.userId, props.members.length)
+  const balance = sharedBalance(props.data, props.userId, props.members.map((member) => member.id))
   if (props.members.length > 2 && balance < 0) return <MultiMemberReimbursementForm {...props} />
   if (props.members.length > 2) return <div className="reimbursement-form"><span className="reimbursement-form__icon"><CheckCircle2 /></span><p>Rimborso non necessario</p><small>Nelle famiglie con più membri il rimborso viene avviato dalla persona che deve saldare il proprio debito.</small><div className="form-actions"><button className="button button--primary" type="button" onClick={props.onCancel}>Chiudi</button></div></div>
   return <TwoMemberReimbursementForm {...props} />
@@ -842,7 +842,7 @@ function TwoMemberReimbursementForm({ data, userId, members, accountReferences, 
   onSubmit: (submissions: ReimbursementSubmission[]) => Promise<void>
   onCancel: () => void
 }) {
-  const balance = sharedBalance(data, userId, members.length)
+  const balance = sharedBalance(data, userId, members.map((member) => member.id))
   const counterparts = members.filter((item) => item.id !== userId)
   const [counterpartId, setCounterpartId] = useState(counterparts[0]?.id ?? '')
   const other = counterparts.find((item) => item.id === counterpartId) ?? counterparts[0] ?? members[0]

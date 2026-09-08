@@ -1,6 +1,6 @@
 # Handoff — sKey
 
-Aggiornato il 7 settembre 2026.
+Aggiornato l’8 settembre 2026.
 
 ## Ingressi familiari — pubblicato il 7 settembre
 
@@ -20,25 +20,32 @@ essere precompilati con un INSERT client. Il reinvio invalida il vecchio consens
 La web app mostra attesa, approvazione e rifiuto. Nessuna membership esistente
 è modificata. UI amministrativa Apple ancora da allineare.
 
-Rimozione membri NON ancora implementata. Il titolare ha definito due scelte
-da presentare esplicitamente prima della revoca:
+Rimozione membri pubblicata l’8 settembre 2026. La web app
+presenta due scelte esplicite prima della revoca:
 
 - Mantieni nello storico: conserva i movimenti generati dal membro e le quote
   passate; il membro perde l'accesso e non partecipa alle operazioni future.
 - Elimina e ricalcola: elimina i suoi movimenti dalla contabilità familiare e
   ricalcola le quote fra i membri rimasti, come se non fosse entrato.
 
-Nessuna scelta deve cancellare l'account sKey o i dati personali dell'utente.
-La scelta distruttiva richiede conferma esplicita con riepilogo degli effetti.
-Il calcolo corrente dipende dal numero attuale di membri e la FK di
-`family_user_app_data` ha ON DELETE CASCADE: non eliminare direttamente la
-membership. Prima di abilitare la RPC occorre conservare le quote storiche
-per l'opzione Mantieni, gestire rimborsi/prestiti e acquisti collegati in
-entrambi i versi, e impedire la ricomparsa dei dati eliminati dalle cache.
+Nessuna scelta cancella l'account sKey o i dati personali dell'utente. La
+scelta distruttiva richiede conferma esplicita con riepilogo degli effetti. La
+migration `20260908120000_family_member_removal.sql` aggiunge la RPC atomica
+`remove_family_member`, l’audit delle revoche e uno snapshot server-authoritative
+di ID e nomi dei membri su ogni record finanziario. La modalità conservativa
+blocca la revoca in presenza di rimborsi, prestiti, restituzioni o acquisti
+ancora aperti; quella distruttiva elimina i record coinvolti, pulisce le cache
+del membro e ristampa sui record rimasti la nuova composizione familiare.
+L’amministratore non può rimuovere se stesso né un altro amministratore.
 
-Verifica locale: 217 test web, lint, build e controllo Cloudflare superati.
-Restano da collaudare il flusso autenticato a due utenti, la concorrenza e la UI
-Apple. Nessuna eliminazione reale è stata eseguita.
+Verifica: 223 test web, lint, build e controllo Cloudflare superati. La migration
+è applicata al progetto Supabase remoto. Sul nucleo familiare di produzione sono
+state rimosse le appartenenze errate di Laura e Paolo, mantenendo intatti i loro
+account personali; restano Anna e Simone. Il saldo server è stato verificato a
+–109,97 € per Simone e +109,97 € per Anna, includendo correttamente il giro
+fondi personale→familiare. Paolo resta iscritto alla piattaforma ma non appartiene
+più alla famiglia. Restano da verificare la concorrenza e da allineare UI e
+calcoli Apple.
 
 ## Revisione email e inattività — pubblicata in modalità disattivata
 
@@ -129,6 +136,7 @@ Funzioni disponibili:
 - cancellazione della famiglia con eliminazione dei dati condivisi oppure conversione in personali dei movimenti creati da ciascun autore;
 - creazione di ulteriori famiglie, rinomina e inviti riservati agli amministratori, con inviti validi sette giorni;
 - elenco amministrativo dei membri e degli inviti: revoca o reinvio per quelli in attesa, reinvio per quelli scaduti e rimozione obbligatoria per quelli rifiutati prima di un nuovo invito;
+- rimozione amministrativa di un membro con scelta fra storico invariato ed eliminazione con ricalcolo; account e dati personali del membro restano intatti;
 - accettazione o rifiuto esplicito da parte del destinatario prima di entrare nella famiglia;
 - conto condiviso immediatamente visibile ai membri che accettano l’invito.
 - movimenti, rate, rimborsi e girofondi condivisi sincronizzati in tempo reale fra tutti i membri, con ricalcolo locale del saldo;
@@ -162,6 +170,7 @@ Funzioni disponibili:
 - Se la destinazione del rimborso è un conto condiviso, compensa il debito soltanto la quota appartenente agli altri membri.
 - Un giroconto dal conto condiviso a un conto personale genera per il titolare del conto di destinazione un debito pari alle quote appartenenti agli altri membri.
 - La famiglia attiva è una preferenza locale per utente; lo snapshot personale è unico per account, mentre i record familiari sono comuni ai membri della sola famiglia selezionata.
+- Ogni record finanziario conserva la composizione familiare usata per la ripartizione. Rimuovendo un membro con storico invariato, le vecchie quote restano quindi identiche e il membro uscente è escluso soltanto dalle operazioni future.
 - Eliminando una famiglia con conservazione, ogni membro mantiene i movimenti e le rate che aveva creato; rimborsi e girofondi familiari vengono rimossi perché non hanno significato fuori dal gruppo.
 - JSON è il formato di backup consigliato; CSV privilegia la consultazione tabellare e XML l’interoperabilità con altri software.
 - Cloudflare Pages ospita il frontend; Supabase gestisce autenticazione, famiglie,
@@ -228,7 +237,7 @@ orizzontale a 390 px.
 
 Prossimi passi:
 
-1. aggiungere rimozione membri, trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
+1. collaudare la rimozione membri con ulteriori combinazioni concorrenti, poi aggiungere trasferimento del ruolo amministratore e uscita volontaria da una famiglia;
 2. introdurre limiti anti-abuso sugli inviti email;
 3. aggiungere test end-to-end autenticati per esportazione e cancellazioni distruttive;
 4. definire l’API stabile per le future app native iOS e macOS.

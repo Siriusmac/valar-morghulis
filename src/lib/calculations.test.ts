@@ -28,6 +28,22 @@ describe('sharedBalance', () => {
     expect(sharedBalance(data, 'terzo-membro', 3)).toBe(-30)
   })
 
+  it('keeps the recorded historical shares after a member loses access', () => {
+    const data = cleanData()
+    data.movements = [{ ...expense('historical', 'simone', 90, 'simone-bank'), familyMemberIds: ['simone', 'anna', 'carlo'] }]
+
+    expect(sharedBalance(data, 'simone', ['simone', 'anna'])).toBe(60)
+    expect(sharedBalance(data, 'anna', ['simone', 'anna'])).toBe(-30)
+  })
+
+  it('does not charge a new member for records created before their admission', () => {
+    const data = cleanData()
+    data.movements = [{ ...expense('before-carla', 'simone', 100, 'simone-bank'), familyMemberIds: ['simone', 'anna'] }]
+
+    expect(sharedBalance(data, 'carla', ['simone', 'anna', 'carla'])).toBe(0)
+    expect(sharedBalance(data, 'simone', ['simone', 'anna', 'carla'])).toBe(50)
+  })
+
   it('ignores movements paid from a family account', () => {
     const data = cleanData()
     data.movements = [expense('family', 'simone', 200, 'family-bank')]

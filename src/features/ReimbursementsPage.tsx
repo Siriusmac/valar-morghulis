@@ -218,22 +218,22 @@ function LoanCard({ loan, data, user, members, repaying, onToggleRepayment, onRe
     {loan.status === 'pending' ? loan.borrowerId === user.id ? <div className="loan-card__decision"><label>Il tuo conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => respond(false)}><X /> Rifiuta</button><button className="button button--primary" type="button" disabled={busy || !accountId} onClick={() => respond(true)}><Check /> Conferma prestito</button></div></div> : <small>In attesa della conferma di {borrower?.name ?? 'chi riceve il prestito'}.</small> : null}
     {loan.status === 'rejected' ? <small>Prestito rifiutato.</small> : null}
     {loan.status === 'confirmed' && loan.borrowerId === user.id && outstanding > 0 ? <button className="button button--secondary loan-card__repay" type="button" onClick={onToggleRepayment}><RotateCcw /> Restituisci</button> : null}
-    {repaying && onCreateRepayment ? <LoanRepaymentForm loan={loan} data={data} user={user} memberCount={members.length} onSubmit={onCreateRepayment} onCancel={onToggleRepayment} /> : null}
+    {repaying && onCreateRepayment ? <LoanRepaymentForm loan={loan} data={data} user={user} memberIds={members.map((member) => member.id)} onSubmit={onCreateRepayment} onCancel={onToggleRepayment} /> : null}
     {repayments.length ? <div className="loan-repayments"><strong>Restituzioni</strong>{repayments.map((repayment) => <LoanRepaymentRow key={repayment.id} repayment={repayment} data={data} user={user} onRespond={onRespondRepayment} />)}</div> : null}
     {error ? <small className="field-error">{error}</small> : null}
   </article>
 }
 
-function LoanRepaymentForm({ loan, data, user, memberCount, onSubmit, onCancel }: {
+function LoanRepaymentForm({ loan, data, user, memberIds, onSubmit, onCancel }: {
   loan: Loan
   data: AppData
   user: User
-  memberCount: number
+  memberIds: string[]
   onSubmit: (draft: LoanRepaymentDraft) => Promise<void>
   onCancel: () => void
 }) {
   const available = loanAvailableToRepay(data, loan)
-  const familyCredit = Math.max(0, Math.min(sharedBalance(data, loan.borrowerId, memberCount), -sharedBalance(data, loan.lenderId, memberCount), available))
+  const familyCredit = Math.max(0, Math.min(sharedBalance(data, loan.borrowerId, memberIds), -sharedBalance(data, loan.lenderId, memberIds), available))
   const accounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === user.id)
   const [amount, setAmount] = useState(available.toFixed(2).replace('.', ','))
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
