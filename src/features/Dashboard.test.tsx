@@ -77,7 +77,12 @@ describe('Dashboard workspace selector', () => {
     ]
     render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
 
-    expect((screen.getByLabelText('Mese del grafico condiviso') as HTMLSelectElement).tagName).toBe('SELECT')
+    const monthSelector = screen.getByLabelText('Mese del grafico condiviso') as HTMLSelectElement
+    expect(monthSelector.tagName).toBe('SELECT')
+    expect(monthSelector.closest('.dashboard-heading-actions')).toBeTruthy()
+    expect(document.querySelector('.monthly-chart__controls select')).toBeNull()
+    expect(document.querySelector('.date-caption')).toBeNull()
+    expect(document.querySelector('.monthly-chart .section-title-row > span')).toBeNull()
     fireEvent.change(screen.getByLabelText('Mese del grafico condiviso'), { target: { value: '2026-06' } })
     expect(screen.getByRole('img', { name: /05 giugno: 42,00/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Per persona' }))

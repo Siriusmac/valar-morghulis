@@ -5,9 +5,41 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MovementList } from '../components/MovementList'
 import { defaultData, users } from '../lib/seed'
 import type { Account, Beneficiary, Sender } from '../types'
-import { AccountsPage, BeneficiariesPage } from './ManagementPages'
+import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './ManagementPages'
 
 afterEach(cleanup)
+
+const directoryNames = () => Array.from(document.querySelectorAll('.directory-grid article > div > strong')).map((item) => item.textContent)
+
+describe('Directory ordering', () => {
+  it('ordina alfabeticamente categorie, tag, beneficiari e mittenti', () => {
+    const data = structuredClone(defaultData)
+    data.movements = []
+    data.scheduledPayments = []
+    data.categories.reverse()
+    data.tags.reverse()
+    data.beneficiaries.reverse()
+    data.senders.reverse()
+    const expectedNames = <T extends { name: string }>(items: T[]) => items
+      .filter((item: T & { scope?: string; ownerId?: string }) => item.scope === 'family' || item.ownerId === users[0].id)
+      .map((item) => item.name)
+      .toSorted((left, right) => left.localeCompare(right, 'it-IT', { sensitivity: 'base', numeric: true }))
+
+    render(<CategoriesPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={vi.fn()} />)
+    expect(directoryNames()).toEqual(expectedNames(data.categories))
+
+    cleanup()
+    render(<TagsPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
+    expect(directoryNames()).toEqual(expectedNames(data.tags))
+
+    cleanup()
+    render(<BeneficiariesPage data={data} user={users[0]} onAddBeneficiary={vi.fn()} onUpdateBeneficiary={vi.fn()} onDeleteBeneficiary={vi.fn()} onAddSender={vi.fn()} onUpdateSender={vi.fn()} onDeleteSender={vi.fn()} onShowMovements={vi.fn()} />)
+    const visibleBeneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-'))
+    expect(directoryNames()).toEqual(expectedNames(visibleBeneficiaries))
+    fireEvent.click(screen.getByRole('button', { name: 'Mittenti' }))
+    expect(directoryNames()).toEqual(expectedNames(data.senders))
+  })
+})
 
 describe('BeneficiariesPage', () => {
   it('keeps the beneficiary identity so historical movements show the updated name', () => {

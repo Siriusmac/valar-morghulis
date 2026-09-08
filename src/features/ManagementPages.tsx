@@ -8,6 +8,8 @@ import type { Account, AppData, Beneficiary, Category, Movement, MovementType, R
 
 interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number, accountId?: string) => void }
 
+const byName = <T extends { name: string }>(left: T, right: T) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true })
+
 export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, families = [], activeFamilyId, reimbursementSharing }: BaseProps & {
   onAdd: (account: Account, familyId?: string) => void | Promise<void>
   onUpdate: (account: Account) => void
@@ -95,7 +97,7 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
   const [deletingId, setDeletingId] = useState('')
   const [replacementId, setReplacementId] = useState('')
   const [replacementQuery, setReplacementQuery] = useState('')
-  const categories = data.categories.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const categories = data.categories.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
   const unassignedMovements = visibleMovements(data, user.id).filter((movement) =>
     movementAllocations(movement).some((allocation) => !allocation.categoryId))
   const deletingItem = categories.find((item) => item.id === deletingId)
@@ -156,8 +158,8 @@ export function BeneficiariesPage({
   const [deletingId, setDeletingId] = useState('')
   const [replacementId, setReplacementId] = useState('')
   const [replacementQuery, setReplacementQuery] = useState('')
-  const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id))
-  const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id)).toSorted(byName)
+  const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
   const items = section === 'beneficiaries' ? beneficiaries : senders
   const singular = section === 'beneficiaries' ? 'beneficiario' : 'mittente'
   const unassignedMovements = data.movements.filter((movement) => section === 'beneficiaries'
@@ -255,7 +257,7 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportTagId, setReportTagId] = useState('')
   const [reportTagQuery, setReportTagQuery] = useState('')
-  const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
   const visible = visibleMovements(data, user.id)
   const reportTags = data.tagReportIds.map((id) => tags.find((item) => item.id === id)).filter((item): item is Tag => Boolean(item))
   const availableReports = tags.filter((item) => !data.tagReportIds.includes(item.id))

@@ -22,7 +22,10 @@ describe('MovementForm', () => {
     const { unmount } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
 
     expect(screen.queryByLabelText('Importo')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Paga alla romana' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Spesa' }).classList.contains('movement-type__expense')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Entrata' }).classList.contains('movement-type__income')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Giro fondi' }).classList.contains('movement-type__transfer')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Paga alla romana' }).classList.contains('movement-type__roman')).toBe(true)
     expect(screen.getByText('Dividi in parti uguali una spesa occasionale tra più persone.')).toBeTruthy()
     chooseExpense()
     expect(screen.getByLabelText('Importo')).toBeTruthy()

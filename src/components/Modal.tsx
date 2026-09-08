@@ -6,9 +6,10 @@ interface Props {
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  compactChoice?: boolean
 }
 
-export function Modal({ title, children, onClose, wide = false }: Props) {
+export function Modal({ title, children, onClose, wide = false, compactChoice = false }: Props) {
   const layerRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const titleId = useId()
@@ -70,7 +71,7 @@ export function Modal({ title, children, onClose, wide = false }: Props) {
 
   return (
     <div ref={layerRef} className="modal-layer" role="presentation" onKeyDown={handleKeyDown} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section ref={dialogRef} className={`modal ${wide ? 'modal--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <section ref={dialogRef} className={`modal${wide ? ' modal--wide' : ''}${compactChoice ? ' modal--choice' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <header className="modal__header">
           <h2 id={titleId}>{title}</h2>
           <button className="icon-button" onClick={onClose} aria-label="Chiudi"><X /></button>

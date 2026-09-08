@@ -38,7 +38,6 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
   const monthOptions = selectableMonths(data.movements.map((movement) => movement.date), selectedMonth, todayMonth)
   const monthDate = new Date(`${currentMonth}-01T12:00:00`)
   const monthLabel = new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(monthDate)
-  const monthAndYear = formatMonthYear(todayMonth)
   const daysInMonth = new Date(Number(currentMonth.slice(0, 4)), Number(currentMonth.slice(5, 7)), 0).getDate()
   const dailyTotals = Array.from({ length: daysInMonth }, () => 0)
   for (const movement of shared) {
@@ -69,7 +68,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
               {workspace.families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}
             </select>
           </label> : null}
-          <p className="date-caption">{monthAndYear}</p>
+          {!workspace?.personalMode ? <label className="month-field dashboard-month-field"><CalendarDays /><select aria-label="Mese del grafico condiviso" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{formatMonthYear(month)}</option>)}</select></label> : null}
         </div>
       </div>
 
@@ -87,13 +86,12 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
         </div>
         <div className="monthly-chart">
           <div className="monthly-chart__heading">
-            <div className="section-title-row"><div><h2>Spese condivise del mese</h2><p>{formatMoney(monthlyTotal)} complessivi</p></div><span>{monthLabel}</span></div>
+            <div className="section-title-row"><div><h2>Spese condivise del mese</h2><p>{formatMoney(monthlyTotal)} complessivi</p></div></div>
             <div className="monthly-chart__controls">
               <div className="monthly-chart__switch" role="group" aria-label="Visualizzazione del grafico mensile">
                 <button type="button" aria-pressed={monthlyChartView === 'daily'} onClick={() => setMonthlyChartView('daily')}>Per giorno</button>
                 <button type="button" aria-pressed={monthlyChartView === 'members'} onClick={() => setMonthlyChartView('members')}>Per persona</button>
               </div>
-              <label className="month-field"><CalendarDays /><select aria-label="Mese del grafico condiviso" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{formatMonthYear(month)}</option>)}</select></label>
             </div>
           </div>
           {monthlyChartView === 'daily' ? <>

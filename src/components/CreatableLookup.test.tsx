@@ -9,7 +9,7 @@ afterEach(cleanup)
 const options = [{ id: 'uno', name: 'Uno' }, { id: 'due', name: 'Due' }]
 
 describe('CreatableLookup', () => {
-  it('naviga le opzioni con le frecce e seleziona con Invio', () => {
+  it('ordina alfabeticamente le opzioni, le naviga con le frecce e seleziona con Invio', () => {
     const onChange = vi.fn()
     render(<CreatableLookup label="Voce" value="" options={options} placeholder="Cerca" onChange={onChange} />)
     const input = screen.getByRole('combobox')
@@ -17,12 +17,13 @@ describe('CreatableLookup', () => {
     fireEvent.focus(input)
     input.focus()
     const firstActive = input.getAttribute('aria-activedescendant')
-    expect(firstActive).toBe(screen.getByRole('option', { name: 'Uno' }).id)
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Due', 'Uno'])
+    expect(firstActive).toBe(screen.getByRole('option', { name: 'Due' }).id)
     fireEvent.keyDown(input, { key: 'ArrowDown' })
-    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: 'Due' }).id)
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: 'Uno' }).id)
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(onChange).toHaveBeenCalledWith('Due')
+    expect(onChange).toHaveBeenCalledWith('Uno')
     expect(input.getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(input)
   })

@@ -23,9 +23,9 @@ export function CreatableLookup({ label, value, options, placeholder, onChange, 
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const normalized = value.trim().toLocaleLowerCase('it-IT')
-  const matches = normalized
+  const matches = (normalized
     ? options.filter((item) => item.name.toLocaleLowerCase('it-IT').includes(normalized))
-    : options
+    : options).toSorted((left, right) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true }))
   const exactMatch = options.some((item) => item.name.toLocaleLowerCase('it-IT') === normalized)
   const canCreate = Boolean(normalized && !exactMatch)
   const optionCount = matches.length + (canCreate ? 1 : 0)
