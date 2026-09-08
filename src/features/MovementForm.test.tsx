@@ -77,6 +77,20 @@ describe('MovementForm', () => {
     chooseExpense()
 
     expect(screen.queryByLabelText(/Utilizza Wellfare/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
+  })
+
+  it('nasconde il pagamento a rate con Contanti o con una quota Wellfare', () => {
+    const data = structuredClone(defaultData)
+    data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: users[0].id, openingBalance: 100 })
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-cash" onSave={vi.fn()} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Conto di addebito'), { target: { value: 'simone-bank' } })
+    expect(screen.getByRole('button', { name: /Pagamento a rate/ })).toBeTruthy()
+    fireEvent.click(screen.getByLabelText(/Utilizza Wellfare/))
+    expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
   })
 
   it('asks how a movement before the opening balance date affects the account', () => {

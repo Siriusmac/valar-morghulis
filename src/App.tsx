@@ -27,6 +27,7 @@ const GuidePage = lazy(() => import('./features/GuidePage').then((module) => ({ 
 const MovementForm = lazy(() => import('./features/MovementForm').then((module) => ({ default: module.MovementForm })))
 const MovementsPage = lazy(() => import('./features/MovementsPage').then((module) => ({ default: module.MovementsPage })))
 const AccountsPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.AccountsPage })))
+const BudgetPage = lazy(() => import('./features/BudgetPage').then((module) => ({ default: module.BudgetPage })))
 const BeneficiariesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.BeneficiariesPage })))
 const CategoriesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.CategoriesPage })))
 const TagsPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.TagsPage })))
@@ -89,7 +90,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [userId, setUserId] = useState<UserId | null>(initialUserId)
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'budgets', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [toast, setToast] = useState('')
@@ -671,6 +672,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         }
       },
     } : undefined} />
+    : page === 'budgets' ? <BudgetPage data={data} user={user} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onDelete={(id, replacementId) => deleteDirectory('category', id, replacementId)} />
     : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAddBeneficiary={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} onUpdateBeneficiary={(beneficiary) => {
       setData((current) => ({ ...current, beneficiaries: current.beneficiaries.map((item) => item.id === beneficiary.id ? beneficiary : item) }))

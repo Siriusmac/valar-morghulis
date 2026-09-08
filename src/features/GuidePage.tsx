@@ -163,12 +163,14 @@ export function GuidePage() {
         <section id="conti" className="guide-chapter">
           <ChapterHeading number="05" title="Conti e giro fondi" icon={CreditCard} />
           <p>
-            In <strong>Conti</strong> gestisci banca, carte, contanti, PayPal e conti
+            In <strong>Conti</strong> gestisci banca, carte, contanti, PayPal, conti
+            Wellfare e conti
             familiari. Puoi crearli, modificarli o eliminarli senza cancellare lo storico;
             il saldo deriva dal valore iniziale e dalle operazioni successive.
           </p>
           <ul>
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
+            <li>Il conto <strong>Wellfare</strong> raccoglie tessere e buoni aziendali: in una spesa puoi usarne una quota e addebitare automaticamente il residuo sul conto principale.</li>
             <li>Per un conto familiare scegli esplicitamente la famiglia proprietaria.</li>
             <li>Per un conto personale scegli separatamente le famiglie alle quali rendere visibile soltanto il nome come destinazione di rimborso; saldo, istituto e movimenti restano privati.</li>
             <li>L’icona di visibilità identifica i conti pubblicati ad almeno una famiglia.</li>
@@ -192,6 +194,7 @@ export function GuidePage() {
           </p>
           <ul>
             <li>Sono disponibili piani in 3 o 5 rate e un intermediario personalizzabile.</li>
+            <li>Il pagamento a rate non viene proposto quando il conto principale è Contanti o Wellfare, né quando una quota della spesa usa un conto Wellfare.</li>
             <li>Le scadenze future diventano automaticamente movimenti alla data prevista.</li>
             <li>Gli arrotondamenti vengono distribuiti senza perdere centesimi.</li>
             <li>Categorie, tag e destinazioni di un acquisto multiplo vengono preservati in ogni rata.</li>
@@ -262,6 +265,8 @@ export function GuidePage() {
           </p>
           <ul>
             <li>Le <strong>categorie</strong> alimentano importi e percentuali dei grafici mensili.</li>
+            <li>Da una categoria di spesa o dalla pagina <strong>Budget</strong> puoi fissare, modificare o eliminare un limite mensile. La pagina riunisce tutti i budget e mostra la percentuale già utilizzata.</li>
+            <li>I budget familiari conteggiano le quote condivise; dal 90% compare un avviso in Bacheca e l’eventuale eccedenza può essere sottratta dal mese successivo.</li>
             <li>I <strong>beneficiari</strong> indicano a chi hai pagato; i <strong>mittenti</strong> da chi hai ricevuto un’entrata.</li>
             <li>I <strong>tag</strong> collegano movimenti diversi e producono un bilancio dedicato; puoi assegnarne fino a tre al movimento e fino a tre a ogni voce di un acquisto multiplo.</li>
             <li>Seleziona una voce per vedere i relativi movimenti, il totale e la data dell’operazione più vecchia, con modifica ed eliminazione disponibili per l’autore.</li>

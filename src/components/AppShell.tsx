@@ -1,5 +1,5 @@
 import {
-  BookOpen, Building2, CalendarClock, CheckCircle2, CloudOff, ContactRound, CreditCard, HandCoins, LayoutDashboard,
+  BookOpen, Building2, CalendarClock, CheckCircle2, CloudOff, ContactRound, CreditCard, Gauge, HandCoins, LayoutDashboard,
   LoaderCircle, LogOut, Menu, Plus, ReceiptText, RefreshCw, Tag, Tags, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -13,6 +13,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
   { id: 'reimbursements', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'accounts', label: 'Conti', icon: CreditCard },
+  { id: 'budgets', label: 'Budget', icon: Gauge },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'tags', label: 'Tag', icon: Tag },
   { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
