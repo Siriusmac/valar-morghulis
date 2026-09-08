@@ -30,6 +30,8 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - conto personale predefinito configurabile nel profilo e preselezionato nei nuovi movimenti;
 - giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine;
 - PayPal come conto personale;
+- conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare automaticamente il residuo sul conto principale, mantenendo importo e statistiche unitari;
+- budget mensile configurabile dal menu di ogni categoria di spesa, personale o familiare; la bacheca avvisa dal 90% e, in caso di superamento, consente di riportare l’eccedenza sul budget del mese successivo;
 - categorie, beneficiari, mittenti e tag ricercabili mentre si scrive attraverso lo stesso menu; quando il nome non esiste compare il comando “Aggiungi …” e la voce viene creata con il movimento; la web app accetta fino a tre tag per movimento e, negli acquisti multipli, fino a tre tag indipendenti per ogni parziale;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
 - nomi di categorie, beneficiari e mittenti modificabili, con aggiornamento automatico dei movimenti già registrati, e commenti facoltativi sui movimenti;
@@ -38,6 +40,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - suddivisione facoltativa di uno scontrino in più categorie, con beneficiario unico a monte e importo, categoria, fino a tre tag e destinazione indipendenti per ogni parziale; una stessa spesa può contenere quote personali, familiari, acquisti per conto di contatti e acquisti che compensano debiti verso membri diversi, con residuo automatico in coda;
 - “Paga alla romana” per dividere automaticamente ai centesimi una spesa occasionale fra il pagante e i contatti aggiunti; ogni quota genera una richiesta ordinaria, oppure per un familiare può compensare un debito sufficiente verso di lui;
 - movimenti modificabili ed eliminabili dal loro autore in ogni elenco, inclusi dettagli del conto e filtri per categoria, beneficiario, mittente o tag; dopo la modifica si ritorna alla vista di origine, con possibilità di cambiare la condivisione e ricalcolo immediato di conti, statistiche e saldo condiviso;
+- azioni di modifica, eliminazione e configurazione raccolte nei menu a tre puntini; l’apertura degli elenchi collegati usa una freccia verso destra separata, coerente con la navigazione iOS;
 - eliminazione della prima rata estesa all’intero piano collegato e propagazione delle modifiche anagrafiche alle rate future;
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;

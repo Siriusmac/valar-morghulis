@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultData, users } from '../lib/seed'
 import { ScheduledPaymentsPage } from './ScheduledPaymentsPage'
@@ -23,9 +23,12 @@ describe('ScheduledPaymentsPage', () => {
     expect(screen.getAllByText('Rata completa')).toHaveLength(2)
     expect(screen.getAllByText(/40,00/)).toHaveLength(2)
 
-    fireEvent.click(screen.getByRole('button', { name: /Modifica Accessori casa/ }))
+    const plan = screen.getByText('Accessori casa').closest('section')!
+    fireEvent.click(within(plan).getByRole('button', { name: 'Azioni per Accessori casa' }))
+    fireEvent.click(within(plan).getByRole('menuitem', { name: 'Modifica' }))
     expect(onEdit).toHaveBeenCalledWith(firstMovement)
-    fireEvent.click(screen.getByRole('button', { name: /Elimina Accessori casa/ }))
+    fireEvent.click(within(plan).getByRole('button', { name: 'Azioni per Accessori casa' }))
+    fireEvent.click(within(plan).getByRole('menuitem', { name: 'Elimina' }))
     expect(onDelete).toHaveBeenCalledWith(firstMovement.id)
   })
 })

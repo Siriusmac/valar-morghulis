@@ -22,7 +22,7 @@ export interface Account {
   ownerId?: UserId
   name: string
   institution: string
-  type: 'bank' | 'credit' | 'cash' | 'paypal'
+  type: 'bank' | 'credit' | 'cash' | 'paypal' | 'welfare'
   scope: Scope
   openingBalance: number
   openingBalanceDate?: string
@@ -35,6 +35,8 @@ export interface Category {
   ownerId?: UserId
   movementType: MovementType
   color: string
+  monthlyBudget?: number
+  budgetCarryovers?: Record<string, number>
 }
 
 export interface Beneficiary {
@@ -83,6 +85,8 @@ export interface Movement extends FamilyMembershipSnapshot {
   beneficiaryId?: string
   senderId?: string
   accountId: string
+  welfareAccountId?: string
+  welfareAmount?: number
   tagId?: string
   tagIds?: string[]
   comments?: string

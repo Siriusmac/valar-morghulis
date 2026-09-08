@@ -60,9 +60,10 @@ describe('BeneficiariesPage', () => {
     )
 
     const lidlCard = screen.getByText('Lidl').closest('article')!
-    fireEvent.click(within(lidlCard).getByTitle('Modifica nome'))
+    fireEvent.click(within(lidlCard).getByRole('button', { name: 'Azioni per Lidl' }))
+    fireEvent.click(within(lidlCard).getByRole('menuitem', { name: 'Modifica' }))
     fireEvent.change(screen.getByLabelText('Nome beneficiario Lidl'), { target: { value: 'Lidl Italia' } })
-    fireEvent.click(within(lidlCard).getByTitle('Salva nome'))
+    fireEvent.click(within(lidlCard).getByRole('button', { name: 'Salva' }))
 
     expect(onUpdate).toHaveBeenCalledOnce()
     const updatedBeneficiary = onUpdate.mock.calls[0][0] as Beneficiary
@@ -99,9 +100,10 @@ describe('BeneficiariesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Mittenti' }))
     const senderCard = screen.getByText('Datore di lavoro').closest('article')!
-    fireEvent.click(within(senderCard).getByTitle('Modifica nome'))
+    fireEvent.click(within(senderCard).getByRole('button', { name: 'Azioni per Datore di lavoro' }))
+    fireEvent.click(within(senderCard).getByRole('menuitem', { name: 'Modifica' }))
     fireEvent.change(screen.getByLabelText('Nome mittente Datore di lavoro'), { target: { value: 'Alfred Home Solutions' } })
-    fireEvent.click(within(senderCard).getByTitle('Salva nome'))
+    fireEvent.click(within(senderCard).getByRole('button', { name: 'Salva' }))
 
     const updatedSender = onUpdateSender.mock.calls[0][0] as Sender
     expect(updatedSender).toMatchObject({ id: 'datore-lavoro', name: 'Alfred Home Solutions' })
@@ -125,7 +127,8 @@ describe('BeneficiariesPage', () => {
     )
 
     const lidlCard = screen.getByText('Lidl').closest('article')!
-    fireEvent.click(within(lidlCard).getByTitle('Elimina beneficiario'))
+    fireEvent.click(within(lidlCard).getByRole('button', { name: 'Azioni per Lidl' }))
+    fireEvent.click(within(lidlCard).getByRole('menuitem', { name: 'Elimina' }))
     fireEvent.change(screen.getByLabelText('Attribuisci i movimenti a'), { target: { value: 'eurospar' } })
     fireEvent.click(screen.getByRole('button', { name: 'Elimina' }))
 
@@ -150,7 +153,8 @@ describe('BeneficiariesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Mittenti' }))
     const senderCard = screen.getByText('Datore di lavoro').closest('article')!
-    fireEvent.click(within(senderCard).getByTitle('Elimina mittente'))
+    fireEvent.click(within(senderCard).getByRole('button', { name: 'Azioni per Datore di lavoro' }))
+    fireEvent.click(within(senderCard).getByRole('menuitem', { name: 'Elimina' }))
     fireEvent.click(screen.getByRole('button', { name: 'Elimina' }))
 
     expect(onDeleteSender).toHaveBeenCalledWith('datore-lavoro', undefined)
@@ -188,7 +192,7 @@ describe('AccountsPage', () => {
     render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={onShowMovements} />)
 
     const accountRow = screen.getByText('Conto corrente').closest('article')!
-    fireEvent.click(within(accountRow).getByRole('button', { name: 'Movimenti' }))
+    fireEvent.click(within(accountRow).getByRole('button', { name: 'Vedi movimenti di Conto corrente' }))
 
     expect(onShowMovements).toHaveBeenCalledWith(expect.stringContaining('Conto corrente'), expect.any(Function), undefined, 'simone-bank')
   })
@@ -207,6 +211,20 @@ describe('AccountsPage', () => {
     const [account, familyId] = onAdd.mock.calls[0] as [Account, string]
     expect(account).toMatchObject({ name: 'Vacanze', scope: 'family' })
     expect(familyId).toBe('family-two')
+  })
+
+  it('crea un conto Wellfare esclusivamente personale', async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
+    fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Buoni pasto' } })
+    fireEvent.change(screen.getByText('Tipo').querySelector('select')!, { target: { value: 'welfare' } })
+    expect((screen.getByText('Visibilità').querySelector('select') as HTMLSelectElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Crea conto' }))
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledOnce())
+    expect(onAdd.mock.calls[0][0]).toMatchObject({ name: 'Buoni pasto', type: 'welfare', scope: 'personal', ownerId: users[0].id })
   })
 
   it('updates reimbursement visibility independently for multiple families', async () => {

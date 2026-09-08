@@ -24,10 +24,12 @@ describe('filtered movement editor navigation', () => {
     const accountName = await screen.findByText('Conto corrente')
     const accountRow = accountName.closest('article')
     expect(accountRow).not.toBeNull()
-    fireEvent.click(within(accountRow!).getByRole('button', { name: 'Movimenti' }))
+    fireEvent.click(within(accountRow!).getByRole('button', { name: 'Vedi movimenti di Conto corrente' }))
 
     const movementList = await screen.findByRole('dialog', { name: 'Movimenti · Conto corrente' })
-    fireEvent.click(await within(movementList).findByRole('button', { name: 'Modifica Spesa settimanale' }))
+    const movementActions = (await within(movementList).findByRole('button', { name: 'Azioni per Spesa settimanale' })).closest('details')!
+    fireEvent.click(within(movementActions).getByRole('button', { name: 'Azioni per Spesa settimanale' }))
+    fireEvent.click(within(movementActions).getByRole('menuitem', { name: 'Modifica' }))
 
     const editor = await screen.findByRole('dialog', { name: 'Modifica movimento' })
     fireEvent.click(await within(editor).findByRole('button', { name: 'Salva modifiche' }))
@@ -46,15 +48,19 @@ describe('filtered movement editor navigation', () => {
     fireEvent.click(categoryRow!)
 
     const movementList = await screen.findByRole('dialog', { name: 'Movimenti · Alimentari' })
-    expect(await within(movementList).findByRole('button', { name: 'Elimina Spesa settimanale' })).not.toBeNull()
-    fireEvent.click(within(movementList).getByRole('button', { name: 'Modifica Spesa settimanale' }))
+    expect(await within(movementList).findByRole('button', { name: 'Azioni per Spesa settimanale' })).not.toBeNull()
+    const movementActions = within(movementList).getByRole('button', { name: 'Azioni per Spesa settimanale' }).closest('details')!
+    fireEvent.click(within(movementActions).getByRole('button', { name: 'Azioni per Spesa settimanale' }))
+    fireEvent.click(within(movementActions).getByRole('menuitem', { name: 'Modifica' }))
 
     const editor = await screen.findByRole('dialog', { name: 'Modifica movimento' })
     fireEvent.click(await within(editor).findByRole('button', { name: 'Salva modifiche' }))
 
     const restoredList = await screen.findByRole('dialog', { name: 'Movimenti · Alimentari' })
     expect(within(restoredList).getByText('Spesa settimanale')).not.toBeNull()
-    fireEvent.click(within(restoredList).getByRole('button', { name: 'Elimina Spesa settimanale' }))
+    const restoredActions = within(restoredList).getByRole('button', { name: 'Azioni per Spesa settimanale' }).closest('details')!
+    fireEvent.click(within(restoredActions).getByRole('button', { name: 'Azioni per Spesa settimanale' }))
+    fireEvent.click(within(restoredActions).getByRole('menuitem', { name: 'Elimina' }))
 
     await waitFor(() => expect(within(restoredList).queryByText('Spesa settimanale')).toBeNull())
     expect(screen.getByRole('dialog', { name: 'Movimenti · Alimentari' })).not.toBeNull()

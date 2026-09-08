@@ -1,10 +1,10 @@
 import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, PenLine, ReceiptText, Scale, Trash2, UserRound, WalletCards, X } from 'lucide-react'
 import { useState } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
-import { accountBalance, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
-import { formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
+import { accountBalance, categoryBudgetForMonth, categorySpentForMonth, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
+import { addMonthsISO, formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
-import type { AppData, User, PageId, Reimbursement } from '../types'
+import type { AppData, Category, User, PageId, Reimbursement } from '../types'
 
 interface Props {
   data: AppData
@@ -12,6 +12,7 @@ interface Props {
   members: User[]
   onNavigate: (page: PageId) => void
   onReimburse: () => void
+  onUpdateCategory?: (category: Category) => void
   onRespondReimbursement?: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   workspace?: {
     familyId: string
@@ -25,7 +26,7 @@ function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name
 }
 
-export function Dashboard({ data, user, members, onNavigate, onReimburse, onRespondReimbursement, workspace }: Props) {
+export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpdateCategory, onRespondReimbursement, workspace }: Props) {
   const todayMonth = todayISO().slice(0, 7)
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
   const [selectedMonth, setSelectedMonth] = useState(() => todayMonth)
@@ -55,6 +56,14 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
     item.settlementMethod !== 'purchase'
       && (item.status === 'pending' || item.status === 'rejected')
       && (item.fromId === user.id || item.toId === user.id))
+  const budgetAlerts = data.categories.flatMap((category) => {
+    const budget = categoryBudgetForMonth(category, currentMonth)
+    if (category.movementType !== 'expense' || budget <= 0 || (workspace?.personalMode && category.scope === 'family')) return []
+    const spent = categorySpentForMonth(data, category.id, currentMonth, user.id)
+    if (spent < budget * .9) return []
+    return [{ category, budget, spent, exceeded: spent > budget, excess: Math.max(0, Math.round((spent - budget) * 100) / 100) }]
+  })
+  const nextBudgetMonth = addMonthsISO(`${currentMonth}-01`, 1).slice(0, 7)
 
   return (
     <div className="page dashboard-page">
@@ -71,6 +80,11 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onResp
           {!workspace?.personalMode ? <label className="month-field dashboard-month-field"><CalendarDays /><select aria-label="Mese del grafico condiviso" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{monthOptions.map((month) => <option key={month} value={month}>{formatMonthYear(month)}</option>)}</select></label> : null}
         </div>
       </div>
+
+      {budgetAlerts.length ? <section className="budget-alerts" aria-label="Avvisi budget">{budgetAlerts.map(({ category, budget, spent, exceeded, excess }) => {
+        const alreadyCarried = (category.budgetCarryovers?.[nextBudgetMonth] ?? 0) === excess && excess > 0
+        return <article className={`budget-alert ${exceeded ? 'budget-alert--exceeded' : ''}`} key={category.id}><span><strong>{exceeded ? `Budget superato per ${category.name}` : `Stai per raggiungere il budget per ${category.name}`}</strong><small>{formatMoney(spent)} spesi su {formatMoney(budget)}{category.scope === 'family' ? ' · budget familiare' : ''}</small></span>{exceeded && onUpdateCategory ? <button type="button" className="button button--ghost button--small" disabled={alreadyCarried} onClick={() => onUpdateCategory({ ...category, budgetCarryovers: { ...(category.budgetCarryovers ?? {}), [nextBudgetMonth]: excess } })}>{alreadyCarried ? 'Eccedenza già scalata' : `Scala ${formatMoney(excess)} dal mese successivo`}</button> : null}</article>
+      })}</section> : null}
 
       {workspace?.personalMode ? <section className="personal-workspace-card">
         <span><UserRound /></span><div><h2>Contabilità personale</h2><p>I movimenti di questa vista sono privati. Seleziona una famiglia qui sopra quando vuoi consultare saldi e spese condivise.</p></div>

@@ -1,5 +1,6 @@
-import { Check, Clock3, Mail, Trash2, UserRound, UsersRound, X } from 'lucide-react'
+import { Check, ChevronRight, Clock3, Mail, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ActionMenu } from '../components/ActionMenu'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { debtCompensationAccountLabel, isPurchaseReimbursement } from '../lib/commissioned'
 import { formatDate, formatMoney, makeId } from '../lib/format'
@@ -63,12 +64,12 @@ export function ContactsPage({ data, user, contacts, invitations, purchases, onI
       {contacts.map((contact) => <article className="management-row contact-row" key={`${contact.source}:${contact.id}`}>
         <button className="contact-row__main" type="button" onClick={() => showContactMovements(contact)}>
           <span className="management-row__icon">{contact.source === 'family' ? <UsersRound /> : <UserRound />}</span>
-          <span><strong>{contact.name}</strong><small>{contact.source === 'family' ? `Famiglia · ${contact.familyNames?.join(', ') ?? ''}` : contact.email}</small></span>
+          <span><strong>{contact.name}</strong><small>{contact.source === 'family' ? `Famiglia · ${contact.familyNames?.join(', ') ?? ''}` : contact.email}</small></span><ChevronRight className="contact-row__disclosure" />
         </button>
-        {contact.source === 'friend' ? <button className="icon-button icon-button--danger" type="button" title="Rimuovi contatto" disabled={Boolean(busy)} onClick={() => {
+        {contact.source === 'friend' ? <ActionMenu label={`Azioni per ${contact.name}`} items={[{ label: 'Rimuovi contatto', danger: true, disabled: Boolean(busy), onSelect: () => {
           if (!confirm(`Rimuovere ${contact.name} dai contatti? I movimenti resteranno disponibili a entrambi.`)) return
           setBusy(contact.id); void onRemove(contact).catch((reason) => setError(reason instanceof Error ? reason.message : 'Rimozione non riuscita')).finally(() => setBusy(''))
-        }}><Trash2 /></button> : null}
+        } }]} /> : null}
       </article>)}
       {!contacts.length ? <p className="empty-state">Non ci sono ancora contatti.</p> : null}
     </div></section>

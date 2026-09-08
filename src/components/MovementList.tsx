@@ -1,4 +1,5 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Edit3, LockKeyhole, Share2, Trash2 } from 'lucide-react'
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, LockKeyhole, Share2 } from 'lucide-react'
+import { ActionMenu } from './ActionMenu'
 import { movementAllocations, movementHasSharedPortion, movementTagIds, sharedMovementAmount } from '../lib/calculations'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { formatDate, formatMoney } from '../lib/format'
@@ -42,13 +43,14 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
           <span className="scope-label"><ArrowLeftRight />Giro fondi</span>
           <time>{formatDate(transfer.date)}</time>
           <strong className="movement-row__amount movement-row__amount--transfer">{isOutgoing ? '−' : '+'}{formatMoney(transfer.amount)}</strong>
-          {onEditTransfer && onDeleteTransfer ? <div className="row-actions"><button className="icon-button" disabled={!canEdit} title={canEdit ? 'Modifica giro fondi' : 'Solo l’autore può modificare'} aria-label={canEdit ? `Modifica ${transfer.description}` : `Non puoi modificare ${transfer.description}`} onClick={() => canEdit && onEditTransfer(transfer)}><Edit3 /></button><button className="icon-button icon-button--danger" disabled={!canEdit} title={canEdit ? 'Elimina giro fondi' : 'Solo l’autore può eliminare'} aria-label={canEdit ? `Elimina ${transfer.description}` : `Non puoi eliminare ${transfer.description}`} onClick={() => canEdit && confirm('Eliminare questo giro fondi? I saldi dei conti verranno aggiornati.') && onDeleteTransfer(transfer.id)}><Trash2 /></button></div> : null}
+          {onEditTransfer && onDeleteTransfer ? <div className="row-actions"><ActionMenu label={`Azioni per ${transfer.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEditTransfer(transfer) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => canEdit && confirm('Eliminare questo giro fondi? I saldi dei conti verranno aggiornati.') && onDeleteTransfer(transfer.id) }]} /></div> : null}
         </article>
       }
       const movement = entry.movement
       const category = data.categories.find((item) => item.id === movement.categoryId)
       const account = data.accounts.find((item) => item.id === movement.accountId)
       const accountName = movement.accountId === debtCompensationAccountId ? debtCompensationAccountLabel : account?.name
+      const welfareAccount = data.accounts.find((item) => item.id === movement.welfareAccountId)
       const beneficiary = data.beneficiaries.find((item) => item.id === movement.beneficiaryId)
       const sender = data.senders.find((item) => item.id === movement.senderId)
       const counterparty = movement.type === 'income'
@@ -64,16 +66,21 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
       const canEdit = user?.id === movement.authorId
       const hasSharedPortion = movementHasSharedPortion(data, movement)
       const isMixed = account?.scope !== 'family' && allocations.some((item) => item.shared) && allocations.some((item) => !item.shared)
-      const displayedAmount = sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : movement.amount
+      const accountAmount = accountId && movement.welfareAccountId === accountId && movement.welfareAccountId !== movement.accountId
+        ? movement.welfareAmount ?? 0
+        : accountId && movement.accountId === accountId && movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
+          ? movement.amount - (movement.welfareAmount ?? 0)
+          : movement.amount
+      const displayedAmount = sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : accountAmount
       return <article className="movement-row" key={movement.id}>
         <span className={`movement-row__icon movement-row__icon--${movement.type}`}>{movement.type === 'income' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
         <div className="movement-row__name"><strong>{movement.description}</strong><small>{counterparty}{tagNames.length ? `${counterparty ? ' · ' : ''}${tagNames.map((name) => `#${name}`).join(' · ')}` : ''}{movement.comments ? `${counterparty || tagNames.length ? ' · ' : ''}${movement.comments}` : ''}</small></div>
         <div className="movement-row__meta"><small>Categoria</small><span><i style={{ background: category?.color }} />{movement.splits?.length ? `${allocations.length} categorie` : category?.name}</span></div>
-        <div className="movement-row__meta"><small>Conto</small><span>{accountName}</span></div>
+        <div className="movement-row__meta"><small>Conto</small><span>{accountId === movement.welfareAccountId && welfareAccount ? welfareAccount.name : accountName}{movement.welfareAmount && !accountId ? ` + ${welfareAccount?.name ?? 'Wellfare'}` : ''}</span></div>
         <span className={`scope-label ${hasSharedPortion ? 'scope-label--shared' : ''}`}>{hasSharedPortion ? <Share2 /> : <LockKeyhole />}{isMixed ? 'Misto' : hasSharedPortion ? 'Condiviso' : 'Personale'}</span>
         <time>{formatDate(movement.date)}</time>
         <strong className={`movement-row__amount movement-row__amount--${movement.type}`} title={sharedAmountsOnly ? 'Quota condivisa del movimento' : undefined}>{movement.type === 'income' ? '+' : '−'}{formatMoney(displayedAmount)}</strong>
-        {onEdit && onDelete ? <div className="row-actions"><button className="icon-button" disabled={!canEdit} title={canEdit ? 'Modifica' : 'Solo l’autore può modificare'} aria-label={canEdit ? `Modifica ${movement.description}` : `Non puoi modificare ${movement.description}`} onClick={() => canEdit && onEdit(movement)}><Edit3 /></button><button className="icon-button icon-button--danger" disabled={!canEdit} title={canEdit ? 'Elimina' : 'Solo l’autore può eliminare'} aria-label={canEdit ? `Elimina ${movement.description}` : `Non puoi eliminare ${movement.description}`} onClick={() => canEdit && confirm(movement.installmentPlanId && movement.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare questo movimento?') && onDelete(movement.id)}><Trash2 /></button></div> : null}
+        {onEdit && onDelete ? <div className="row-actions"><ActionMenu label={`Azioni per ${movement.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEdit(movement) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => canEdit && confirm(movement.installmentPlanId && movement.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare questo movimento?') && onDelete(movement.id) }]} /></div> : null}
       </article>
     })}
   </div>

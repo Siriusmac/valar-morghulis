@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultData, users } from '../lib/seed'
 import { MovementList } from './MovementList'
@@ -60,10 +60,17 @@ describe('MovementList account activity', () => {
 
     render(<MovementList data={data} movements={[movement]} transfers={[transfer]} accountId={movement.accountId} compact user={users[0]} onEdit={onEdit} onDelete={onDelete} onEditTransfer={onEditTransfer} onDeleteTransfer={onDeleteTransfer} />)
 
-    fireEvent.click(screen.getByRole('button', { name: `Modifica ${movement.description}` }))
-    fireEvent.click(screen.getByRole('button', { name: `Elimina ${movement.description}` }))
-    fireEvent.click(screen.getByRole('button', { name: 'Modifica Ricarica carta' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Elimina Ricarica carta' }))
+    const movementRow = screen.getByText(movement.description).closest('article')!
+    fireEvent.click(within(movementRow).getByRole('button', { name: `Azioni per ${movement.description}` }))
+    fireEvent.click(within(movementRow).getByRole('menuitem', { name: 'Modifica' }))
+    fireEvent.click(within(movementRow).getByRole('button', { name: `Azioni per ${movement.description}` }))
+    fireEvent.click(within(movementRow).getByRole('menuitem', { name: 'Elimina' }))
+
+    const transferRow = screen.getByText('Ricarica carta').closest('article')!
+    fireEvent.click(within(transferRow).getByRole('button', { name: 'Azioni per Ricarica carta' }))
+    fireEvent.click(within(transferRow).getByRole('menuitem', { name: 'Modifica' }))
+    fireEvent.click(within(transferRow).getByRole('button', { name: 'Azioni per Ricarica carta' }))
+    fireEvent.click(within(transferRow).getByRole('menuitem', { name: 'Elimina' }))
 
     expect(onEdit).toHaveBeenCalledWith(movement)
     expect(onDelete).toHaveBeenCalledWith(movement.id)
@@ -81,7 +88,9 @@ describe('MovementList account activity', () => {
 
     render(<MovementList data={data} movements={[]} transfers={[transfer]} accountId="family-account" compact user={users[0]} onEditTransfer={vi.fn()} onDeleteTransfer={vi.fn()} />)
 
-    expect((screen.getByRole('button', { name: 'Non puoi modificare Giro di Anna' }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('button', { name: 'Non puoi eliminare Giro di Anna' }) as HTMLButtonElement).disabled).toBe(true)
+    const row = screen.getByText('Giro di Anna').closest('article')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Azioni per Giro di Anna' }))
+    expect((within(row).getByRole('menuitem', { name: 'Modifica' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((within(row).getByRole('menuitem', { name: 'Elimina' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

@@ -1,7 +1,8 @@
-import { ArrowLeftRight, CalendarDays, Edit3, Search, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, CalendarDays, Search } from 'lucide-react'
 import { useDeferredValue, useMemo, useState } from 'react'
 import { DonutChart } from '../components/DonutChart'
 import { MovementList } from '../components/MovementList'
+import { ActionMenu } from '../components/ActionMenu'
 import { movementAllocations, movementHasSharedPortion, movementsForMonth, totalsByCategory, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
 import type { AppData, Movement, Transfer, User } from '../types'
@@ -78,7 +79,7 @@ function TransferList({ data, transfers, user, onEdit, onDelete }: { data: AppDa
       <div className="movement-row__meta"><small>Al conto</small><span>{to?.name ?? 'Conto non visibile'}</span></div>
       <time>{formatDate(transfer.date)}</time>
       <strong className="movement-row__amount movement-row__amount--transfer">{formatMoney(transfer.amount)}</strong>
-      <div className="row-actions"><button className="icon-button" type="button" disabled={!canEdit} title={canEdit ? 'Modifica giro fondi' : 'Solo l’autore può modificare'} aria-label={`Modifica ${transfer.description}`} onClick={() => canEdit && onEdit(transfer)}><Edit3 /></button><button className="icon-button icon-button--danger" type="button" disabled={!canEdit} title={canEdit ? 'Elimina giro fondi' : 'Solo l’autore può eliminare'} aria-label={`Elimina ${transfer.description}`} onClick={() => canEdit && confirm('Eliminare questo giro fondi? I saldi dei conti verranno aggiornati.') && onDelete(transfer.id)}><Trash2 /></button></div>
+      <div className="row-actions"><ActionMenu label={`Azioni per ${transfer.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEdit(transfer) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => canEdit && confirm('Eliminare questo giro fondi? I saldi dei conti verranno aggiornati.') && onDelete(transfer.id) }]} /></div>
     </article>
   })}</div>
 }

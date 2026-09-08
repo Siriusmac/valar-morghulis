@@ -572,6 +572,20 @@ gate `cloudflare:check` verifica anche questa soglia e blocca il rilascio in cas
 di regressione, oltre a continuare a controllare la presenza della
 configurazione Supabase.
 
+Il lavoro locale dell’8 settembre 2026 aggiunge il conto personale “Wellfare”
+e l’addebito misto delle spese: la quota indicata viene sottratta dalla tessera
+Wellfare e soltanto il residuo dal conto principale. Il totale del movimento
+resta unico per categorie, condivisione e statistiche; il client Apple decodifica
+il nuovo tipo e calcola correttamente entrambi i saldi. Le categorie di spesa
+possono inoltre avere un budget mensile personale o familiare: la bacheca avvisa
+dal 90% e propone esplicitamente il riporto dell’eccedenza al mese successivo.
+Le azioni contestuali della web app sono raccolte in menu a tre puntini e le
+righe aprono i relativi movimenti tramite una freccia separata. Nessuna migration
+è necessaria perché i nuovi campi restano nei documenti JSON già versionati.
+Verifica locale: 231 test web, lint, controllo TypeScript e build Vite superati;
+31 test unitari Apple superati, incluso il nuovo caso Wellfare. Modifiche non
+ancora commesse né pubblicate.
+
 La migration `20260905150000_commissioned_reimbursement_confirmation.sql`
 separa la ricezione di un acquisto per conto terzi dall’emissione e dall’incasso
 del relativo rimborso. I record ordinari già confermati vengono convertiti in

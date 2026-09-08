@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, loanAvailableToRepay, loanOutstanding, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
+import { accountBalance, categoryBudgetForMonth, categorySpentForMonth, loanAvailableToRepay, loanOutstanding, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAllocationsAcrossInstallments, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -383,6 +383,16 @@ describe('scheduled installments', () => {
 })
 
 describe('accountBalance', () => {
+  it('addebita una spesa mista tra conto principale e conto Wellfare', () => {
+    const data = cleanData()
+    data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: 'simone', openingBalance: 100 })
+    const bankBase = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    data.movements = [{ ...expense('mixed-welfare', 'simone', 30, 'simone-bank'), welfareAccountId: 'simone-welfare', welfareAmount: 10, shared: false }]
+
+    expect(accountBalance(data, 'simone-bank')).toBe(bankBase - 20)
+    expect(accountBalance(data, 'simone-welfare')).toBe(90)
+  })
+
   it('includes income, expenses, transfers and reimbursements', () => {
     const data = cleanData()
     const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
@@ -471,5 +481,35 @@ describe('accountBalance', () => {
 
     expect(sharedBalance(data, 'simone')).toBe(0)
     expect(sharedBalance(data, 'anna')).toBe(0)
+  })
+})
+
+describe('category budgets', () => {
+  it('conta solo le spese personali dell’utente nel budget personale', () => {
+    const data = cleanData()
+    const category = data.categories.find((item) => item.id === 'alimentari')!
+    category.scope = 'personal'
+    category.ownerId = 'simone'
+    data.movements = [
+      { ...expense('mine', 'simone', 35, 'simone-bank'), date: '2026-09-03', shared: false },
+      { ...expense('other', 'anna', 65, 'anna-bank'), date: '2026-09-04', shared: false },
+    ]
+
+    expect(categorySpentForMonth(data, 'alimentari', '2026-09', 'simone')).toBe(35)
+  })
+
+  it('include i movimenti condivisi di tutti nel budget familiare e scala il riporto', () => {
+    const data = cleanData()
+    const category = data.categories.find((item) => item.id === 'alimentari')!
+    category.scope = 'family'
+    category.monthlyBudget = 100
+    category.budgetCarryovers = { '2026-10': 12.5 }
+    data.movements = [
+      { ...expense('mine', 'simone', 35, 'simone-bank'), date: '2026-09-03' },
+      { ...expense('other', 'anna', 65, 'anna-bank'), date: '2026-09-04' },
+    ]
+
+    expect(categorySpentForMonth(data, 'alimentari', '2026-09', 'simone')).toBe(100)
+    expect(categoryBudgetForMonth(category, '2026-10')).toBe(87.5)
   })
 })

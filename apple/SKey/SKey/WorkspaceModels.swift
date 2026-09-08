@@ -245,6 +245,7 @@ nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
         case credit
         case cash
         case paypal
+        case welfare
 
         var label: String {
             switch self {
@@ -252,6 +253,7 @@ nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
             case .credit: "Carta di credito"
             case .cash: "Contanti"
             case .paypal: "PayPal"
+            case .welfare: "Wellfare"
             }
         }
 
@@ -261,6 +263,7 @@ nonisolated struct AccountSummary: Identifiable, Equatable, Sendable {
             case .credit: "creditcard.fill"
             case .cash: "banknote.fill"
             case .paypal: "p.circle.fill"
+            case .welfare: "ticket.fill"
             }
         }
     }
@@ -430,6 +433,8 @@ nonisolated struct LedgerDirectoryItem: Identifiable, Codable, Equatable, Sendab
     let ownerID: String?
     let movementType: MovementKind?
     let color: String?
+    let monthlyBudget: Decimal?
+    let budgetCarryovers: [String: Decimal]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -438,6 +443,28 @@ nonisolated struct LedgerDirectoryItem: Identifiable, Codable, Equatable, Sendab
         case ownerID = "ownerId"
         case movementType
         case color
+        case monthlyBudget
+        case budgetCarryovers
+    }
+
+    init(
+        id: String,
+        name: String,
+        scope: DirectoryScope,
+        ownerID: String?,
+        movementType: MovementKind?,
+        color: String?,
+        monthlyBudget: Decimal? = nil,
+        budgetCarryovers: [String: Decimal]? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.scope = scope
+        self.ownerID = ownerID
+        self.movementType = movementType
+        self.color = color
+        self.monthlyBudget = monthlyBudget
+        self.budgetCarryovers = budgetCarryovers
     }
 
     func familyCopy() -> Self {
@@ -447,7 +474,9 @@ nonisolated struct LedgerDirectoryItem: Identifiable, Codable, Equatable, Sendab
             scope: .family,
             ownerID: nil,
             movementType: movementType,
-            color: color
+            color: color,
+            monthlyBudget: monthlyBudget,
+            budgetCarryovers: budgetCarryovers
         )
     }
 }

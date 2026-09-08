@@ -552,7 +552,9 @@ struct SupabaseLedgerRepository: LedgerRepository {
             scope: item.scope,
             ownerID: item.scope == .personal ? userID.uuidString.lowercased() : nil,
             movementType: kind == .category ? item.movementType : nil,
-            color: item.color
+            color: item.color,
+            monthlyBudget: kind == .category ? item.monthlyBudget : nil,
+            budgetCarryovers: kind == .category ? item.budgetCarryovers : nil
         )
 
         if item.scope == .family {
@@ -1709,7 +1711,9 @@ struct SupabaseLedgerRepository: LedgerRepository {
             scope: .personal,
             ownerID: userID.uuidString.lowercased(),
             movementType: movementType ?? item.movementType,
-            color: item.color
+            color: item.color,
+            monthlyBudget: item.monthlyBudget,
+            budgetCarryovers: item.budgetCarryovers
         )
     }
 
@@ -1811,7 +1815,9 @@ private extension LedgerDirectoryItem {
             scope: .family,
             ownerID: nil,
             movementType: movementType,
-            color: color
+            color: color,
+            monthlyBudget: monthlyBudget,
+            budgetCarryovers: budgetCarryovers
         )
     }
 }

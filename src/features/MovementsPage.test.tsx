@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultData, users } from '../lib/seed'
 import { MovementsPage } from './MovementsPage'
@@ -55,7 +55,9 @@ describe('MovementsPage', () => {
     expect(screen.getByText('Carta di credito')).toBeTruthy()
     expect(screen.getAllByText('42,50 €').length).toBeGreaterThan(0)
     expect(screen.getByText(/spese 0,80 €/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Modifica Ricarica carta' }))
+    const row = screen.getByText('Ricarica carta').closest('article')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Azioni per Ricarica carta' }))
+    fireEvent.click(within(row).getByRole('menuitem', { name: 'Modifica' }))
     expect(onEditTransfer).toHaveBeenCalledWith(expect.objectContaining({ id: 'transfer-visible' }))
   })
 })

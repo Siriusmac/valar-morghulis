@@ -642,7 +642,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }
 
   const common = { data, user, onShowMovements: showMovements }
-  const content = page === 'dashboard' ? <Dashboard data={data} user={user} members={appUsers} onNavigate={setPage} onReimburse={() => setModal({ type: 'reimburse' })} onRespondReimbursement={cloud ? respondToReimbursement : undefined} workspace={cloud ? {
+  const content = page === 'dashboard' ? <Dashboard data={data} user={user} members={appUsers} onNavigate={setPage} onReimburse={() => setModal({ type: 'reimburse' })} onUpdateCategory={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onRespondReimbursement={cloud ? respondToReimbursement : undefined} workspace={cloud ? {
     familyId: cloud.familyId,
     families: cloud.families,
     personalMode: cloud.personalMode,

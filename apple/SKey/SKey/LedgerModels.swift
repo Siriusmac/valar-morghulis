@@ -100,6 +100,8 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
     let beneficiaryID: String?
     let senderID: String?
     let accountID: String
+    let welfareAccountID: String?
+    let welfareAmount: Money?
     let tagID: String?
     let comments: String?
     let shared: Bool
@@ -127,6 +129,8 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         case beneficiaryID = "beneficiaryId"
         case senderID = "senderId"
         case accountID = "accountId"
+        case welfareAccountID = "welfareAccountId"
+        case welfareAmount
         case tagID = "tagId"
         case comments
         case shared
@@ -155,6 +159,8 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         beneficiaryID: String?,
         senderID: String?,
         accountID: String,
+        welfareAccountID: String? = nil,
+        welfareAmount: Money? = nil,
         tagID: String?,
         comments: String?,
         shared: Bool,
@@ -181,6 +187,8 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         self.beneficiaryID = beneficiaryID
         self.senderID = senderID
         self.accountID = accountID
+        self.welfareAccountID = welfareAccountID
+        self.welfareAmount = welfareAmount
         self.tagID = tagID
         self.comments = comments
         self.shared = shared

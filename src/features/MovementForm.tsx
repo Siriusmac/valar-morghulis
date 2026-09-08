@@ -136,6 +136,10 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     ? defaultAccountId
     : type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
   const [accountId, setAccountId] = useState(initial?.accountId ?? defaultAccount ?? '')
+  const welfareAccounts = useMemo(() => personalAccounts.filter((item) => item.type === 'welfare'), [personalAccounts])
+  const [useWelfare, setUseWelfare] = useState(Boolean(initial?.welfareAccountId && initial.welfareAmount))
+  const [welfareAccountId, setWelfareAccountId] = useState(initial?.welfareAccountId ?? welfareAccounts[0]?.id ?? '')
+  const [welfareAmount, setWelfareAmount] = useState(initial?.welfareAmount?.toString() ?? '')
   const initialAccount = data.accounts.find((item) => item.id === (initial?.accountId ?? defaultAccount))
   const [affectsAccountBalance, setAffectsAccountBalance] = useState(
     initial?.affectsAccountBalance ?? !(initialAccount?.openingBalanceDate && (initial?.date ?? todayISO()) < initialAccount.openingBalanceDate),
@@ -182,6 +186,11 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
   const numericAmount = Number(amount.replace(',', '.')) || 0
+  const numericWelfareAmount = useWelfare && type === 'expense' && selectedAccount?.type !== 'welfare'
+    ? Math.round((Number(welfareAmount.replace(',', '.')) || 0) * 100) / 100
+    : 0
+  const primaryChargeTotal = Math.max(0, Math.round((numericAmount - numericWelfareAmount) * 100) / 100)
+  const welfareInvalid = useWelfare && (numericWelfareAmount <= 0 || numericWelfareAmount > numericAmount || !welfareAccountId || welfareAccountId === accountId)
   const romanShares = splitAmount(numericAmount, romanParticipants.length + 1)
   const romanSplits: SplitDraft[] = romanParticipants.map((participant, index) => ({
     id: `roman-${participant.contactId}`,
@@ -303,6 +312,8 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     setShared(mode === 'shared')
     setCommissionedRecipientId(mode === 'reimbursement' ? reimbursementOptions[0]?.memberId ?? '' : '')
     setCommissionedInviteEmail('')
+    setUseWelfare(false)
+    setWelfareAmount('')
     if (mode !== 'shared' && selectedAccount?.scope === 'family') selectAccount(personalAccounts[0]?.id ?? '')
   }
 
@@ -364,6 +375,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const selectAccount = (nextAccountId: string) => {
     setAccountId(nextAccountId)
     const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
+    if (nextAccount?.type === 'welfare') setUseWelfare(false)
     setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
     if (type === 'income') setShared(data.accounts.find((item) => item.id === nextAccountId)?.scope === 'family')
   }
@@ -388,7 +400,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       || splitTotal > numericAmount
     )
     const mainAllocationRequired = !activeSplitsEnabled || mainRemainder > 0
-    if (!numericAmount || numericAmount <= 0 || !accountId || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
+    if (!numericAmount || numericAmount <= 0 || !accountId || welfareInvalid || (installmentsEnabled && primaryChargeTotal <= 0) || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
     const categoryMatch = findByName(categories, resolvedMainCategoryName)
     const beneficiaryMatch = findByName(beneficiaries, resolvedMainBeneficiaryName)
     const senderMatch = findByName(senders, senderName)
@@ -432,7 +444,10 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     const resolvedComments = comments.trim() || undefined
     const shouldInstall = type === 'expense' && installmentsEnabled && (!initial || Boolean(initialPlan))
     const planId = initial?.installmentPlanId ?? (shouldInstall ? makeId('installment-plan') : undefined)
-    const amounts = shouldInstall ? splitAmount(numericAmount, installmentCount) : [numericAmount]
+    const primaryAmounts = shouldInstall ? splitAmount(primaryChargeTotal, installmentCount) : [primaryChargeTotal]
+    const amounts = shouldInstall
+      ? primaryAmounts.map((value, index) => index === 0 ? Math.round((value + numericWelfareAmount) * 100) / 100 : value)
+      : [numericAmount]
     const movementId = initial?.id ?? makeId('movement')
     const mainCommissionedAmount = commissioned ? (activeSplitsEnabled ? mainRemainder : numericAmount) : 0
     const purchaseId = initial?.commissionedPurchaseId ?? (mainCommissionedAmount > 0 ? makeId('commissioned-purchase') : undefined)
@@ -565,6 +580,8 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       beneficiaryId: primaryBeneficiaryId,
       senderId: resolvedSenderId,
       accountId,
+      welfareAccountId: numericWelfareAmount > 0 ? welfareAccountId : undefined,
+      welfareAmount: numericWelfareAmount > 0 ? numericWelfareAmount : undefined,
       tagId: resolvedTagId,
       tagIds: resolvedTagIds.length ? resolvedTagIds : undefined,
       comments: resolvedComments,
@@ -612,10 +629,14 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       <label htmlFor="amount">Importo {installmentsEnabled ? 'totale' : ''}</label><div><span>€</span><input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus /></div>
       {submitted && (!numericAmount || numericAmount <= 0) ? <small>Inserisci un importo valido.</small> : null}
     </div>
+    {type === 'expense' && selectedAccount?.type !== 'welfare' && welfareAccounts.length ? <section className={`welfare-box ${useWelfare ? 'welfare-box--active' : ''}`}>
+      <label className="welfare-toggle"><input type="checkbox" checked={useWelfare} onChange={(event) => setUseWelfare(event.target.checked)} /><span><strong>Utilizza Wellfare</strong><small>Paga una parte con una tessera o un buono aziendale.</small></span></label>
+      {useWelfare ? <div className="welfare-fields"><label>Conto Wellfare<select value={welfareAccountId} onChange={(event) => setWelfareAccountId(event.target.value)}>{welfareAccounts.filter((item) => item.id !== accountId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Importo Wellfare<div className="money-input"><span>€</span><input aria-label="Importo Wellfare" inputMode="decimal" value={welfareAmount} onChange={(event) => setWelfareAmount(event.target.value)} placeholder="0,00" /></div><small>Il residuo di € {primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato sul conto principale.</small></label>{submitted && welfareInvalid ? <small className="field-error">Scegli un conto Wellfare e inserisci una quota valida, non superiore al totale.</small> : null}</div> : null}
+    </section> : null}
     {isDebtCompensationMovement ? <label>Origine contabile<output>{debtCompensationAccountLabel}</output></label> : <label>{type === 'expense' ? 'Conto di addebito' : 'Conto di destinazione'}<select value={accountId} onChange={(event) => selectAccount(event.target.value)}>{displayedAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>}
     {type === 'expense' && !romanMode && (!initial || initialPlan) ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" disabled={Boolean(initialPlan)} onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Pagamento a rate</strong><small>L’importo resta il totale; il conto verrà addebitato con i pagamenti programmati.</small></span><i aria-hidden="true"><span /></i></button>
-      {installmentsEnabled ? <><div className="installment-fields"><label>Intermediario<select value={provider} onChange={(event) => setProvider(event.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(event) => setCustomProvider(event.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div><div className="installment-schedule"><strong>Rate successive</strong><small>Puoi modificare ogni data prima di salvare.</small>{splitAmount(numericAmount, installmentCount).slice(1).map((installmentAmount, index) => {
+      {installmentsEnabled ? <><div className="installment-fields"><label>Intermediario<select value={provider} onChange={(event) => setProvider(event.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(event) => setCustomProvider(event.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div><div className="installment-schedule"><strong>Rate successive</strong><small>Puoi modificare ogni data prima di salvare.</small>{splitAmount(primaryChargeTotal, installmentCount).slice(1).map((installmentAmount, index) => {
         const installmentNumber = index + 2
         return <label key={installmentNumber}><span>Rata {installmentNumber} di {installmentCount}<small>€ {installmentAmount.toFixed(2).replace('.', ',')}</small></span><input aria-label={`Data rata ${installmentNumber}`} type="date" value={installmentDueDates[installmentNumber] ?? addMonthsISO(date, index + 1)} onChange={(event) => setInstallmentDueDates((current) => ({ ...current, [installmentNumber]: event.target.value }))} /></label>
       })}</div></> : null}

@@ -86,9 +86,23 @@ nonisolated enum LedgerCalculations {
     static func accountBalance(_ account: AccountSummary, in snapshot: LedgerSnapshot) -> Money {
         var balance = Money(decimal: account.openingBalance)
 
-        for movement in snapshot.movements where movement.accountID.caseInsensitiveCompare(account.id) == .orderedSame {
+        for movement in snapshot.movements {
             guard movement.affectsAccountBalance != false else { continue }
-            balance = movement.type == .income ? balance + movement.amount : balance - movement.amount
+            let isPrimaryAccount = movement.accountID.caseInsensitiveCompare(account.id) == .orderedSame
+            if movement.type == .income {
+                if isPrimaryAccount { balance = balance + movement.amount }
+                continue
+            }
+
+            let welfareAmount = movement.welfareAccountID?.caseInsensitiveCompare(movement.accountID) == .orderedSame
+                ? Money.zero
+                : movement.welfareAmount ?? .zero
+            if isPrimaryAccount {
+                balance = balance - Money(cents: max(0, movement.amount.cents - welfareAmount.cents))
+            }
+            if movement.welfareAccountID?.caseInsensitiveCompare(account.id) == .orderedSame {
+                balance = balance - welfareAmount
+            }
         }
 
         for transfer in snapshot.transfers {

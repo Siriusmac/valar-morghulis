@@ -746,7 +746,7 @@ private struct AccountEditorView: View {
                     TextField("Nome conto", text: $name)
                     TextField("Istituto o dettaglio", text: $institution)
                     Picker("Tipo", selection: $kind) {
-                        ForEach([AccountSummary.Kind.bank, .credit, .cash, .paypal], id: \.self) {
+                        ForEach([AccountSummary.Kind.bank, .credit, .cash, .paypal, .welfare], id: \.self) {
                             Text($0.label).tag($0)
                         }
                     }
@@ -755,6 +755,7 @@ private struct AccountEditorView: View {
                             Text("Personale").tag(DirectoryScope.personal)
                             Text("Condiviso con la famiglia").tag(DirectoryScope.family)
                         }
+                        .disabled(kind == .welfare)
                     } else {
                         LabeledContent("Visibilità", value: scope == .personal ? "Personale" : "Famiglia")
                     }
@@ -817,6 +818,9 @@ private struct AccountEditorView: View {
                 }
             }
             .interactiveDismissDisabled(isSaving)
+            .onChange(of: kind) { _, newKind in
+                if newKind == .welfare { scope = .personal }
+            }
             .alert("Conto non salvato", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
@@ -840,6 +844,7 @@ private struct AccountEditorView: View {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && parsedOpeningBalance != nil
             && (scope != .family || targetFamilyID != nil)
+            && (kind != .welfare || scope == .personal)
     }
 
     private func familyName(_ familyID: UUID) -> String {

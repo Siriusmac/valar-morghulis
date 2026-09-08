@@ -82,6 +82,27 @@ struct SKeyTests {
     }
 
     @Test
+    func decodesWellfareAccountAndMixedExpense() throws {
+        let accountData = Data(
+            #"{"data":{"accounts":[{"id":"welfare","name":"Buoni pasto","institution":"Azienda","type":"welfare","scope":"personal","openingBalance":100}]}}"#.utf8
+        )
+        let movementData = Data(
+            #"{"id":"mixed","type":"expense","authorId":"user","memberId":"user","amount":30,"date":"2026-09-08","description":"Spesa mista","categoryId":"food","accountId":"bank","welfareAccountId":"welfare","welfareAmount":10,"shared":false,"createdAt":"2026-09-08T10:00:00Z"}"#.utf8
+        )
+
+        let row = try JSONDecoder().decode(PersonalAppDataRow.self, from: accountData)
+        let welfareAccount = try #require(row.data?.accounts?.first)
+        let movement = try JSONDecoder().decode(LedgerMovement.self, from: movementData)
+        let bank = ledgerAccount(id: "bank", openingBalance: 100)
+        let welfare = AccountSummary(id: "welfare", familyID: nil, name: "Buoni pasto", institution: "Azienda", kind: .welfare, openingBalance: 100, openingBalanceDate: nil)
+        let snapshot = ledgerSnapshot(accounts: [bank, welfare], movements: [movement])
+
+        #expect(welfareAccount.type == .welfare)
+        #expect(LedgerCalculations.accountBalance(bank, in: snapshot) == Money(cents: 8_000))
+        #expect(LedgerCalculations.accountBalance(welfare, in: snapshot) == Money(cents: 9_000))
+    }
+
+    @Test
     func decodesSharedAccountDatabaseColumns() throws {
         let data = Data(
             #"{"id":"33333333-3333-3333-3333-333333333333","family_id":"11111111-1111-1111-1111-111111111111","name":"Conto di famiglia","institution":"Cointestato","account_type":"bank","opening_balance":1250,"opening_balance_date":"2026-08-01"}"#

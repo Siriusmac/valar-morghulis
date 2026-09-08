@@ -51,6 +51,34 @@ describe('MovementForm', () => {
     expect((screen.getByLabelText('Conto di addebito') as HTMLSelectElement).value).toBe('simone-card')
   })
 
+  it('registra una spesa mista con la quota pagata dal conto Wellfare', () => {
+    const data = structuredClone(defaultData)
+    data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: users[0].id, openingBalance: 100 })
+    const onSave = vi.fn()
+    render(<MovementForm data={data} user={users[0]} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.click(screen.getByLabelText(/Utilizza Wellfare/))
+    expect((screen.getByText('Conto Wellfare', { selector: 'label' }).querySelector('select') as HTMLSelectElement).value).toBe('simone-welfare')
+    fireEvent.change(screen.getByLabelText('Importo Wellfare'), { target: { value: '10' } })
+    expect(screen.getByText(/Il residuo di € 20,00/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 30, accountId: 'simone-bank', welfareAccountId: 'simone-welfare', welfareAmount: 10 })
+  })
+
+  it('non propone la ripartizione quando il conto principale è già Wellfare', () => {
+    const data = structuredClone(defaultData)
+    data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: users[0].id, openingBalance: 100 })
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-welfare" onSave={vi.fn()} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    expect(screen.queryByLabelText(/Utilizza Wellfare/)).toBeNull()
+  })
+
   it('asks how a movement before the opening balance date affects the account', () => {
     const data = structuredClone(defaultData)
     data.accounts = data.accounts.map((account) => account.id === 'simone-bank'

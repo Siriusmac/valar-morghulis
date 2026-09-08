@@ -1,4 +1,4 @@
-import type { AppData, FamilyMembershipSnapshot, Loan, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
+import type { AppData, Category, FamilyMembershipSnapshot, Loan, Movement, MovementSplit, MovementType, Reimbursement, UserId } from '../types'
 
 export interface MovementAllocation {
   categoryId: string
@@ -198,8 +198,16 @@ export function accountBalance(data: AppData, accountId: string) {
   if (!account) return 0
   let balance = account.openingBalance
   for (const movement of data.movements) {
-    if (movement.accountId !== accountId || movement.affectsAccountBalance === false) continue
-    balance += movement.type === 'income' ? movement.amount : -movement.amount
+    if (movement.affectsAccountBalance === false) continue
+    if (movement.accountId === accountId) {
+      const welfarePortion = movement.type === 'expense' && movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
+        ? movement.welfareAmount ?? 0
+        : 0
+      balance += movement.type === 'income' ? movement.amount : -(movement.amount - welfarePortion)
+    }
+    if (movement.type === 'expense' && movement.welfareAccountId === accountId && movement.welfareAccountId !== movement.accountId) {
+      balance -= movement.welfareAmount ?? 0
+    }
   }
   for (const transfer of data.transfers) {
     if (transfer.fromAccountId === accountId) balance -= transfer.amount + (transfer.feeAmount ?? 0)
@@ -221,6 +229,26 @@ export function accountBalance(data: AppData, accountId: string) {
     if (repayment.toAccountId === accountId) balance += repayment.amount
   }
   return Math.round(balance * 100) / 100
+}
+
+export function categorySpentForMonth(data: AppData, categoryId: string, month: string, userId: UserId) {
+  const category = data.categories.find((item) => item.id === categoryId)
+  if (!category || category.movementType !== 'expense') return 0
+  const total = data.movements.reduce((sum, movement) => {
+    if (movement.type !== 'expense' || movement.excludeFromReports || !movement.date.startsWith(month)) return sum
+    if (category.scope === 'personal' && movement.authorId !== userId) return sum
+    const accountIsFamily = data.accounts.find((account) => account.id === movement.accountId)?.scope === 'family'
+    const matching = movementAllocations(movement).filter((allocation) =>
+      allocation.categoryId === categoryId
+      && !allocation.excludeFromReports
+      && (category.scope === 'personal' || allocation.shared || accountIsFamily))
+    return sum + matching.reduce((allocationTotal, allocation) => allocationTotal + allocation.amount, 0)
+  }, 0)
+  return roundMoney(total)
+}
+
+export function categoryBudgetForMonth(category: Category, month: string) {
+  return roundMoney(Math.max(0, (category.monthlyBudget ?? 0) - (category.budgetCarryovers?.[month] ?? 0)))
 }
 
 export function loanOutstanding(data: AppData, loan: Loan) {

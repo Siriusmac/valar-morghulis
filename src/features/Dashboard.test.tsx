@@ -7,6 +7,23 @@ import { todayISO } from '../lib/format'
 
 afterEach(cleanup)
 describe('Dashboard workspace selector', () => {
+  it('avvisa al 90% del budget e permette di scalare lo sforamento dal mese seguente', () => {
+    const data = structuredClone(defaultData)
+    const currentMonth = todayISO().slice(0, 7)
+    const category = data.categories.find((item) => item.id === 'alimentari')!
+    category.monthlyBudget = 100
+    category.scope = 'personal'
+    data.movements = [{ ...data.movements[0], amount: 110, date: `${currentMonth}-02`, shared: false, memberId: users[0].id, authorId: users[0].id }]
+    const onUpdateCategory = vi.fn()
+
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onUpdateCategory={onUpdateCategory} />)
+
+    expect(screen.getByText('Budget superato per Alimentari')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Scala 10,00/ }))
+    expect(onUpdateCategory).toHaveBeenCalledWith(expect.objectContaining({ budgetCarryovers: expect.objectContaining({}) }))
+    expect(Object.values(onUpdateCategory.mock.calls[0][0].budgetCarryovers)).toContain(10)
+  })
+
   it('uses first names in the greeting and two-member balance summary', () => {
     const data = structuredClone(defaultData)
     const currentUser = { ...users[0], name: 'Simone Miotto' }
