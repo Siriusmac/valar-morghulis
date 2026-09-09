@@ -12,6 +12,7 @@ import { reconcileConfirmedLoanPurchases } from '../lib/loans'
 import { createPersonalStarterData, createStarterData } from '../lib/seed'
 import { getSupabase } from '../lib/supabase'
 import { observeUserActivity } from '../lib/userActivity'
+import type { AccountDeletionMode } from '../lib/accounts'
 import type { Account, AppData, Loan, LoanRepayment, ReimbursementAccountReference, ReimbursementChangeRequest, User } from '../types'
 
 export const PERSONAL_WORKSPACE_ID = 'personal'
@@ -49,6 +50,7 @@ export interface FamilySession {
   subscribeToContactData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   createSharedAccount: (account: Account, familyId: string) => Promise<void>
   updateSharedAccount: (account: Account) => Promise<void>
+  deleteSharedAccount: (account: Account, mode: AccountDeletionMode, replacementAccountId?: string) => Promise<void>
   setReimbursementAccountFamilies: (account: Account, familyIds: string[]) => Promise<void>
   respondToReimbursement: (reimbursementId: string, accepted: boolean, selectedAccountId?: string) => Promise<void>
   createLoan: (loan: Loan) => Promise<void>
@@ -669,6 +671,22 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         .eq('family_id', activeFamilyId)
         .eq('scope', 'family')
       if (updateError) throw updateError
+    },
+    deleteSharedAccount: async (account, mode, replacementAccountId) => {
+      if (!activeFamilyId || account.scope !== 'family') throw new Error('Nessuna famiglia selezionata.')
+      const { error: deleteError } = await supabase.rpc('delete_family_account', {
+        target_account_id: account.id,
+        movement_strategy: mode,
+        replacement_account_id: replacementAccountId ?? null,
+      })
+      if (deleteError) {
+        if (deleteError.message.includes('family_admin_required')) throw new Error('Solo un amministratore può eliminare un conto familiare.')
+        if (deleteError.message.includes('account_replacement_required')) throw new Error('Scegli un conto familiare valido per la riconduzione.')
+        if (deleteError.message.includes('account_replacement_creates_invalid_transfer')) throw new Error('Il conto scelto renderebbe non valido un giro fondi collegato. Scegli un altro conto.')
+        if (deleteError.message.includes('account_has_reciprocal_operations')) throw new Error('Il conto è collegato a rimborsi, prestiti o acquisti reciproci. Mantieni lo storico oppure rettifica prima quelle operazioni.')
+        throw deleteError
+      }
+      await load(activeFamilyId)
     },
     setReimbursementAccountFamilies: async (account, requestedFamilyIds) => {
       if (account.scope !== 'personal' || account.ownerId !== snapshot.profile.id) {

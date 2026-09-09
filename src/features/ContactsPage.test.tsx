@@ -8,6 +8,25 @@ import { ContactsPage } from './ContactsPage'
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('ContactsPage invitations', () => {
+  it('keeps the movement disclosure inside the contact name row', () => {
+    render(<ContactsPage
+      data={structuredClone(defaultData)}
+      user={users[0]}
+      contacts={[{ id: users[1].id, name: users[1].name, email: users[1].email, initials: users[1].initials, source: 'family', familyNames: ['Famiglia Miotto'] }]}
+      invitations={[]}
+      purchases={[]}
+      onInvite={vi.fn().mockResolvedValue(undefined)}
+      onWithdrawInvitation={vi.fn().mockResolvedValue(undefined)}
+      onRemove={vi.fn().mockResolvedValue(undefined)}
+      onRespond={vi.fn().mockResolvedValue(undefined)}
+      onShowMovements={vi.fn()}
+    />)
+
+    const contactButton = screen.getByRole('button', { name: /Anna/ })
+    expect(contactButton.querySelector('.contact-row__disclosure')).toBeTruthy()
+    expect(contactButton.children).toHaveLength(3)
+  })
+
   it('withdraws a pending contact invitation after confirmation', async () => {
     const onWithdrawInvitation = vi.fn().mockResolvedValue(undefined)
     vi.spyOn(window, 'confirm').mockReturnValue(true)

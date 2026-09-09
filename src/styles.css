@@ -236,8 +236,14 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .danger-settings__toggle strong { font-size: 11px; }
 .danger-settings__toggle small { color: var(--muted); font-size: 9px; }
 .dashboard-heading-actions { display: flex; align-items: flex-end; gap: 18px; }
+.dashboard-family-selector, .dashboard-month-field { position: relative; width: 210px; box-sizing: border-box; }
 .dashboard-family-selector { display: grid; gap: 5px; min-width: 210px; color: var(--muted); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; }
-.dashboard-family-selector select { width: 100%; height: 40px; padding: 0 34px 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.dashboard-family-selector select { width: 100%; height: 40px; padding: 0 38px 0 11px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.dashboard-family-selector select, .dashboard-month-field select { min-width: 0; appearance: none; -webkit-appearance: none; }
+.dashboard-month-field select { width: 100%; flex: 1; padding-right: 38px; }
+.dashboard-family-selector::after, .dashboard-month-field::after { content: ''; position: absolute; right: 12px; width: 18px; height: 18px; pointer-events: none; background: center / 18px 18px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2314243a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 9 5-5 5 5M7 15l5 5 5-5'/%3E%3C/svg%3E"); }
+.dashboard-family-selector::after { bottom: 11px; }
+.dashboard-month-field::after { top: 50%; transform: translateY(-50%); }
 .personal-workspace-card { min-height: 150px; display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 18px; padding: 25px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: linear-gradient(90deg, var(--positive-soft), transparent); }
 .personal-workspace-card > span { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; color: var(--positive); background: white; }
 .personal-workspace-card svg { width: 24px; }
@@ -360,6 +366,17 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .lookup-field__menu .lookup-field__create svg { color: currentColor; }
 .lookup-field__menu > small { padding: 10px; color: var(--muted); font-weight: 400; }
 .inline-form__actions { display: flex; gap: 7px; }
+.account-delete-form { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(280px, 1.2fr) minmax(190px, .7fr); gap: 18px 28px; align-items: start; margin-bottom: 30px; padding: 22px 24px; border: 1px solid #e3d6d2; border-radius: 8px; background: #fff8f6; }
+.account-delete-form > div:first-child { display: grid; gap: 4px; }
+.account-delete-form > div:first-child strong { font: 600 20px/1.2 'Newsreader', Georgia, serif; }
+.account-delete-form p { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.account-delete-form fieldset { display: grid; gap: 9px; margin: 0; padding: 12px 14px; border: 1px solid #e3d6d2; border-radius: 6px; }
+.account-delete-form legend { padding: 0 5px; font-size: 10px; font-weight: 700; }
+.account-delete-form label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; }
+.account-delete-form > label { display: grid; align-content: start; gap: 7px; }
+.account-delete-form select { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
+.account-delete-form > .field-explanation, .account-delete-form > .form-message { grid-column: 1 / -1; margin: 0; }
+.account-delete-form__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
 .management-list { border-top: 1px solid var(--line); }
 .management-row { min-height: 92px; display: grid; grid-template-columns: 52px 1fr auto; gap: 17px; align-items: center; border-bottom: 1px solid var(--line); }
 .management-row__icon, .directory-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--positive-soft); color: var(--positive); display: grid; place-items: center; }
@@ -805,6 +822,8 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 }
 
 @media (max-width: 1000px) {
+  .account-delete-form { grid-template-columns: 1fr 1fr; }
+  .account-delete-form > label { grid-column: 1 / -1; }
   .app-shell { grid-template-columns: 84px minmax(0,1fr); }
   .sidebar { width: 84px; }
   .sidebar__top { padding: 0 15px 0 13px; }
@@ -839,6 +858,9 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 }
 
 @media (max-width: 720px) {
+  .account-delete-form { grid-template-columns: 1fr; padding: 18px; }
+  .account-delete-form > label, .account-delete-form > .field-explanation, .account-delete-form > .form-message, .account-delete-form__actions { grid-column: 1; }
+  .account-delete-form__actions .button { flex: 1; }
   .app-shell { display: block; }
   .sidebar { width: min(320px, 86vw); transform: translateX(-103%); transition: transform .24s ease; box-shadow: var(--shadow); }
   .sidebar--open { transform: translateX(0); }
@@ -1182,8 +1204,9 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .reimbursement-change-form > small { grid-column: 1 / -1; }
 
 .contact-row { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; }
-.contact-row__main { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 17px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.contact-row__main > span:last-child { display: grid; gap: 3px; }
+.contact-row__main { display: grid; grid-template-columns: 48px minmax(0, 1fr) 36px; align-items: center; gap: 17px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.contact-row__main > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.contact-row__disclosure { justify-self: end; width: 18px; color: var(--muted); }
 .contact-invite { display: grid; gap: 14px; margin-top: 18px; padding-top: 20px; border-top: 1px solid var(--line); }
 .contact-invitation { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--positive-soft); }
 .contact-invitation svg { width: 20px; color: var(--positive); }

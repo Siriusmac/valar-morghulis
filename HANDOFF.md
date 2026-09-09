@@ -620,3 +620,24 @@ Il middleware `functions/_middleware.js` reindirizza permanentemente
 `valarmorghulis.it`, con e senza `www`, verso `www.skeyapp.com`, conservando
 percorso e query. I record DNS relativi alla posta e i nameserver Tophost non
 sono stati modificati.
+
+## Lavoro locale del 9 settembre 2026 — non pubblicato
+
+La web app allinea la freccia dei contatti alla fine della riga e usa lo stesso
+indicatore personalizzato nei due selettori della bacheca. I menu a tre puntini
+sono ora controllati: si chiudono dopo un'azione, con un clic esterno e con Esc.
+
+La pagina Conti permette di eliminare un conto scegliendo se conservare le
+operazioni nello storico, eliminarle oppure ricondurle a un conto compatibile
+dello stesso ambito. I record conservati mostrano “Conto eliminato”; la
+preferenza del conto predefinito viene rimossa o ricondotta. I conti familiari
+richiedono il ruolo amministratore e usano la nuova RPC atomica
+`delete_family_account`. Le operazioni reciproche — rimborsi, prestiti e
+acquisti per conto terzi — non possono essere eliminate o ricondotte da questa
+procedura: vanno prima rettificate con la conferma della controparte.
+
+Le migration `20260909010000_account_deletion_strategies.sql` e
+`20260909013000_account_deletion_function_volatility.sql` implementano la RPC
+e allineano la volatilità dichiarata delle funzioni JSONB a quella rilevata da
+PostgreSQL. Verifica locale: 244 test web, lint, controllo TypeScript, build
+Vite e `git diff --check` superati.

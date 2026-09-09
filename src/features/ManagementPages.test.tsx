@@ -189,7 +189,7 @@ describe('AccountsPage', () => {
 
   it('richiede lo storico completo del conto, inclusi i giri fondi', () => {
     const onShowMovements = vi.fn()
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={onShowMovements} />)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={onShowMovements} />)
 
     const accountRow = screen.getByText('Conto corrente').closest('article')!
     fireEvent.click(within(accountRow).getByRole('button', { name: 'Vedi movimenti di Conto corrente' }))
@@ -199,7 +199,7 @@ describe('AccountsPage', () => {
 
   it('asks explicitly which family owns a new shared account', async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined)
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
     fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Vacanze' } })
@@ -215,7 +215,7 @@ describe('AccountsPage', () => {
 
   it('crea un conto Wellfare esclusivamente personale', async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined)
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
     fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Buoni pasto' } })
@@ -229,7 +229,7 @@ describe('AccountsPage', () => {
 
   it('updates reimbursement visibility independently for multiple families', async () => {
     const onChange = vi.fn().mockResolvedValue(undefined)
-    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={vi.fn()} reimbursementSharing={{
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={vi.fn()} reimbursementSharing={{
       references: [{ familyId: 'family-one', ownerId: users[0].id, accountId: 'simone-bank', name: 'Conto corrente' }],
       onChange,
     }} />)
@@ -238,5 +238,37 @@ describe('AccountsPage', () => {
     fireEvent.click(within(accountRow).getByLabelText('Famiglia Due'))
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ id: 'simone-bank' }), ['family-one', 'family-two']))
+  })
+
+  it('asks how to handle linked movements before deleting an account', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    render(<AccountsPage data={structuredClone(defaultData)} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={onDelete} onShowMovements={vi.fn()} />)
+
+    const accountRow = screen.getByText('Conto corrente').closest('article')!
+    fireEvent.click(within(accountRow).getByRole('button', { name: 'Azioni per Conto corrente' }))
+    fireEvent.click(within(accountRow).getByRole('menuitem', { name: 'Elimina conto' }))
+
+    expect(screen.getByText('Come gestire i movimenti')).toBeTruthy()
+    expect(screen.getByText(/operazioni sono collegate/)).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('Elimina tutti i movimenti collegati'))
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina conto' }))
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'simone-bank' }), 'delete', undefined))
+  })
+
+  it('allows reassignment only to a compatible account', async () => {
+    const data = structuredClone(defaultData)
+    data.accounts.push({ id: 'simone-bank-2', ownerId: users[0].id, name: 'Secondo conto', institution: 'Banca', type: 'bank', scope: 'personal', openingBalance: 0 })
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    render(<AccountsPage data={data} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={onDelete} onShowMovements={vi.fn()} />)
+
+    const accountRow = screen.getByText('Conto corrente').closest('article')!
+    fireEvent.click(within(accountRow).getByRole('button', { name: 'Azioni per Conto corrente' }))
+    fireEvent.click(within(accountRow).getByRole('menuitem', { name: 'Elimina conto' }))
+    fireEvent.click(screen.getByLabelText('Riconduci i movimenti a un altro conto'))
+    fireEvent.change(screen.getByLabelText('Conto al quale ricondurre i movimenti'), { target: { value: 'simone-bank-2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina conto' }))
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'simone-bank' }), 'reassign', 'simone-bank-2'))
   })
 })

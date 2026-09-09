@@ -11,6 +11,7 @@ import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergePendin
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readPendingCloudSave, recordCloudSaveFailure, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
+import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
 import { createCommissionedPurchase, familyContacts, inviteContact, issueCommissionedPurchaseReimbursement, loadContactData, removeContact, respondToCommissionedPurchase, respondToCommissionedPurchaseReimbursement, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
@@ -519,6 +520,15 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     setToast('Saldo iniziale aggiornato')
   }
+  const deleteAccount = async (account: AppData['accounts'][number], mode: AccountDeletionMode, replacementAccountId?: string) => {
+    if (cloud && account.scope === 'family') {
+      await cloud.deleteSharedAccount(account, mode, replacementAccountId)
+    } else if (cloud && account.scope === 'personal' && cloud.reimbursementAccountReferences.some((reference) => reference.ownerId === cloud.user.id && reference.accountId === account.id)) {
+      await cloud.setReimbursementAccountFamilies(account, [])
+    }
+    setData((current) => deleteAccountData(current, account.id, mode, replacementAccountId))
+    setToast(mode === 'keep' ? 'Conto eliminato, movimenti conservati nello storico' : mode === 'delete' ? 'Conto e movimenti collegati eliminati' : 'Conto eliminato e movimenti ricondotti al nuovo conto')
+  }
   const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number, accountId?: string) => setModal({ type: 'details', title, filter, amount, accountId })
   const sendContactInvite = async (email: string) => {
     await inviteContact(email)
@@ -652,7 +662,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} onEditTransfer={(transfer) => setModal({ type: 'transfer', transfer })} onDeleteTransfer={deleteTransfer} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
     : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onIssuePurchaseReimbursement={cloud ? issuePurchaseReimbursement : undefined} onRespondPurchaseReimbursement={cloud ? respondToPurchaseReimbursement : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} onCreateLoan={!cloud || !cloud.personalMode ? createLoan : undefined} onRespondLoan={!cloud || !cloud.personalMode ? respondToLoan : undefined} onCreateLoanRepayment={!cloud || !cloud.personalMode ? createLoanRepayment : undefined} onRespondLoanRepayment={!cloud || !cloud.personalMode ? respondToLoanRepayment : undefined} />
-    : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} onAdd={async (account, familyId) => {
+    : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} canDeleteFamilyAccounts={!cloud || cloud.role === 'admin'} onDelete={deleteAccount} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
         if (!familyId) throw new Error('Scegli la famiglia del conto.')
         await cloud.createSharedAccount(account, familyId)

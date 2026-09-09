@@ -62,8 +62,12 @@ Usare controlli nativi, focus state e scrolling automatico: l'intero controllo a
 - Nell'editor dei conti personali una selezione per ogni famiglia decide dove
   pubblicare soltanto nome e ID opaco per i rimborsi. Un'icona occhio indica
   almeno una pubblicazione; saldo e movimenti non vengono mai esposti.
-- L'eliminazione mantiene intatti i movimenti storici. I conti familiari sono
-  eliminabili solo da un amministratore della famiglia attiva.
+- L'eliminazione propone tre strategie: conservare i movimenti nello storico
+  con l'indicazione “Conto eliminato”, eliminare le registrazioni collegate o
+  ricondurle a un conto compatibile dello stesso ambito. I conti familiari sono
+  eliminabili solo da un amministratore della famiglia attiva. Se il conto è
+  coinvolto in rimborsi, prestiti o acquisti per conto terzi, si può conservare
+  lo storico oppure rettificare prima l'operazione reciproca.
 
 ## Directory e pagamenti programmati
 
@@ -86,7 +90,8 @@ multiplo e permette di modificare le date delle rate future.
 ## Contatti e acquisti su commissione
 
 “Contatti” mostra prima i membri delle famiglie, contrassegnati come tali, poi
-gli amici accettati. La rimozione è disponibile solo per gli amici: swipe su
+gli amici accettati. La freccia che apre i movimenti è allineata alla fine della
+riga con il nome. La rimozione è disponibile solo per gli amici: swipe su
 iPhone e iPad verticale, icona permanente su Mac e iPad orizzontale. Toccando
 una persona si apre lo storico degli acquisti che la coinvolgono.
 

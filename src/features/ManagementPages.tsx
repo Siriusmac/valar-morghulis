@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ActionMenu } from '../components/ActionMenu'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { DonutChart } from '../components/DonutChart'
+import { accountHasReciprocalOperations, accountLinkedOperationCount, accountReplacementCreatesInvalidTransfer, type AccountDeletionMode } from '../lib/accounts'
 import { accountBalance, movementAllocations, visibleMovements } from '../lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
 import type { Account, AppData, Beneficiary, Category, Movement, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
@@ -11,11 +12,13 @@ interface BaseProps { data: AppData; user: User; onShowMovements: (title: string
 
 const byName = <T extends { name: string }>(left: T, right: T) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true })
 
-export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, families = [], activeFamilyId, reimbursementSharing }: BaseProps & {
+export function AccountsPage({ data, user, onAdd, onUpdate, onDelete, onShowMovements, families = [], activeFamilyId, canDeleteFamilyAccounts = false, reimbursementSharing }: BaseProps & {
   onAdd: (account: Account, familyId?: string) => void | Promise<void>
   onUpdate: (account: Account) => void
+  onDelete: (account: Account, mode: AccountDeletionMode, replacementAccountId?: string) => void | Promise<void>
   families?: Array<{ id: string; name: string }>
   activeFamilyId?: string
+  canDeleteFamilyAccounts?: boolean
   reimbursementSharing?: {
     references: ReimbursementAccountReference[]
     onChange: (account: Account, familyIds: string[]) => Promise<void>
@@ -36,7 +39,18 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, fam
   const [editingBalanceDate, setEditingBalanceDate] = useState(todayISO())
   const [sharingAccountId, setSharingAccountId] = useState('')
   const [sharingError, setSharingError] = useState('')
+  const [deletingAccountId, setDeletingAccountId] = useState('')
+  const [deletionMode, setDeletionMode] = useState<AccountDeletionMode>('keep')
+  const [replacementAccountId, setReplacementAccountId] = useState('')
+  const [deletionBusy, setDeletionBusy] = useState(false)
+  const [deletionError, setDeletionError] = useState('')
   const accounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
+  const deletingAccount = accounts.find((item) => item.id === deletingAccountId)
+  const replacementAccounts = deletingAccount ? accounts.filter((item) => item.id !== deletingAccount.id
+    && item.scope === deletingAccount.scope
+    && (item.type === 'welfare') === (deletingAccount.type === 'welfare')) : []
+  const linkedOperationCount = deletingAccount ? accountLinkedOperationCount(data, deletingAccount.id) : 0
+  const hasReciprocalOperations = deletingAccount ? accountHasReciprocalOperations(data, deletingAccount.id) : false
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); if (!name.trim()) return
     if (scope === 'family' && families.length && !targetFamilyId) { setFormError('Scegli la famiglia del conto.'); return }
@@ -63,9 +77,45 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, fam
     onUpdate({ ...account, openingBalance: numericBalance, openingBalanceDate: editingBalanceDate })
     setEditingAccountId('')
   }
+  const confirmAccountDeletion = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!deletingAccount) return
+    if (deletionMode === 'reassign' && !replacementAccountId) {
+      setDeletionError('Scegli il conto al quale ricondurre i movimenti.')
+      return
+    }
+    if (deletionMode === 'reassign' && accountReplacementCreatesInvalidTransfer(data, deletingAccount.id, replacementAccountId)) {
+      setDeletionError('Questo conto è la controparte di un giro fondi collegato. Scegli un altro conto per evitare un trasferimento verso lo stesso conto.')
+      return
+    }
+    if (deletionMode !== 'keep' && accountHasReciprocalOperations(data, deletingAccount.id)) {
+      setDeletionError('Questo conto è collegato a rimborsi, prestiti o acquisti per un’altra persona. Per non modificare unilateralmente operazioni reciproche, mantieni lo storico oppure rettifica prima quelle operazioni.')
+      return
+    }
+    setDeletionBusy(true); setDeletionError('')
+    try {
+      await onDelete(deletingAccount, deletionMode, deletionMode === 'reassign' ? replacementAccountId : undefined)
+      setDeletingAccountId(''); setDeletionMode('keep'); setReplacementAccountId('')
+    } catch (reason) {
+      setDeletionError(reason instanceof Error ? reason.message : 'Non è stato possibile eliminare il conto.')
+    } finally { setDeletionBusy(false) }
+  }
   return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
     {showForm ? <InlineForm title="Nuovo conto" submitLabel={formBusy ? 'Creazione…' : 'Crea conto'} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>Istituto o dettaglio<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => { const next = e.target.value as Account['type']; setType(next); if (next === 'welfare') setScope('personal') }}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option><option value="welfare">Wellfare</option></select></label><label>Visibilità<select value={scope} disabled={type === 'welfare'} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option>{families.length ? <option value="family">Condiviso con una famiglia</option> : null}</select>{type === 'welfare' ? <small>Le tessere e i buoni aziendali restano personali.</small> : null}</label>{scope === 'family' ? <label>Famiglia<select aria-label="Famiglia del conto" value={targetFamilyId} onChange={(event) => setTargetFamilyId(event.target.value)} required>{families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}</select></label> : null}<label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label>{formError ? <p className="form-message form-message--error" role="alert">{formError}</p> : null}</InlineForm> : null}
     {editingAccountId ? <InlineForm title="Correggi saldo iniziale" submitLabel="Salva saldo" onSubmit={updateOpeningBalance} onCancel={() => setEditingAccountId('')}><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} autoFocus required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
+    {deletingAccount ? <form className="account-delete-form" onSubmit={(event) => void confirmAccountDeletion(event)}>
+      <div><strong>Elimina {deletingAccount.name}</strong><p>{linkedOperationCount ? `${linkedOperationCount} operazioni sono collegate a questo conto.` : 'Nessuna operazione è collegata a questo conto.'}</p></div>
+      <fieldset><legend>Come gestire i movimenti</legend>
+        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'keep'} onChange={() => { setDeletionMode('keep'); setDeletionError('') }} /> Mantieni i movimenti nello storico</label>
+        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'delete'} disabled={hasReciprocalOperations} onChange={() => { setDeletionMode('delete'); setDeletionError('') }} /> Elimina tutti i movimenti collegati</label>
+        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'reassign'} disabled={!replacementAccounts.length || hasReciprocalOperations} onChange={() => { setDeletionMode('reassign'); setDeletionError('') }} /> Riconduci i movimenti a un altro conto</label>
+      </fieldset>
+      {hasReciprocalOperations ? <p className="field-explanation">Il conto partecipa a operazioni reciproche: può essere eliminato conservandole nello storico, oppure dopo averle rettificate dalla sezione Rimborsi e prestiti.</p> : null}
+      {deletionMode === 'reassign' ? <label>Conto di destinazione<select aria-label="Conto al quale ricondurre i movimenti" value={replacementAccountId} onChange={(event) => { setReplacementAccountId(event.target.value); setDeletionError('') }} required><option value="">Scegli un conto</option>{replacementAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : null}
+      <p className="field-explanation">{deletionMode === 'keep' ? 'Le operazioni restano consultabili negli altri elenchi con l’indicazione “Conto eliminato”.' : deletionMode === 'delete' ? 'Verranno eliminati anche rate, giro fondi e altre registrazioni contabili che usano questo conto.' : 'Le operazioni manterranno importi e date, ma useranno il nuovo conto per saldi e storico.'}</p>
+      {deletionError ? <p className="form-message form-message--error" role="alert">{deletionError}</p> : null}
+      <div className="account-delete-form__actions"><button type="button" className="button button--ghost" disabled={deletionBusy} onClick={() => { setDeletingAccountId(''); setDeletionMode('keep'); setReplacementAccountId(''); setDeletionError('') }}>Annulla</button><button type="submit" className="button button--danger" disabled={deletionBusy}>{deletionBusy ? 'Eliminazione…' : 'Elimina conto'}</button></div>
+    </form> : null}
     {reimbursementSharing ? <p className="field-explanation reimbursement-privacy-note"><LockKeyhole /> Per ogni conto personale scegli in quali famiglie renderne visibile soltanto il nome. Saldo, istituto e movimenti restano privati.</p> : null}
     {sharingError ? <p className="form-message form-message--error" role="alert">{sharingError}</p> : null}
     <div className="management-list">{accounts.map((account) => {
@@ -80,7 +130,7 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onShowMovements, fam
             .catch((reason) => setSharingError(reason instanceof Error ? reason.message : 'Non è stato possibile aggiornare la visibilità del conto.'))
             .finally(() => setSharingAccountId(''))
         }} /> {family.name}</label>
-      })}</fieldset> : null}</div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div><div className="management-row__actions"><ActionMenu label={`Azioni per ${account.name}`} items={[{ label: 'Modifica saldo iniziale', onSelect: () => startEditing(account) }]} /><button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${account.name}`} onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id || movement.welfareAccountId === account.id, undefined, account.id)}><ChevronRight /></button></div></article>
+      })}</fieldset> : null}</div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div><div className="management-row__actions"><ActionMenu label={`Azioni per ${account.name}`} items={[{ label: 'Modifica saldo iniziale', onSelect: () => startEditing(account) }, { label: 'Elimina conto', danger: true, disabled: deletionBusy || (account.scope === 'family' && !canDeleteFamilyAccounts), onSelect: () => { setDeletingAccountId(account.id); setDeletionMode('keep'); setReplacementAccountId(''); setDeletionError(''); setEditingAccountId('') } }]} /><button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${account.name}`} onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id || movement.welfareAccountId === account.id, undefined, account.id)}><ChevronRight /></button></div></article>
     })}</div>
   </div>
 }

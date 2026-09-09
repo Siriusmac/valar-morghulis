@@ -48,6 +48,7 @@ l’account personale.
 - `delete_declined_family_invitation(target_invitation_id)`
 - `remove_family_member(target_family_id, target_user_id, preserve_history)`
 - `delete_family(target_family_id, preserve_authored_data)`
+- `delete_family_account(target_account_id, movement_strategy, replacement_account_id)`
 - `delete_my_account()`
 - `sync_family_shared_records(target_family_id, records, owned_keys)`
 - `set_reimbursement_account_families(account_id, account_name, target_family_ids)`
@@ -96,6 +97,12 @@ Tipi condivisi: `movement`, `reimbursement`, `loan`, `loan_repayment`, `transfer
 - Condiviso: RPC `sync_family_shared_records`.
 - Prestiti: `create_family_loan` e `respond_to_family_loan` confermano il passaggio iniziale; `create_family_loan_repayment` e `respond_to_family_loan_repayment` proteggono il residuo e ogni restituzione parziale. La compensazione familiare è accettata solo entro il credito del beneficiario e il debito familiare del prestatore, al netto delle richieste pending.
 - Conti: tabella `accounts` con RLS.
+- Eliminazione conti familiari: `delete_family_account` è atomica e riservata
+  all'amministratore. `keep` elimina soltanto il conto, `delete` elimina le
+  operazioni contabili collegate e `reassign` sostituisce i riferimenti con un
+  conto della stessa famiglia. La RPC impedisce girofondi origine-destinazione
+  identici e non consente di cancellare o ricondurre unilateralmente rimborsi,
+  prestiti o acquisti per conto terzi.
 - Visibilità dei conti personali per i rimborsi: la RPC atomica
   `set_reimbursement_account_families` sostituisce l'insieme completo delle
   famiglie selezionate dopo aver verificato proprietà del conto e membership.

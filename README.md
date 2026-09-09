@@ -28,6 +28,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - destinazione del rimborso selezionabile anche su un conto condiviso; in questo caso compensa soltanto la quota appartenente agli altri membri;
 - nuovo movimento aperto soltanto da quattro grandi scelte in colonna: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; dopo la scelta i tasti lasciano posto alla scheda relativa, con transizione animata sulla web app; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - conto personale predefinito configurabile nel profilo e preselezionato nei nuovi movimenti;
+- eliminazione di un conto con scelta esplicita fra storico conservato, movimenti eliminati o movimenti ricondotti a un conto compatibile; i conti familiari richiedono un amministratore e le operazioni reciproche devono essere rettificate prima di poterle eliminare o riassegnare;
 - giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine;
 - PayPal come conto personale;
 - conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare automaticamente il residuo sul conto principale, mantenendo importo e statistiche unitari;
@@ -118,6 +119,8 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260829230000_repair_reimbursement_responses.sql` e
    `supabase/migrations/20260830100000_confirmed_reimbursement_changes.sql`,
    `supabase/migrations/20260830110000_fix_reimbursement_change_account_validation.sql`,
+   `supabase/migrations/20260909010000_account_deletion_strategies.sql`,
+   `supabase/migrations/20260909013000_account_deletion_function_volatility.sql`,
    `supabase/migrations/20260901100000_family_loans.sql`,
    `supabase/migrations/20260904120000_platform_admin_console.sql` e
    `supabase/migrations/20260905130000_resilient_app_data_sync.sql` e
