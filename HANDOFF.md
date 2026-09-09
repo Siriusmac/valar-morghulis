@@ -621,7 +621,7 @@ Il middleware `functions/_middleware.js` reindirizza permanentemente
 percorso e query. I record DNS relativi alla posta e i nameserver Tophost non
 sono stati modificati.
 
-## Lavoro locale del 9 settembre 2026 — non pubblicato
+## Rilascio del 9 settembre 2026
 
 La web app allinea la freccia dei contatti alla fine della riga e usa lo stesso
 indicatore personalizzato nei due selettori della bacheca. I menu a tre puntini
@@ -640,4 +640,6 @@ Le migration `20260909010000_account_deletion_strategies.sql` e
 `20260909013000_account_deletion_function_volatility.sql` implementano la RPC
 e allineano la volatilità dichiarata delle funzioni JSONB a quella rilevata da
 PostgreSQL. Verifica locale: 244 test web, lint, controllo TypeScript, build
-Vite e `git diff --check` superati.
+Vite e `git diff --check` superati. Entrambe sono applicate in produzione; lo
+schema remoto supera `db lint --linked --schema public` senza segnalazioni. La
+web app è pubblicata su Cloudflare Pages e verificata su `www.skeyapp.com`.
