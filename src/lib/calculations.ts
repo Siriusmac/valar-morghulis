@@ -24,6 +24,8 @@ interface AllocationSource {
   splits?: MovementSplit[]
   commissionedPurchaseId?: string
   excludeFromReports?: boolean
+  bankFeeAmount?: number
+  bankFeeCategoryId?: string
 }
 
 export function movementTagIds(value: { tagId?: string; tagIds?: string[] }) {
@@ -48,7 +50,7 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
     }))
   const splitTotal = splits.reduce((sum, item) => sum + item.amount, 0)
   const remainder = roundMoney(Math.max(0, movement.amount - splitTotal))
-  return [
+  const goodsAllocations = [
     ...(remainder > 0 ? [{
       categoryId: movement.categoryId,
       beneficiaryId: movement.beneficiaryId,
@@ -59,6 +61,17 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
       excludeFromReports: Boolean(movement.excludeFromReports || movement.commissionedPurchaseId),
     }] : []),
     ...splits,
+  ]
+  const bankFeeAmount = roundMoney(movement.bankFeeAmount ?? 0)
+  return [
+    ...goodsAllocations,
+    ...(bankFeeAmount > 0 && movement.bankFeeCategoryId ? [{
+      categoryId: movement.bankFeeCategoryId,
+      tagIds: [],
+      amount: bankFeeAmount,
+      shared: false,
+      excludeFromReports: false,
+    }] : []),
   ]
 }
 
@@ -203,7 +216,7 @@ export function accountBalance(data: AppData, accountId: string) {
       const welfarePortion = movement.type === 'expense' && movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
         ? movement.welfareAmount ?? 0
         : 0
-      balance += movement.type === 'income' ? movement.amount : -(movement.amount - welfarePortion)
+      balance += movement.type === 'income' ? movement.amount : -(movement.amount - welfarePortion + (movement.bankFeeAmount ?? 0))
     }
     if (movement.type === 'expense' && movement.welfareAccountId === accountId && movement.welfareAccountId !== movement.accountId) {
       balance -= movement.welfareAmount ?? 0
@@ -244,7 +257,13 @@ export function categorySpentForMonth(data: AppData, categoryId: string, month: 
       && (category.scope === 'personal' || allocation.shared || accountIsFamily))
     return sum + matching.reduce((allocationTotal, allocation) => allocationTotal + allocation.amount, 0)
   }, 0)
-  return roundMoney(total)
+  const transferFees = data.transfers.reduce((sum, transfer) => {
+    if (transfer.feeCategoryId !== categoryId || !transfer.date.startsWith(month)) return sum
+    const source = data.accounts.find((account) => account.id === transfer.fromAccountId)
+    if (category.scope === 'personal' && (source?.ownerId ?? transfer.authorId) !== userId) return sum
+    return sum + (transfer.feeAmount ?? 0)
+  }, 0)
+  return roundMoney(total + transferFees)
 }
 
 export function categoryBudgetForMonth(category: Category, month: string) {
@@ -286,7 +305,7 @@ export function sharedExpensesByMember(data: AppData, memberIds: UserId[], month
   return memberIds.map((memberId) => ({ memberId, total: totals.get(memberId) ?? 0 }))
 }
 
-export function totalsByCategory(data: AppData, movements: Movement[], sharedOnly = false) {
+export function totalsByCategory(data: AppData, movements: Movement[], sharedOnly = false, transferMonth?: string) {
   const totals = new Map<string, number>()
   for (const movement of movements) {
     if (movement.excludeFromReports) continue
@@ -295,6 +314,12 @@ export function totalsByCategory(data: AppData, movements: Movement[], sharedOnl
       if (allocation.excludeFromReports) continue
       if (sharedOnly && account?.scope !== 'family' && !allocation.shared) continue
       totals.set(allocation.categoryId, (totals.get(allocation.categoryId) ?? 0) + allocation.amount)
+    }
+  }
+  if (!sharedOnly && transferMonth) {
+    for (const transfer of data.transfers) {
+      if (!transfer.date.startsWith(transferMonth) || !transfer.feeCategoryId || !transfer.feeAmount) continue
+      totals.set(transfer.feeCategoryId, (totals.get(transfer.feeCategoryId) ?? 0) + transfer.feeAmount)
     }
   }
   return [...totals.entries()]

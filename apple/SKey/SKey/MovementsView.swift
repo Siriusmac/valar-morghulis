@@ -318,7 +318,8 @@ private struct MovementProjection {
         expenseCategoryTotals = LedgerCalculations.categoryTotals(
             in: snapshot,
             movements: monthlySectionMovements.filter { $0.type == .expense },
-            sharedOnly: section == .shared
+            sharedOnly: section == .shared,
+            transferMonth: section == .expenses ? month : nil
         )
         incomeCategoryTotals = LedgerCalculations.categoryTotals(
             in: snapshot,

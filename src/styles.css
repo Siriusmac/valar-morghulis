@@ -730,7 +730,7 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .login-story p { max-width: 520px; font-size: 16px; line-height: 1.65; color: #c7cdd5; margin-top: 26px; position: relative; z-index: 1; }
 .login-story__foot { display: flex; gap: 13px; color: #c7cdd5; font-size: 12px; line-height: 1.5; position: relative; z-index: 1; }
 .login-story__foot svg { width: 22px; color: #df7455; }
-.login-panel { display: grid; place-items: center; padding: 40px; background: #fbfaf8; }
+.login-panel { display: grid; place-items: center; padding: 40px; background: #fbfaf8; overflow-y: auto; scroll-padding-block: 80px 46vh; }
 .login-card { width: min(420px, 100%); }
 .login-card h2 { font-size: 42px; }
 .login-card > p { color: var(--muted); margin: 7px 0 30px; font-size: 13px; }
@@ -738,6 +738,10 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .login-card form label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; }
 .login-card input { height: 48px; border: 1px solid var(--line); border-radius: 5px; background: white; padding: 0 14px; }
 .login-card .button { margin-top: 5px; }
+@media (hover: none), (pointer: coarse) {
+  .login-panel:focus-within { place-items: start center; }
+  .login-panel:focus-within .login-card { margin-block: 20px 46vh; }
+}
 .demo-access { margin-top: 28px; padding-top: 23px; border-top: 1px solid var(--line); }
 .demo-access > span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 11px; }
 .demo-access > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
@@ -866,7 +870,9 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .sidebar--open { transform: translateX(0); }
   .sidebar__top { height: 90px; padding: 0 22px; }
   .sidebar__top .brand__mark { width: 64px; height: 64px; }
-  .sidebar .brand__name, .nav-item span, .profile-mini > span:last-child { display: initial; }
+  .sidebar .brand__name, .nav-item span { display: initial; }
+  .profile-mini > span:last-child { display: grid; min-width: 0; max-width: calc(100% - 45px); }
+  .profile-mini strong, .profile-mini small { display: block; max-width: 100%; }
   .sidebar .app-usage { display: block; }
   .sidebar__close { display: inline-grid; }
   .nav-item { justify-content: flex-start; padding: 0 24px; }

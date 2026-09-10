@@ -538,6 +538,12 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
     let description: String
     let comments: String?
     let account: AccountSummary
+    let welfareAccount: AccountSummary?
+    let welfareAmount: Decimal?
+    let welfarePrimary: Bool
+    let bankFeeAmount: Decimal?
+    let bankFeeCategory: LedgerDirectoryItem?
+    let bankingOperationType: String?
     let category: LedgerDirectoryItem
     let counterparty: LedgerDirectoryItem
     let tag: LedgerDirectoryItem?
@@ -557,6 +563,12 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         description: String,
         comments: String?,
         account: AccountSummary,
+        welfareAccount: AccountSummary? = nil,
+        welfareAmount: Decimal? = nil,
+        welfarePrimary: Bool = false,
+        bankFeeAmount: Decimal? = nil,
+        bankFeeCategory: LedgerDirectoryItem? = nil,
+        bankingOperationType: String? = nil,
         category: LedgerDirectoryItem,
         counterparty: LedgerDirectoryItem,
         tag: LedgerDirectoryItem? = nil,
@@ -575,6 +587,12 @@ nonisolated struct MovementDraft: Identifiable, Equatable, Sendable {
         self.description = description
         self.comments = comments
         self.account = account
+        self.welfareAccount = welfareAccount
+        self.welfareAmount = welfareAmount
+        self.welfarePrimary = welfarePrimary
+        self.bankFeeAmount = bankFeeAmount
+        self.bankFeeCategory = bankFeeCategory
+        self.bankingOperationType = bankingOperationType
         self.category = category
         self.counterparty = counterparty
         self.tag = tag
@@ -593,6 +611,8 @@ nonisolated struct TransferDraft: Identifiable, Equatable, Sendable {
     let fromAccount: AccountSummary
     let toAccount: AccountSummary
     let amount: Decimal
+    let feeAmount: Decimal?
+    let feeCategory: LedgerDirectoryItem?
     let date: Date
     let description: String
 
@@ -601,6 +621,8 @@ nonisolated struct TransferDraft: Identifiable, Equatable, Sendable {
         fromAccount: AccountSummary,
         toAccount: AccountSummary,
         amount: Decimal,
+        feeAmount: Decimal? = nil,
+        feeCategory: LedgerDirectoryItem? = nil,
         date: Date,
         description: String
     ) {
@@ -608,6 +630,8 @@ nonisolated struct TransferDraft: Identifiable, Equatable, Sendable {
         self.fromAccount = fromAccount
         self.toAccount = toAccount
         self.amount = amount
+        self.feeAmount = feeAmount
+        self.feeCategory = feeCategory
         self.date = date
         self.description = description
     }

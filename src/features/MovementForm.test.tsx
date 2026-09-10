@@ -70,14 +70,38 @@ describe('MovementForm', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 30, accountId: 'simone-bank', welfareAccountId: 'simone-welfare', welfareAmount: 10 })
   })
 
-  it('non propone la ripartizione quando il conto principale è già Wellfare', () => {
+  it('permette di completare un conto Wellfare con un altro conto', () => {
     const data = structuredClone(defaultData)
     data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: users[0].id, openingBalance: 100 })
-    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-welfare" onSave={vi.fn()} onCancel={vi.fn()} />)
+    const onSave = vi.fn()
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-welfare" onSave={onSave} onCancel={vi.fn()} />)
     chooseExpense()
 
-    expect(screen.queryByLabelText(/Utilizza Wellfare/)).toBeNull()
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
+    fireEvent.click(screen.getByLabelText(/Completa con altri fondi/))
+    fireEvent.change(screen.getByText('Altro conto', { selector: 'label' }).querySelector('select')!, { target: { value: 'simone-bank' } })
+    fireEvent.change(screen.getByLabelText('Importo con altri fondi'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 30, accountId: 'simone-bank', welfareAccountId: 'simone-welfare', welfareAmount: 18, welfarePrimary: true })
     expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
+  })
+
+  it('separa le commissioni bancarie dal costo del bene', () => {
+    const onSave = vi.fn()
+    render(<MovementForm data={structuredClone(defaultData)} user={users[0]} defaultAccountId="simone-bank" onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.click(screen.getByLabelText(/Commissioni bancarie/))
+    fireEvent.change(screen.getByLabelText('Importo commissioni bancarie'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 100, bankFeeAmount: 1, bankingOperationType: 'bank_transfer' })
+    expect(onSave.mock.calls[0][1].categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Commissioni Intesa Sanpaolo' })]))
   })
 
   it('nasconde il pagamento a rate con Contanti o con una quota Wellfare', () => {

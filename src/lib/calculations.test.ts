@@ -412,6 +412,19 @@ describe('accountBalance', () => {
     expect(accountBalance(data, 'simone-cash')).toBe(destinationBase + 250)
   })
 
+  it('addebita e classifica separatamente le commissioni di un movimento e di un giro fondi', () => {
+    const data = cleanData()
+    data.categories.push({ id: 'fees', name: 'Commissioni Intesa Sanpaolo', scope: 'personal', ownerId: 'simone', movementType: 'expense', color: '#a87921' })
+    const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
+    data.movements = [{ ...expense('with-bank-fee', 'simone', 100, 'simone-bank'), bankFeeAmount: 1, bankFeeCategoryId: 'fees', shared: false }]
+    data.transfers = [{ id: 'fee-transfer', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 50, feeAmount: 0.9, feeCategoryId: 'fees', date: '2026-07-18', description: 'Prelievo' }]
+
+    expect(accountBalance(data, 'simone-bank')).toBe(base - 151.9)
+    expect(movementAllocations(data.movements[0]).at(-1)).toMatchObject({ categoryId: 'fees', amount: 1, shared: false })
+    expect(categorySpentForMonth(data, 'fees', '2026-07', 'simone')).toBe(1.9)
+    expect(totalsByCategory(data, data.movements, false, '2026-07').find((item) => item.category?.id === 'fees')?.total).toBe(1.9)
+  })
+
   it('credits a reimbursement to the selected destination account', () => {
     const data = cleanData()
     const base = data.accounts.find((item) => item.id === 'anna-cash')!.openingBalance

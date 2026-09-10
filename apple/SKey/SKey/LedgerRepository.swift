@@ -367,6 +367,8 @@ struct SupabaseLedgerRepository: LedgerRepository {
             fromAccountID: draft.fromAccount.id,
             toAccountID: draft.toAccount.id,
             amount: Money(decimal: draft.amount),
+            feeAmount: draft.feeAmount.map(Money.init(decimal:)),
+            feeCategoryID: draft.feeCategory?.id,
             date: Self.dayFormatter.string(from: draft.date),
             description: description.isEmpty ? "Giro fondi" : description
         )
@@ -381,6 +383,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 .execute()
                 .value
             var root = appDataRoot(from: row?.data)
+            if let feeCategory = draft.feeCategory { upsert(personalCopy(feeCategory, userID: userID, movementType: .expense), in: "categories", root: &root) }
             upsertJSON(data, id: draft.id, in: "transfers", root: &root)
             try await client.from("user_app_data")
                 .upsert(UserAppDataUpsert(userID: userID, data: .object(root)), onConflict: "user_id")
@@ -401,6 +404,12 @@ struct SupabaseLedgerRepository: LedgerRepository {
             .maybeSingle()
             .execute()
             .value
+        async let personalRowRequest: RawAppDataRow? = client.from("user_app_data")
+            .select("data")
+            .eq("user_id", value: userID)
+            .maybeSingle()
+            .execute()
+            .value
         async let existingKeysRequest: [OwnedSharedRecordRow] = client.from("family_shared_records")
             .select("record_type, record_id")
             .eq("family_id", value: familyID)
@@ -409,12 +418,24 @@ struct SupabaseLedgerRepository: LedgerRepository {
             .execute()
             .value
 
-        let (privateRow, existingKeys) = try await (privateRowRequest, existingKeysRequest)
+        let (privateRow, personalRow, existingKeys) = try await (privateRowRequest, personalRowRequest, existingKeysRequest)
         var root = appDataRoot(from: privateRow?.data)
+        var personalRoot = appDataRoot(from: personalRow?.data)
+        if let feeCategory = draft.feeCategory, draft.fromAccount.familyID != nil {
+            upsert(feeCategory.familyCopyWith(movementType: .expense), in: "categories", root: &root)
+        } else if let feeCategory = draft.feeCategory {
+            upsert(personalCopy(feeCategory, userID: userID, movementType: .expense), in: "categories", root: &personalRoot)
+        }
         upsertJSON(data, id: draft.id, in: "transfers", root: &root)
         var ownedKeys = Set(existingKeys.map { SharedRecordKey(type: $0.recordType, id: $0.recordID) })
         ownedKeys.formUnion(transactionKeys(in: root))
         ownedKeys.insert(SharedRecordKey(type: "transfer", id: draft.id))
+        var records = [SharedRecordPayload(type: "transfer", id: draft.id, data: data)]
+        if draft.fromAccount.familyID != nil, let feeCategory = draft.feeCategory {
+            let sharedFeeCategory = feeCategory.familyCopyWith(movementType: .expense)
+            ownedKeys.insert(SharedRecordKey(type: "category", id: sharedFeeCategory.id))
+            records.append(SharedRecordPayload(type: "category", id: sharedFeeCategory.id, data: try JSONValue.encode(sharedFeeCategory)))
+        }
 
         try await client.from("family_user_app_data")
             .upsert(
@@ -422,11 +443,16 @@ struct SupabaseLedgerRepository: LedgerRepository {
                 onConflict: "family_id,user_id"
             )
             .execute()
+        if draft.feeCategory != nil, draft.fromAccount.familyID == nil {
+            try await client.from("user_app_data")
+                .upsert(UserAppDataUpsert(userID: userID, data: .object(personalRoot)), onConflict: "user_id")
+                .execute()
+        }
         try await client.rpc(
             "sync_family_shared_records",
             params: SyncSharedRecordsParameters(
                 familyID: familyID,
-                records: [SharedRecordPayload(type: "transfer", id: draft.id, data: data)],
+                records: records,
                 ownedKeys: ownedKeys.sorted {
                     $0.type == $1.type ? $0.id < $1.id : $0.type < $1.type
                 }
@@ -655,6 +681,7 @@ struct SupabaseLedgerRepository: LedgerRepository {
         var root = appDataRoot(from: existingRow?.data)
         let category = personalCopy(draft.category, userID: userID, movementType: draft.type)
         upsert(category, in: "categories", root: &root)
+        if let feeCategory = draft.bankFeeCategory { upsert(personalCopy(feeCategory, userID: userID, movementType: .expense), in: "categories", root: &root) }
         if let tag = draft.tag { upsert(personalCopy(tag, userID: userID), in: "tags", root: &root) }
         let splits = resolveSplits(draft, userID: userID, familyAccount: false)
         for split in splits {
@@ -753,6 +780,13 @@ struct SupabaseLedgerRepository: LedgerRepository {
             ? draft.category.familyCopyWith(movementType: draft.type)
             : personalCopy(draft.category, userID: userID, movementType: draft.type)
         let splits = resolveSplits(draft, userID: userID, familyAccount: familyAccount)
+        if let feeCategory = draft.bankFeeCategory {
+            if draft.account.familyID != nil {
+                upsert(feeCategory.familyCopyWith(movementType: .expense), in: "categories", root: &familyRoot)
+            } else {
+                upsert(personalCopy(feeCategory, userID: userID, movementType: .expense), in: "categories", root: &personalRoot)
+            }
+        }
 
         let beneficiary: LedgerDirectoryItem?
         let sender: LedgerDirectoryItem?
@@ -842,6 +876,10 @@ struct SupabaseLedgerRepository: LedgerRepository {
         records.append(contentsOf: try sharedCategories.values.map {
             SharedRecordPayload(type: "category", id: $0.id, data: try JSONValue.encode($0))
         })
+        if draft.account.familyID != nil, let feeCategory = draft.bankFeeCategory {
+            let sharedFeeCategory = feeCategory.familyCopyWith(movementType: .expense)
+            records.append(SharedRecordPayload(type: "category", id: sharedFeeCategory.id, data: try JSONValue.encode(sharedFeeCategory)))
+        }
         let sharedBeneficiaries = ([mainShared ? beneficiary : nil] + splits.filter(\.shared).map(\.beneficiary))
             .compactMap { $0 }
             .reduce(into: [String: LedgerDirectoryItem]()) { $0[$1.id] = $1.familyCopy() }
@@ -932,6 +970,20 @@ struct SupabaseLedgerRepository: LedgerRepository {
             object["splits"] = .array(firstSplits.map(splitJSON))
         }
         if let comments = draft.comments { object["comments"] = .string(comments) } else { object.removeValue(forKey: "comments") }
+        if let welfareAccount = draft.welfareAccount, let welfareAmount = draft.welfareAmount {
+            object["welfareAccountId"] = .string(welfareAccount.id)
+            object["welfareAmount"] = .number(welfareAmount)
+            if draft.welfarePrimary { object["welfarePrimary"] = .bool(true) } else { object.removeValue(forKey: "welfarePrimary") }
+        } else {
+            object.removeValue(forKey: "welfareAccountId"); object.removeValue(forKey: "welfareAmount"); object.removeValue(forKey: "welfarePrimary")
+        }
+        if let bankFeeAmount = draft.bankFeeAmount, let bankFeeCategory = draft.bankFeeCategory {
+            object["bankFeeAmount"] = .number(bankFeeAmount)
+            object["bankFeeCategoryId"] = .string(bankFeeCategory.id)
+            if let operation = draft.bankingOperationType { object["bankingOperationType"] = .string(operation) }
+        } else {
+            object.removeValue(forKey: "bankFeeAmount"); object.removeValue(forKey: "bankFeeCategoryId"); object.removeValue(forKey: "bankingOperationType")
+        }
         if let affectsAccountBalance = draft.affectsAccountBalance {
             object["affectsAccountBalance"] = .bool(affectsAccountBalance)
         } else {

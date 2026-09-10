@@ -3,10 +3,11 @@ import { useMemo, useState } from 'react'
 import { CreatableLookup } from '../components/CreatableLookup'
 import { MovementTypeSelector, type ComposerType } from '../components/MovementTypeSelector'
 import { movementTagIds, reimbursementPlan } from '../lib/calculations'
+import { bankingOperationLabels, resolveBankFeeCategory } from '../lib/bankFees'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
-import type { AppData, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
+import type { AppData, BankingOperationType, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
 export interface CommissionedPurchaseDraft {
   id: string
@@ -135,12 +136,18 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const defaultAccount = !initial && defaultAccountId && availableAccounts.some((account) => account.id === defaultAccountId)
     ? defaultAccountId
     : type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
-  const [accountId, setAccountId] = useState(initial?.accountId ?? defaultAccount ?? '')
+  const initialPrimaryAccountId = initial?.welfarePrimary ? initial.welfareAccountId : initial?.accountId
+  const [accountId, setAccountId] = useState(initialPrimaryAccountId ?? defaultAccount ?? '')
   const welfareAccounts = useMemo(() => personalAccounts.filter((item) => item.type === 'welfare'), [personalAccounts])
   const [useWelfare, setUseWelfare] = useState(Boolean(initial?.welfareAccountId && initial.welfareAmount))
-  const [welfareAccountId, setWelfareAccountId] = useState(initial?.welfareAccountId ?? welfareAccounts[0]?.id ?? '')
-  const [welfareAmount, setWelfareAmount] = useState(initial?.welfareAmount?.toString() ?? '')
-  const initialAccount = data.accounts.find((item) => item.id === (initial?.accountId ?? defaultAccount))
+  const [welfareAccountId, setWelfareAccountId] = useState(initial?.welfarePrimary ? initial.accountId : initial?.welfareAccountId ?? welfareAccounts[0]?.id ?? '')
+  const [welfareAmount, setWelfareAmount] = useState(initial?.welfarePrimary
+    ? Math.max(0, initial.amount - (initial.welfareAmount ?? 0)).toString()
+    : initial?.welfareAmount?.toString() ?? '')
+  const [bankFeesEnabled, setBankFeesEnabled] = useState(Boolean(initial?.bankFeeAmount))
+  const [bankingOperationType, setBankingOperationType] = useState<BankingOperationType>(initial?.bankingOperationType ?? 'bank_transfer')
+  const [bankFeeAmount, setBankFeeAmount] = useState(initial?.bankFeeAmount?.toString() ?? '')
+  const initialAccount = data.accounts.find((item) => item.id === (initialPrimaryAccountId ?? defaultAccount))
   const [affectsAccountBalance, setAffectsAccountBalance] = useState(
     initial?.affectsAccountBalance ?? !(initialAccount?.openingBalanceDate && (initial?.date ?? todayISO()) < initialAccount.openingBalanceDate),
   )
@@ -186,11 +193,17 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
   const numericAmount = Number(amount.replace(',', '.')) || 0
-  const numericWelfareAmount = useWelfare && type === 'expense' && selectedAccount?.type !== 'welfare'
-    ? Math.round((Number(welfareAmount.replace(',', '.')) || 0) * 100) / 100
+  const enteredSecondaryAmount = Math.round((Number(welfareAmount.replace(',', '.')) || 0) * 100) / 100
+  const welfareIsPrimary = selectedAccount?.type === 'welfare'
+  const numericWelfareAmount = useWelfare && type === 'expense'
+    ? welfareIsPrimary ? Math.max(0, Math.round((numericAmount - enteredSecondaryAmount) * 100) / 100) : enteredSecondaryAmount
+    : 0
+  const numericBankFeeAmount = bankFeesEnabled && selectedAccount?.type === 'bank'
+    ? Math.round((Number(bankFeeAmount.replace(',', '.')) || 0) * 100) / 100
     : 0
   const primaryChargeTotal = Math.max(0, Math.round((numericAmount - numericWelfareAmount) * 100) / 100)
-  const welfareInvalid = useWelfare && (numericWelfareAmount <= 0 || numericWelfareAmount > numericAmount || !welfareAccountId || welfareAccountId === accountId)
+  const welfareInvalid = useWelfare && (numericWelfareAmount <= 0 || numericWelfareAmount >= numericAmount || enteredSecondaryAmount <= 0 || !welfareAccountId || welfareAccountId === accountId)
+  const bankFeeInvalid = bankFeesEnabled && selectedAccount?.type === 'bank' && (numericBankFeeAmount <= 0 || !bankingOperationType)
   const installmentsAvailable = Boolean(initialPlan) || (!initial && selectedAccount?.type !== 'cash' && selectedAccount?.type !== 'welfare' && !useWelfare)
   const romanShares = splitAmount(numericAmount, romanParticipants.length + 1)
   const romanSplits: SplitDraft[] = romanParticipants.map((participant, index) => ({
@@ -376,7 +389,11 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const selectAccount = (nextAccountId: string) => {
     setAccountId(nextAccountId)
     const nextAccount = data.accounts.find((item) => item.id === nextAccountId)
-    if (nextAccount?.type === 'welfare') setUseWelfare(false)
+    setUseWelfare(false)
+    setWelfareAmount('')
+    if (nextAccount?.type === 'welfare') setWelfareAccountId(personalAccounts.find((item) => item.type !== 'welfare')?.id ?? '')
+    else setWelfareAccountId(welfareAccounts.find((item) => item.id !== nextAccountId)?.id ?? '')
+    if (nextAccount?.type !== 'bank') { setBankFeesEnabled(false); setBankFeeAmount('') }
     if (!initialPlan && (nextAccount?.type === 'cash' || nextAccount?.type === 'welfare')) setInstallmentsEnabled(false)
     setAffectsAccountBalance(!(nextAccount?.openingBalanceDate && date < nextAccount.openingBalanceDate))
     if (type === 'income') setShared(data.accounts.find((item) => item.id === nextAccountId)?.scope === 'family')
@@ -402,7 +419,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       || splitTotal > numericAmount
     )
     const mainAllocationRequired = !activeSplitsEnabled || mainRemainder > 0
-    if (!numericAmount || numericAmount <= 0 || !accountId || welfareInvalid || (installmentsEnabled && primaryChargeTotal <= 0) || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
+    if (!numericAmount || numericAmount <= 0 || !accountId || welfareInvalid || bankFeeInvalid || (installmentsEnabled && primaryChargeTotal <= 0) || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
     const categoryMatch = findByName(categories, resolvedMainCategoryName)
     const beneficiaryMatch = findByName(beneficiaries, resolvedMainBeneficiaryName)
     const senderMatch = findByName(senders, senderName)
@@ -444,6 +461,11 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     const resolvedTagId = resolvedTagIds[0]
     const resolvedDescription = description.trim() || categoryName || 'Movimento'
     const resolvedComments = comments.trim() || undefined
+    const feeCategoryResolution = numericBankFeeAmount > 0 && selectedAccount
+      ? resolveBankFeeCategory(data, user, selectedAccount)
+      : undefined
+    const savedAccountId = useWelfare && welfareIsPrimary ? welfareAccountId : accountId
+    const savedWelfareAccountId = useWelfare ? (welfareIsPrimary ? accountId : welfareAccountId) : undefined
     const shouldInstall = type === 'expense' && installmentsEnabled && installmentsAvailable
     const planId = initial?.installmentPlanId ?? (shouldInstall ? makeId('installment-plan') : undefined)
     const primaryAmounts = shouldInstall ? splitAmount(primaryChargeTotal, installmentCount) : [primaryChargeTotal]
@@ -501,7 +523,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
           description: description.trim(),
           splitId: item.id,
           reimbursementId: item.reimbursement ? makeId('reimbursement') : undefined,
-          accountId,
+          accountId: savedAccountId,
         })
         return {
           id: item.id,
@@ -545,7 +567,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
         description: resolvedDescription,
         categoryId: primaryCategoryId,
         beneficiaryId: primaryBeneficiaryId,
-        accountId,
+        accountId: savedAccountId,
         tagId: resolvedTagId,
         tagIds: resolvedTagIds.length ? resolvedTagIds : undefined,
         comments: resolvedComments,
@@ -566,7 +588,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       inviteEmail: reimbursementPurchase ? undefined : commissionedInviteEmail.trim() || undefined, amount: mainCommissionedAmount,
       purchaseDate: date, description: description.trim(),
       reimbursementId: reimbursementPurchase ? makeId('reimbursement') : undefined,
-      accountId,
+      accountId: savedAccountId,
     })
     commissionedDrafts.forEach((draft) => { draft.movementId = movementId })
     const allAllocationsCommissioned = (mainRemainder === 0 || Boolean(purchaseId)) && (resolvedSplits ?? []).every((item) => item.excludeFromReports)
@@ -581,9 +603,13 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       categoryId: primaryCategoryId,
       beneficiaryId: primaryBeneficiaryId,
       senderId: resolvedSenderId,
-      accountId,
-      welfareAccountId: numericWelfareAmount > 0 ? welfareAccountId : undefined,
+      accountId: savedAccountId,
+      welfareAccountId: numericWelfareAmount > 0 ? savedWelfareAccountId : undefined,
       welfareAmount: numericWelfareAmount > 0 ? numericWelfareAmount : undefined,
+      welfarePrimary: useWelfare && welfareIsPrimary || undefined,
+      bankFeeAmount: numericBankFeeAmount || undefined,
+      bankFeeCategoryId: feeCategoryResolution?.category.id,
+      bankingOperationType: numericBankFeeAmount > 0 ? bankingOperationType : undefined,
       tagId: resolvedTagId,
       tagIds: resolvedTagIds.length ? resolvedTagIds : undefined,
       comments: resolvedComments,
@@ -597,7 +623,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       affectsAccountBalance: isDebtCompensationMovement ? false : isBeforeOpeningBalance ? affectsAccountBalance : undefined,
       commissionedPurchaseId: purchaseId ?? initial?.commissionedPurchaseId,
       paidByUserId: initial?.paidByUserId,
-      excludeFromReports: allAllocationsCommissioned || initial?.excludeFromReports || undefined,
+      excludeFromReports: numericBankFeeAmount > 0 ? undefined : allAllocationsCommissioned || initial?.excludeFromReports || undefined,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     }
     if (commissionedDrafts.length && onCommissionedPurchase) {
@@ -611,7 +637,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
         return
       } finally { setSaving(false) }
     }
-    onSave(movement, { category, categories: newSplitCategories, beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag: createdTags[0], tags: createdTags, scheduledPayments })
+    onSave(movement, { category, categories: [...newSplitCategories, ...(feeCategoryResolution?.created ? [feeCategoryResolution.category] : [])], beneficiary, beneficiaries: newSplitBeneficiaries, sender, tag: createdTags[0], tags: createdTags, scheduledPayments })
   }
 
   const mainTagField = <TagLookupFields label="Tag" values={tagQueries} options={tags} onChange={setTagQueries} />
@@ -631,11 +657,15 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       <label htmlFor="amount">Importo {installmentsEnabled ? 'totale' : ''}</label><div><span>€</span><input id="amount" inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus /></div>
       {submitted && (!numericAmount || numericAmount <= 0) ? <small>Inserisci un importo valido.</small> : null}
     </div>
-    {type === 'expense' && selectedAccount?.type !== 'welfare' && welfareAccounts.length ? <section className={`welfare-box ${useWelfare ? 'welfare-box--active' : ''}`}>
-      <label className="welfare-toggle"><input type="checkbox" checked={useWelfare} onChange={(event) => { setUseWelfare(event.target.checked); if (event.target.checked && !initialPlan) setInstallmentsEnabled(false) }} /><span><strong>Utilizza Wellfare</strong><small>Paga una parte con una tessera o un buono aziendale.</small></span></label>
-      {useWelfare ? <div className="welfare-fields"><label>Conto Wellfare<select value={welfareAccountId} onChange={(event) => setWelfareAccountId(event.target.value)}>{welfareAccounts.filter((item) => item.id !== accountId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Importo Wellfare<div className="money-input"><span>€</span><input aria-label="Importo Wellfare" inputMode="decimal" value={welfareAmount} onChange={(event) => setWelfareAmount(event.target.value)} placeholder="0,00" /></div><small>Il residuo di € {primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato sul conto principale.</small></label>{submitted && welfareInvalid ? <small className="field-error">Scegli un conto Wellfare e inserisci una quota valida, non superiore al totale.</small> : null}</div> : null}
-    </section> : null}
     {isDebtCompensationMovement ? <label>Origine contabile<output>{debtCompensationAccountLabel}</output></label> : <label>{type === 'expense' ? 'Conto di addebito' : 'Conto di destinazione'}<select value={accountId} onChange={(event) => selectAccount(event.target.value)}>{displayedAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select></label>}
+    {type === 'expense' && ((selectedAccount?.type === 'welfare' && personalAccounts.some((item) => item.type !== 'welfare')) || (selectedAccount?.type !== 'welfare' && welfareAccounts.length)) ? <section className={`welfare-box ${useWelfare ? 'welfare-box--active' : ''}`}>
+      <label className="welfare-toggle"><input type="checkbox" checked={useWelfare} onChange={(event) => { setUseWelfare(event.target.checked); if (event.target.checked && !initialPlan) setInstallmentsEnabled(false) }} /><span><strong>{welfareIsPrimary ? 'Completa con altri fondi' : 'Utilizza Wellfare'}</strong><small>{welfareIsPrimary ? 'Paga la parte restante con un altro conto.' : 'Paga una parte con una tessera o un buono aziendale.'}</small></span></label>
+      {useWelfare ? <div className="welfare-fields"><label>{welfareIsPrimary ? 'Altro conto' : 'Conto Wellfare'}<select value={welfareAccountId} onChange={(event) => setWelfareAccountId(event.target.value)}>{personalAccounts.filter((item) => welfareIsPrimary ? item.type !== 'welfare' && item.id !== accountId : item.type === 'welfare' && item.id !== accountId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{welfareIsPrimary ? 'Importo con altri fondi' : 'Importo Wellfare'}<div className="money-input"><span>€</span><input aria-label={welfareIsPrimary ? 'Importo con altri fondi' : 'Importo Wellfare'} inputMode="decimal" value={welfareAmount} onChange={(event) => setWelfareAmount(event.target.value)} placeholder="0,00" /></div><small>{welfareIsPrimary ? `€ ${numericWelfareAmount.toFixed(2).replace('.', ',')} saranno scalati dal conto Wellfare.` : `Il residuo di € ${primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato sul conto principale.`}</small></label>{submitted && welfareInvalid ? <small className="field-error">Scegli due conti diversi e inserisci una quota valida, inferiore al totale.</small> : null}</div> : null}
+    </section> : null}
+    {type === 'expense' && selectedAccount?.type === 'bank' ? <section className={`welfare-box ${bankFeesEnabled ? 'welfare-box--active' : ''}`}>
+      <label className="welfare-toggle"><input type="checkbox" checked={bankFeesEnabled} onChange={(event) => setBankFeesEnabled(event.target.checked)} /><span><strong>Commissioni bancarie</strong><small>Registra separatamente il costo dell’operazione.</small></span></label>
+      {bankFeesEnabled ? <div className="welfare-fields"><label>Tipologia di operazione<select value={bankingOperationType} onChange={(event) => setBankingOperationType(event.target.value as BankingOperationType)}>{Object.entries(bankingOperationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Importo commissioni<div className="money-input"><span>€</span><input aria-label="Importo commissioni bancarie" inputMode="decimal" value={bankFeeAmount} onChange={(event) => setBankFeeAmount(event.target.value)} placeholder="0,00" /></div><small>Sarà assegnato a “Commissioni {selectedAccount.institution.trim() || selectedAccount.name}”.</small></label>{submitted && bankFeeInvalid ? <small className="field-error">Inserisci un importo di commissione maggiore di zero.</small> : null}</div> : null}
+    </section> : null}
     {type === 'expense' && !romanMode && installmentsAvailable ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" disabled={Boolean(initialPlan)} onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Pagamento a rate</strong><small>L’importo resta il totale; il conto verrà addebitato con i pagamenti programmati.</small></span><i aria-hidden="true"><span /></i></button>
       {installmentsEnabled ? <><div className="installment-fields"><label>Intermediario<select value={provider} onChange={(event) => setProvider(event.target.value)}>{providers.map((item) => <option key={item}>{item}</option>)}</select></label>{provider === 'Altro' ? <label>Nome intermediario<input value={customProvider} onChange={(event) => setCustomProvider(event.target.value)} placeholder="Es. carta del negozio" /></label> : null}<label>Numero di rate<select value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value))}><option value={3}>3 rate</option><option value={5}>5 rate</option></select></label></div><div className="installment-schedule"><strong>Rate successive</strong><small>Puoi modificare ogni data prima di salvare.</small>{splitAmount(primaryChargeTotal, installmentCount).slice(1).map((installmentAmount, index) => {

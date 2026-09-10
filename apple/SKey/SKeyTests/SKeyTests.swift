@@ -87,7 +87,7 @@ struct SKeyTests {
             #"{"data":{"accounts":[{"id":"welfare","name":"Buoni pasto","institution":"Azienda","type":"welfare","scope":"personal","openingBalance":100}]}}"#.utf8
         )
         let movementData = Data(
-            #"{"id":"mixed","type":"expense","authorId":"user","memberId":"user","amount":30,"date":"2026-09-08","description":"Spesa mista","categoryId":"food","accountId":"bank","welfareAccountId":"welfare","welfareAmount":10,"shared":false,"createdAt":"2026-09-08T10:00:00Z"}"#.utf8
+            #"{"id":"mixed","type":"expense","authorId":"user","memberId":"user","amount":30,"date":"2026-09-08","description":"Spesa mista","categoryId":"food","accountId":"bank","welfareAccountId":"welfare","welfareAmount":10,"bankFeeAmount":1,"bankFeeCategoryId":"bank-fees","bankingOperationType":"bank_transfer","shared":false,"createdAt":"2026-09-08T10:00:00Z"}"#.utf8
         )
 
         let row = try JSONDecoder().decode(PersonalAppDataRow.self, from: accountData)
@@ -98,8 +98,9 @@ struct SKeyTests {
         let snapshot = ledgerSnapshot(accounts: [bank, welfare], movements: [movement])
 
         #expect(welfareAccount.type == .welfare)
-        #expect(LedgerCalculations.accountBalance(bank, in: snapshot) == Money(cents: 8_000))
+        #expect(LedgerCalculations.accountBalance(bank, in: snapshot) == Money(cents: 7_900))
         #expect(LedgerCalculations.accountBalance(welfare, in: snapshot) == Money(cents: 9_000))
+        #expect(LedgerCalculations.allocations(of: movement).last?.categoryID == "bank-fees")
     }
 
     @Test

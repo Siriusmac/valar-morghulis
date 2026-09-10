@@ -1,7 +1,7 @@
 import {
   ArrowRight, Check, Copy, Landmark, LoaderCircle, LockKeyhole, Mail, Plus, UserCheck, UserX, UsersRound,
 } from 'lucide-react'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
 import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
@@ -136,6 +136,15 @@ export function CloudLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const emailInputRef = useRef<HTMLInputElement>(null)
+  const passwordInputRef = useRef<HTMLInputElement>(null)
+
+  const revealFocusedField = (element: HTMLInputElement) => {
+    // Il browser Tesla non sempre ridimensiona la viewport quando apre la tastiera.
+    // Ripetiamo lo scorrimento dopo l'animazione della tastiera senza dipendere
+    // dai suoi pulsanti precedente/successivo, che non emettono sempre eventi web.
+    for (const delay of [0, 250, 600]) window.setTimeout(() => element.scrollIntoView({ block: 'center', behavior: delay ? 'smooth' : 'auto' }), delay)
+  }
 
   const selectMode = (nextMode: 'login' | 'signup') => {
     setMode(nextMode)
@@ -199,8 +208,8 @@ export function CloudLogin() {
           <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
           <label>Cognome<input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" maxLength={60} required /></label>
         </> : null}
-        <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
-        <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} minLength={8} required /></label>
+        <label>Email<input ref={emailInputRef} type="email" value={email} onChange={(event) => setEmail(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === 'ArrowDown') { event.preventDefault(); passwordInputRef.current?.focus(); if (passwordInputRef.current) revealFocusedField(passwordInputRef.current) } }} autoComplete="email" enterKeyHint="next" required /></label>
+        <label>Password<input ref={passwordInputRef} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={(event) => { if (event.key === 'ArrowUp') { event.preventDefault(); emailInputRef.current?.focus() } }} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} enterKeyHint="go" minLength={8} required /></label>
         {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
         {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
         <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
@@ -664,6 +673,9 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       const { error: updateError } = await supabase
         .from('accounts')
         .update({
+          name: account.name,
+          institution: account.institution,
+          account_type: account.type,
           opening_balance: account.openingBalance,
           opening_balance_date: account.openingBalanceDate,
         })

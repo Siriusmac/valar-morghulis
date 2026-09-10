@@ -61,7 +61,7 @@ nonisolated enum LedgerCalculations {
         let splitTotal = splits.reduce(Money.zero) { $0 + $1.amount }
         let remainder = Money(cents: max(0, movement.amount.cents - splitTotal.cents))
 
-        return (remainder > .zero
+        let goods = (remainder > .zero
             ? [LedgerAllocation(
                 categoryID: movement.categoryID,
                 beneficiaryID: movement.beneficiaryID,
@@ -81,6 +81,17 @@ nonisolated enum LedgerCalculations {
                     excludeFromReports: $0.excludeFromReports == true || $0.commissionedPurchaseID != nil
                 )
             }
+        if let fee = movement.bankFeeAmount, fee > .zero, let categoryID = movement.bankFeeCategoryID {
+            return goods + [LedgerAllocation(
+                categoryID: categoryID,
+                beneficiaryID: nil,
+                tagID: nil,
+                amount: fee,
+                shared: false,
+                excludeFromReports: false
+            )]
+        }
+        return goods
     }
 
     static func accountBalance(_ account: AccountSummary, in snapshot: LedgerSnapshot) -> Money {
@@ -98,7 +109,7 @@ nonisolated enum LedgerCalculations {
                 ? Money.zero
                 : movement.welfareAmount ?? .zero
             if isPrimaryAccount {
-                balance = balance - Money(cents: max(0, movement.amount.cents - welfareAmount.cents))
+                balance = balance - Money(cents: max(0, movement.amount.cents - welfareAmount.cents)) - (movement.bankFeeAmount ?? .zero)
             }
             if movement.welfareAccountID?.caseInsensitiveCompare(account.id) == .orderedSame {
                 balance = balance - welfareAmount
@@ -107,7 +118,7 @@ nonisolated enum LedgerCalculations {
 
         for transfer in snapshot.transfers {
             if transfer.fromAccountID.caseInsensitiveCompare(account.id) == .orderedSame {
-                balance = balance - transfer.amount
+                balance = balance - transfer.amount - (transfer.feeAmount ?? .zero)
             }
             if transfer.toAccountID.caseInsensitiveCompare(account.id) == .orderedSame {
                 balance = balance + transfer.amount
@@ -160,6 +171,7 @@ nonisolated enum LedgerCalculations {
         in snapshot: LedgerSnapshot,
         movements: [LedgerMovement],
         sharedOnly: Bool,
+        transferMonth: String? = nil,
         maximumSlices: Int = 6
     ) -> [LedgerCategoryTotal] {
         var totals: [String: Money] = [:]
@@ -171,6 +183,12 @@ nonisolated enum LedgerCalculations {
                 if sharedOnly && !familyAccount && !allocation.shared { continue }
                 totals[allocation.categoryID] = totals[allocation.categoryID, default: .zero]
                     + allocation.amount
+            }
+        }
+        if !sharedOnly, let transferMonth {
+            for transfer in snapshot.transfers where transfer.date.hasPrefix(transferMonth) {
+                guard let categoryID = transfer.feeCategoryID, let fee = transfer.feeAmount, fee > .zero else { continue }
+                totals[categoryID] = totals[categoryID, default: .zero] + fee
             }
         }
 

@@ -24,7 +24,10 @@ Form progressivo:
 
 1. In creazione la prima schermata contiene soltanto quattro grandi tasti in una singola colonna, invariata su ogni layout, con spiegazione breve: Spesa, Entrata, Giro fondi e Paga alla romana. Dopo la scelta i tasti scompaiono e compare il modulo relativo. La web app usa una transizione animata; il client Apple cambia schermata senza animazioni dedicate. In modifica il tipo non è selezionabile e non compare il comando incoerente “Entrata”.
 2. Importo.
-3. Conto di origine/destinazione; per le spese segue “Pagamento a rate” con intermediario e numero rate.
+3. Conto di origine/destinazione. Un conto Wellfare può completare con un altro
+   conto e viceversa; un conto bancario può aggiungere commissioni con tipo di
+   operazione e importo. “Pagamento a rate” compare solo per conti compatibili e
+   senza pagamento misto.
 4. Beneficiario o mittente, data, descrizione e commenti.
 5. Per le spese: acquisto unico o multiplo.
 6. “Tipo di acquisto” distingue “Acquisto unico” e “Acquisto multiplo”. Nel primo e in ogni riga del secondo, “Tipo di spesa” sceglie fra “Spesa personale”, “Spesa condivisa”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. La scelta della famiglia compare solo per “Spesa condivisa” e non contiene l’opzione personale.
@@ -36,7 +39,8 @@ Ogni aggiunta o rimozione ricalcola tutte le quote, mostra la quota del pagante 
 consente per un familiare di scalare la sua quota da un debito solo quando il
 credito disponibile è sufficiente. Categoria e tag classificano la quota del pagante.
 
-Giro fondi richiede conto di origine, conto di destinazione, importo e data. Non
+Giro fondi richiede conto di origine, conto di destinazione, importo e data; una
+commissione facoltativa viene classificata in “Commissioni <Istituto>”. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
 personale aggiorna il debito verso la famiglia in base al numero dei membri.
 
@@ -52,6 +56,7 @@ Usare controlli nativi, focus state e scrolling automatico: l'intero controllo a
 
 - Elenco con saldo e ambito, senza esporre saldi personali ad altri.
 - Dettaglio con movimenti, saldo/data iniziali e pubblicazione nome per rimborsi.
+- L'editor modifica nome, tipo, istituto (o “Dettaglio” per i contanti), saldo e data.
 - La sezione gestisce soltanto i conti; “Giro fondi” si trova in “Nuovo movimento”.
 - Conti familiari chiaramente contrassegnati.
 - “Crea conto” è un comando testuale esplicito; la modifica usa swipe trailing

@@ -20,7 +20,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - confronto mensile in bacheca degli importi anticipati da ciascun membro per le spese condivise, escludendo i pagamenti effettuati direttamente da un conto condiviso;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
-- saldo iniziale dei conti modificabile con data di riferimento;
+- dati dei conti (nome, istituto o dettaglio per i contanti, tipo, saldo iniziale e data di riferimento) modificabili;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; per un rimborso diretto chi invia la richiesta sceglie il proprio conto e chi la riceve può completare il proprio conto prima della conferma;
 - rimborsi già confermati modificabili o annullabili con una richiesta di rettifica: il valore originale resta efficace finché l'altra parte non approva, mentre richieste rifiutate o ritirate e annullamenti approvati restano nello storico;
@@ -29,9 +29,10 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - nuovo movimento aperto soltanto da quattro grandi scelte in colonna: “Spesa”, “Entrata”, “Giro fondi” e “Paga alla romana”; dopo la scelta i tasti lasciano posto alla scheda relativa, con transizione animata sulla web app; un prelievo dal conto condiviso verso un conto personale genera un debito proporzionale alle quote degli altri membri;
 - conto personale predefinito configurabile nel profilo e preselezionato nei nuovi movimenti;
 - eliminazione di un conto con scelta esplicita fra storico conservato, movimenti eliminati o movimenti ricondotti a un conto compatibile; i conti familiari richiedono un amministratore e le operazioni reciproche devono essere rettificate prima di poterle eliminare o riassegnare;
-- giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine;
+- giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine e classificate automaticamente in “Commissioni &lt;Istituto&gt;”;
 - PayPal come conto personale;
-- conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare automaticamente il residuo sul conto principale, mantenendo importo e statistiche unitari;
+- conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare il residuo sul conto principale oppure partire dal Wellfare e completare con un altro conto, mantenendo importo e statistiche unitari;
+- commissioni bancarie opzionali sulle spese da conto bancario, con scelta fra Bonifico, Bollettino, CBILL, F24 e PagoPA: il conto sostiene importo netto e commissione, mentre le categorie mantengono separati beni e costo bancario;
 - budget mensile configurabile dal menu di ogni categoria di spesa, personale o familiare; la bacheca avvisa dal 90% e, in caso di superamento, consente di riportare l’eccedenza sul budget del mese successivo;
 - categorie, beneficiari, mittenti e tag ricercabili mentre si scrive attraverso lo stesso menu; quando il nome non esiste compare il comando “Aggiungi …” e la voce viene creata con il movimento; la web app accetta fino a tre tag per movimento e, negli acquisti multipli, fino a tre tag indipendenti per ogni parziale;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;

@@ -102,6 +102,10 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
     let accountID: String
     let welfareAccountID: String?
     let welfareAmount: Money?
+    let welfarePrimary: Bool?
+    let bankFeeAmount: Money?
+    let bankFeeCategoryID: String?
+    let bankingOperationType: String?
     let tagID: String?
     let comments: String?
     let shared: Bool
@@ -131,6 +135,10 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         case accountID = "accountId"
         case welfareAccountID = "welfareAccountId"
         case welfareAmount
+        case welfarePrimary
+        case bankFeeAmount
+        case bankFeeCategoryID = "bankFeeCategoryId"
+        case bankingOperationType
         case tagID = "tagId"
         case comments
         case shared
@@ -161,6 +169,10 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         accountID: String,
         welfareAccountID: String? = nil,
         welfareAmount: Money? = nil,
+        welfarePrimary: Bool? = nil,
+        bankFeeAmount: Money? = nil,
+        bankFeeCategoryID: String? = nil,
+        bankingOperationType: String? = nil,
         tagID: String?,
         comments: String?,
         shared: Bool,
@@ -189,6 +201,10 @@ nonisolated struct LedgerMovement: Identifiable, Codable, Equatable, Sendable {
         self.accountID = accountID
         self.welfareAccountID = welfareAccountID
         self.welfareAmount = welfareAmount
+        self.welfarePrimary = welfarePrimary
+        self.bankFeeAmount = bankFeeAmount
+        self.bankFeeCategoryID = bankFeeCategoryID
+        self.bankingOperationType = bankingOperationType
         self.tagID = tagID
         self.comments = comments
         self.shared = shared
@@ -254,6 +270,8 @@ nonisolated struct LedgerTransfer: Identifiable, Codable, Equatable, Sendable {
     let fromAccountID: String
     let toAccountID: String
     let amount: Money
+    let feeAmount: Money?
+    let feeCategoryID: String?
     let date: String
     let description: String
 
@@ -263,8 +281,16 @@ nonisolated struct LedgerTransfer: Identifiable, Codable, Equatable, Sendable {
         case fromAccountID = "fromAccountId"
         case toAccountID = "toAccountId"
         case amount
+        case feeAmount
+        case feeCategoryID = "feeCategoryId"
         case date
         case description
+    }
+
+    init(id: String, authorID: String, fromAccountID: String, toAccountID: String, amount: Money, feeAmount: Money? = nil, feeCategoryID: String? = nil, date: String, description: String) {
+        self.id = id; self.authorID = authorID; self.fromAccountID = fromAccountID; self.toAccountID = toAccountID
+        self.amount = amount; self.feeAmount = feeAmount; self.feeCategoryID = feeCategoryID
+        self.date = date; self.description = description
     }
 }
 

@@ -17,10 +17,10 @@
 | Category | name, scope, ownerId, movementType, color | Cataloghi entrata/spesa |
 | Beneficiary / Sender | name, scope, ownerId | Spese / entrate |
 | Tag | name, scope, ownerId, color | Sempre selezionabile |
-| Movement | tipo, autore, membro, importo, data, conto, directory | Commenti, rate e parziali |
+| Movement | tipo, autore, membro, importo netto, data, conto, directory | Commenti, rate, parziali, doppio conto Wellfare e commissioni |
 | MovementSplit | amount, categoryId, beneficiaryId, tagIds (max 3), tagId, shared, commissionedPurchaseId, excludeFromReports | `tagId` replica il primo tag; il residuo resta sul principale |
 | ScheduledPayment | planId, dueDate, numero/totale, status | Materializzazione idempotente |
-| Transfer | conti, importo, spese bancarie opzionali, data | Escluso dalle statistiche |
+| Transfer | conti, importo, spese bancarie e relativa categoria opzionali, data | Il trasferito è escluso dalle statistiche; la commissione è classificata |
 | Reimbursement | utenti, conti, importo, status | pending/confirmed/rejected |
 | ContactLink / ContactInvitation | coppia utenti o email, stato | Nessun accesso implicito alle famiglie |
 | CommissionedPurchase | pagante, destinatario/invito, importo, descrizione, stato | Può compensare un rimborso |
@@ -53,11 +53,17 @@
     un'allocazione commissionata uguale per ogni contatto. Gli eventuali centesimi
     residui vanno all'ultima quota. La compensazione familiare è ammessa soltanto
     se `availableCredit` copre l'intera quota.
+15. Una spesa mista persiste sempre `accountId` per il conto non Wellfare,
+    `welfareAccountId` per il Wellfare e `welfareAmount` per la relativa quota;
+    `welfarePrimary` conserva quale conto era stato scelto per primo nell'editor.
+16. `amount` resta il costo netto dei beni. `bankFeeAmount` viene addebitato in
+    aggiunta sul conto bancario e crea/riusa `bankFeeCategoryId` con nome
+    “Commissioni <Istituto>”; la relativa allocazione non è condivisa.
 
 ## Saldo conto
 
 ```text
-saldo = saldo iniziale + entrate - spese
+saldo = saldo iniziale + entrate - spese nette - commissioni bancarie
       + girofondi in entrata - girofondi in uscita - relative spese bancarie
       + rimborsi confermati in entrata - rimborsi confermati in uscita
 ```
@@ -71,8 +77,9 @@ Se esiste `sharedSettlementAmount`, usarlo soltanto se principale o almeno un pa
 Con `N >= 2`, quota personale `1/N`, quota degli altri `(N-1)/N`. Per una spesa da conto personale chi paga acquisisce credito per la quota degli altri; ciascun altro membro assume la propria quota. Per un'entrata il verso si inverte.
 
 I rimborsi contano solo se confermati. Verso un conto familiare riconoscono a chi versa la sola quota degli altri. Un trasferimento da familiare a personale produce l'effetto opposto.
-Le spese bancarie del giro fondi incidono soltanto sul saldo del conto di origine:
-non raggiungono il conto di destinazione e non modificano credito o debito familiare.
+Le spese bancarie del giro fondi incidono soltanto sul saldo del conto di origine,
+sono classificate in “Commissioni <Istituto>”, non raggiungono il conto di
+destinazione e non modificano credito o debito familiare.
 
 La rettifica di un rimborso confermato è un'entità separata e verificabile. Può
 proporre una modifica o un annullamento, ma non sostituisce il record contabile

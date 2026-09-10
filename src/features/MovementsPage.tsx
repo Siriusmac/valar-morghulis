@@ -30,7 +30,7 @@ export function MovementsPage({ data, user, onEdit, onDelete, onEditTransfer, on
   const monthOptions = selectableMonths([...visible.map((movement) => movement.date), ...transfers.map((transfer) => transfer.date)], month)
   const monthly = movementsForMonth(visible, month)
   const shared = monthly.filter((item) => movementHasSharedPortion(data, item))
-  const chartExpense = totalsByCategory(data, (section === 'shared' ? shared : monthly).filter((item) => item.type === 'expense'), section === 'shared')
+  const chartExpense = totalsByCategory(data, (section === 'shared' ? shared : monthly).filter((item) => item.type === 'expense'), section === 'shared', section === 'expense' ? month : undefined)
   const chartIncome = totalsByCategory(data, (section === 'shared' ? shared : monthly).filter((item) => item.type === 'income'), section === 'shared')
   const list = monthly
     .filter((item) => section === 'shared' ? movementHasSharedPortion(data, item) : item.type === section)

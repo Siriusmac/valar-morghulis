@@ -2,6 +2,7 @@ export type UserId = string
 export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'reimbursements' | 'accounts' | 'budgets' | 'categories' | 'beneficiaries' | 'tags' | 'contacts' | 'guide' | 'account'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
+export type BankingOperationType = 'bank_transfer' | 'postal_order' | 'cbill' | 'f24' | 'pagopa'
 
 export interface User {
   id: UserId
@@ -87,6 +88,10 @@ export interface Movement extends FamilyMembershipSnapshot {
   accountId: string
   welfareAccountId?: string
   welfareAmount?: number
+  welfarePrimary?: boolean
+  bankFeeAmount?: number
+  bankFeeCategoryId?: string
+  bankingOperationType?: BankingOperationType
   tagId?: string
   tagIds?: string[]
   comments?: string
@@ -136,6 +141,7 @@ export interface Transfer extends FamilyMembershipSnapshot {
   toAccountId: string
   amount: number
   feeAmount?: number
+  feeCategoryId?: string
   date: string
   description: string
 }

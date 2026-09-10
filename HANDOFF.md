@@ -1,6 +1,23 @@
 # Handoff — sKey
 
-Aggiornato l’8 settembre 2026.
+Aggiornato il 9 settembre 2026.
+
+## Intervento locale non pubblicato del 9 settembre
+
+Web e client Apple supportano ora il pagamento misto anche quando il conto
+primario è Wellfare (“Completa con altri fondi”). Le spese da conto bancario
+possono registrare tipo di operazione e commissione separata: il saldo addebita
+netto più commissione, mentre la commissione crea o riusa la categoria personale
+o familiare “Commissioni <Istituto>”. Lo stesso collegamento di categoria è stato
+aggiunto alle commissioni dei giro fondi. L'editor dei conti modifica anche nome,
+istituto/dettaglio e tipo. La web app forza l'email del profilo su una riga propria
+e mantiene visibile il campo attivo nei browser touch che non ridimensionano la
+viewport, incluso il caso segnalato su Tesla; il comportamento reale della
+tastiera Tesla resta da provare sul veicolo.
+
+Verifica locale: 246 test web, lint e build Vite riusciti; build iOS Simulator
+non firmata e 31 test unitari Apple riusciti. Nessun commit, push, migration o deploy
+è stato eseguito per questo intervento.
 
 ## Ingressi familiari — pubblicato il 7 settembre
 

@@ -744,11 +744,14 @@ private struct AccountEditorView: View {
             Form {
                 Section("Conto") {
                     TextField("Nome conto", text: $name)
-                    TextField("Istituto o dettaglio", text: $institution)
+                    TextField(kind == .cash ? "Dettaglio" : "Istituto", text: $institution)
                     Picker("Tipo", selection: $kind) {
                         ForEach([AccountSummary.Kind.bank, .credit, .cash, .paypal, .welfare], id: \.self) {
                             Text($0.label).tag($0)
                         }
+                    }
+                    .onChange(of: kind) { _, newValue in
+                        if newValue == .welfare, scope == .family { kind = .bank }
                     }
                     if account == nil, !appModel.availableFamilies.isEmpty {
                         Picker("Visibilità", selection: $scope) {

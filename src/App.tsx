@@ -13,6 +13,7 @@ import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCl
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
+import { resolveBankFeeCategory } from './lib/bankFees'
 import { createCommissionedPurchase, familyContacts, inviteContact, issueCommissionedPurchaseReimbursement, loadContactData, removeContact, respondToCommissionedPurchase, respondToCommissionedPurchaseReimbursement, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { reconcileConfirmedLoanPurchases } from './lib/loans'
@@ -501,7 +502,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast('Richiesta di rettifica ritirata')
   }
   const saveTransfer = (transfer: Transfer) => {
-    setData((current) => saveTransferData(current, transfer))
+    setData((current) => {
+      const source = current.accounts.find((item) => item.id === transfer.fromAccountId)
+      const feeCategory = transfer.feeAmount && source ? resolveBankFeeCategory(current, user, source) : undefined
+      const withCategory = feeCategory?.created ? { ...current, categories: [...current.categories, feeCategory.category] } : current
+      return saveTransferData(withCategory, { ...transfer, feeCategoryId: feeCategory?.category.id })
+    })
     setModal((current) => current?.type === 'transfer' ? current.returnTo ?? null : null)
     setToast(cloud ? 'Giro fondi salvato sul dispositivo e accodato per la sincronizzazione' : 'Giro fondi salvato e saldi aggiornati')
   }

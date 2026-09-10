@@ -15,6 +15,12 @@ struct MovementComposerView: View {
     @State private var comments = ""
     @State private var accountID = ""
     @State private var toAccountID = ""
+    @State private var usesSecondaryFunds = false
+    @State private var secondaryAccountID = ""
+    @State private var secondaryAmountText = ""
+    @State private var bankFeesEnabled = false
+    @State private var bankingOperationType = "bank_transfer"
+    @State private var bankFeeAmountText = ""
     @State private var category: LedgerDirectoryItem?
     @State private var counterparty: LedgerDirectoryItem?
     @State private var tag: LedgerDirectoryItem?
@@ -56,7 +62,16 @@ struct MovementComposerView: View {
         _date = State(initialValue: movement.flatMap { Self.dayFormatter.date(from: $0.date) } ?? Date())
         _descriptionText = State(initialValue: movement?.description ?? "")
         _comments = State(initialValue: movement?.comments ?? "")
-        _accountID = State(initialValue: movement?.accountID ?? "")
+        _accountID = State(initialValue: movement?.welfarePrimary == true ? movement?.welfareAccountID ?? "" : movement?.accountID ?? "")
+        _usesSecondaryFunds = State(initialValue: movement?.welfareAccountID != nil && movement?.welfareAmount != nil)
+        _secondaryAccountID = State(initialValue: movement?.welfarePrimary == true ? movement?.accountID ?? "" : movement?.welfareAccountID ?? "")
+        _secondaryAmountText = State(initialValue: movement.map {
+            let amount = $0.welfarePrimary == true ? Money(cents: max(0, $0.amount.cents - ($0.welfareAmount?.cents ?? 0))) : $0.welfareAmount ?? .zero
+            return NSDecimalNumber(decimal: amount.decimal).stringValue.replacingOccurrences(of: ".", with: ",")
+        } ?? "")
+        _bankFeesEnabled = State(initialValue: movement?.bankFeeAmount != nil)
+        _bankingOperationType = State(initialValue: movement?.bankingOperationType ?? "bank_transfer")
+        _bankFeeAmountText = State(initialValue: movement?.bankFeeAmount.map { NSDecimalNumber(decimal: $0.decimal).stringValue.replacingOccurrences(of: ".", with: ",") } ?? "")
         _isShared = State(initialValue: movement?.shared ?? false)
         _affectsAccountBalance = State(initialValue: movement?.affectsAccountBalance ?? false)
         _draftID = State(initialValue: movement?.id ?? UUID().uuidString.lowercased())
@@ -189,12 +204,52 @@ struct MovementComposerView: View {
                         }
                     }
                     .onChange(of: accountID) { _, _ in
+                        usesSecondaryFunds = false; secondaryAmountText = ""
+                        secondaryAccountID = selectedAccount?.kind == .welfare
+                            ? options.accounts.first(where: { $0.familyID == nil && $0.kind != .welfare })?.id ?? ""
+                            : options.accounts.first(where: { $0.familyID == nil && $0.kind == .welfare })?.id ?? ""
+                        if selectedAccount?.kind != .bank { bankFeesEnabled = false; bankFeeAmountText = "" }
+                        if selectedAccount?.kind == .cash || selectedAccount?.kind == .welfare { installmentsEnabled = false }
                         if type == .income { isShared = selectedAccount?.familyID != nil }
                         normalizeDirectorySelections(); normalizeSplitSelections(); updateBalanceImpact()
                     }
                 }
 
-                if movement == nil, type == .expense, composerMode != .roman {
+                if type == .expense, let account = selectedAccount,
+                   (account.kind == .welfare
+                    ? options.accounts.contains { $0.familyID == nil && $0.kind != .welfare }
+                    : options.accounts.contains { $0.familyID == nil && $0.kind == .welfare }) {
+                    Toggle(account.kind == .welfare ? "Completa con altri fondi" : "Utilizza Wellfare", isOn: $usesSecondaryFunds)
+                    if usesSecondaryFunds {
+                        Picker(account.kind == .welfare ? "Altro conto" : "Conto Wellfare", selection: $secondaryAccountID) {
+                            ForEach(options.accounts.filter { candidate in
+                                candidate.familyID == nil && candidate.id != account.id
+                                    && (account.kind == .welfare ? candidate.kind != .welfare : candidate.kind == .welfare)
+                            }) { candidate in Text(candidate.name).tag(candidate.id) }
+                        }
+                        TextField(account.kind == .welfare ? "Importo con altri fondi" : "Importo Wellfare", text: $secondaryAmountText)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    }
+                }
+
+                if type == .expense, selectedAccount?.kind == .bank {
+                    Toggle("Commissioni bancarie", isOn: $bankFeesEnabled)
+                    if bankFeesEnabled {
+                        Picker("Tipologia di operazione", selection: $bankingOperationType) {
+                            Text("Bonifico").tag("bank_transfer"); Text("Bollettino").tag("postal_order")
+                            Text("CBILL").tag("cbill"); Text("F24").tag("f24"); Text("PagoPA").tag("pagopa")
+                        }
+                        TextField("Importo commissioni", text: $bankFeeAmountText)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    }
+                }
+
+                if movement == nil, type == .expense, composerMode != .roman,
+                   selectedAccount?.kind != .cash, selectedAccount?.kind != .welfare, !usesSecondaryFunds {
                     Toggle("Pagamento a rate", isOn: $installmentsEnabled)
                     if installmentsEnabled {
                         Picker("Intermediario", selection: $installmentProvider) {
@@ -559,6 +614,16 @@ struct MovementComposerView: View {
                     }
                 }
 
+                TextField("Commissioni bancarie", text: $bankFeeAmountText, prompt: Text("0,00"))
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                if let source = selectedAccount, parsedBankFeeAmount != nil {
+                    Text("Saranno assegnate a Commissioni \(source.institution.isEmpty ? source.name : source.institution).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 TextField("Descrizione facoltativa", text: $descriptionText)
                     .focused($focusedField, equals: .description)
             } header: {
@@ -626,6 +691,10 @@ struct MovementComposerView: View {
 
     private var selectedDestinationAccount: AccountSummary? {
         options?.accounts.first { $0.id == toAccountID }
+    }
+
+    private var secondaryAccount: AccountSummary? {
+        options?.accounts.first { $0.id == secondaryAccountID }
     }
 
     private var availableCommissionedContacts: [ContactSummary] {
@@ -756,6 +825,47 @@ struct MovementComposerView: View {
         return value
     }
 
+    private func parsedPositiveDecimal(_ text: String) -> Decimal? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.contains(",")
+            ? trimmed.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
+            : trimmed
+        guard let value = Decimal(string: normalized), value > 0 else { return nil }
+        return value
+    }
+
+    private var parsedSecondaryAmount: Decimal? { parsedPositiveDecimal(secondaryAmountText) }
+    private var parsedBankFeeAmount: Decimal? { parsedPositiveDecimal(bankFeeAmountText) }
+
+    private var secondaryFundsAreValid: Bool {
+        guard usesSecondaryFunds else { return true }
+        guard let amount = parsedAmount, let secondary = parsedSecondaryAmount else { return false }
+        return secondaryAccount != nil && secondaryAccountID != accountID && secondary < amount
+    }
+
+    private var bankFeesAreValid: Bool {
+        !bankFeesEnabled || parsedBankFeeAmount != nil
+    }
+
+    private func resolvedBankFeeCategory(for account: AccountSummary) -> LedgerDirectoryItem? {
+        guard let currentUserID = currentUserIDString else { return nil }
+        let institution = account.institution.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = "Commissioni \(institution.isEmpty ? account.name : institution)"
+        if let existing = options?.categories.first(where: {
+            $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+                && $0.scope == account.scope && ($0.movementType == nil || $0.movementType == .expense)
+        }) { return existing }
+        return LedgerDirectoryItem(
+            id: "category-bank-fees-\(UUID().uuidString.lowercased())",
+            name: name,
+            scope: account.scope,
+            ownerID: account.scope == .personal ? currentUserID : nil,
+            movementType: .expense,
+            color: "#a87921"
+        )
+    }
+
     private var isBeforeOpeningBalance: Bool {
         guard
             let openingDate = selectedAccount?.openingBalanceDate,
@@ -769,6 +879,8 @@ struct MovementComposerView: View {
     private var isFormValid: Bool {
         parsedAmount != nil
             && selectedAccount != nil
+            && secondaryFundsAreValid
+            && bankFeesAreValid
             && (!mainAllocationNeedsClassification || category != nil)
             && (!counterpartyRequired || counterparty != nil)
             && splitsAreValid
@@ -779,6 +891,8 @@ struct MovementComposerView: View {
 
     private var validationMessage: String {
         if selectedAccount == nil { return "Seleziona il conto del movimento." }
+        if !secondaryFundsAreValid { return "Scegli due conti diversi e inserisci una quota inferiore al totale." }
+        if !bankFeesAreValid { return "Inserisci un importo di commissione maggiore di zero." }
         if mainAllocationNeedsClassification, category == nil { return "Seleziona o crea una categoria." }
         if counterpartyRequired, counterparty == nil { return "Seleziona o crea un \(counterpartyLabel.lowercased())." }
         if commissionedPurchase, !validMainCommissionTarget { return reimbursementPurchase ? "Seleziona il membro della famiglia da rimborsare." : "Seleziona un contatto o inserisci un indirizzo email valido." }
@@ -855,6 +969,7 @@ struct MovementComposerView: View {
             && selectedDestinationAccount != nil
             && accountID != toAccountID
             && (options?.accounts.count ?? 0) >= 2
+            && (bankFeeAmountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || parsedBankFeeAmount != nil)
     }
 
     private var transferValidationMessage: String {
@@ -892,11 +1007,13 @@ struct MovementComposerView: View {
             let loaded = try await appModel.loadMovementOptions()
             options = loaded
             if let movement {
-                accountID = movement.accountID == CommissionedPurchaseAccounting.debtCompensationAccountID
-                    ? movement.accountID
-                    : usableAccounts(in: loaded).contains { $0.id == movement.accountID }
-                        ? movement.accountID
+                let displayedAccountID = movement.welfarePrimary == true ? movement.welfareAccountID ?? movement.accountID : movement.accountID
+                accountID = displayedAccountID == CommissionedPurchaseAccounting.debtCompensationAccountID
+                    ? displayedAccountID
+                    : usableAccounts(in: loaded).contains { $0.id == displayedAccountID }
+                        ? displayedAccountID
                         : usableAccounts(in: loaded).first?.id ?? ""
+                secondaryAccountID = movement.welfarePrimary == true ? movement.accountID : movement.welfareAccountID ?? ""
                 category = loaded.categories.first { $0.id == movement.categoryID }
                 let counterpartyID = movement.type == .expense ? movement.beneficiaryID : movement.senderID
                 let candidates = movement.type == .expense ? loaded.beneficiaries : loaded.senders
@@ -962,7 +1079,11 @@ struct MovementComposerView: View {
         let mainCommissioned = commissionedPurchase && splitRemainder > .zero
         let allAllocationsCommissioned = (splitRemainder == .zero || mainCommissioned)
             && activeSplitDrafts.allSatisfy(\.isCommissioned)
-        let reimbursementDrafts = purchaseReimbursementDrafts(account: account, description: cleanDescription)
+        let canonicalAccount = usesSecondaryFunds && account.kind == .welfare ? secondaryAccount ?? account : account
+        let welfareAccount = usesSecondaryFunds ? (account.kind == .welfare ? account : secondaryAccount) : nil
+        let welfareAmount = usesSecondaryFunds ? (account.kind == .welfare ? amount - (parsedSecondaryAmount ?? 0) : parsedSecondaryAmount) : nil
+        let feeCategory = bankFeesEnabled ? resolvedBankFeeCategory(for: account) : nil
+        let reimbursementDrafts = purchaseReimbursementDrafts(account: canonicalAccount, description: cleanDescription)
         let draft = MovementDraft(
             id: draftID,
             type: type,
@@ -970,7 +1091,13 @@ struct MovementComposerView: View {
             date: date,
             description: cleanDescription.isEmpty ? primaryCategory.name : cleanDescription,
             comments: cleanComments.isEmpty ? nil : cleanComments,
-            account: account,
+            account: canonicalAccount,
+            welfareAccount: welfareAccount,
+            welfareAmount: welfareAmount,
+            welfarePrimary: usesSecondaryFunds && account.kind == .welfare,
+            bankFeeAmount: bankFeesEnabled ? parsedBankFeeAmount : nil,
+            bankFeeCategory: feeCategory,
+            bankingOperationType: bankFeesEnabled ? bankingOperationType : nil,
             category: primaryCategory,
             counterparty: primaryCounterparty,
             tag: tag,
@@ -1098,6 +1225,8 @@ struct MovementComposerView: View {
             fromAccount: fromAccount,
             toAccount: toAccount,
             amount: amount,
+            feeAmount: parsedBankFeeAmount,
+            feeCategory: parsedBankFeeAmount == nil ? nil : resolvedBankFeeCategory(for: fromAccount),
             date: date,
             description: descriptionText
         )
