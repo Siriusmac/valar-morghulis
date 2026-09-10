@@ -41,6 +41,27 @@ describe('Directory ordering', () => {
   })
 })
 
+describe('CategoriesPage', () => {
+  it('include le commissioni dei giro fondi nel dettaglio della categoria', () => {
+    const data = structuredClone(defaultData)
+    data.categories.push({ id: 'fees-nexi', name: 'Commissioni Nexi', scope: 'personal', ownerId: users[0].id, movementType: 'expense', color: '#a87921' })
+    const transfer = {
+      id: 'yap-to-cash', authorId: users[0].id,
+      fromAccountId: 'simone-card', toAccountId: 'simone-cash',
+      amount: 250, feeAmount: 1, feeCategoryId: 'fees-nexi', date: '2026-09-10', description: 'Giro fondi',
+    }
+    data.transfers = [transfer]
+    const onShowMovements = vi.fn()
+
+    render(<CategoriesPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} onShowMovements={onShowMovements} />)
+    fireEvent.click(screen.getByText('Commissioni Nexi').closest('article')!)
+
+    const [, , , , transferFilter, transferAmount] = onShowMovements.mock.calls[0]
+    expect(transferFilter(transfer)).toBe(true)
+    expect(transferAmount(transfer)).toBe(1)
+  })
+})
+
 describe('BeneficiariesPage', () => {
   it('keeps the beneficiary identity so historical movements show the updated name', () => {
     const data = structuredClone(defaultData)

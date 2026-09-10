@@ -1,8 +1,27 @@
 # Handoff — sKey
 
-Aggiornato il 9 settembre 2026.
+Aggiornato il 10 settembre 2026.
 
-## Intervento locale non pubblicato del 9 settembre
+## Istituto bancario e dettaglio commissioni — rilascio del 10 settembre
+
+Prima di salvare una spesa o un giro fondi che usa in uscita un conto bancario
+senza istituto, web e client Apple sospendono l'operazione e aprono una finestra
+dedicata. La finestra spiega che l'istituto identifica il conto e determina la
+categoria “Commissioni <Istituto>”, richiede il dato e, dopo aver aggiornato il
+conto, riprende automaticamente il salvataggio. La regola copre anche un conto
+bancario usato per completare un pagamento iniziato con Wellfare.
+Nel dettaglio della categoria “Commissioni <Istituto>” sono inclusi anche i
+giro fondi: la riga mostra il solo costo bancario, mentre il saldo del conto di
+origine continua a sottrarre importo trasferito e commissione e il conto di
+destinazione riceve soltanto l'importo trasferito. I campi del riquadro delle
+commissioni nel nuovo movimento sono allineati sulla stessa griglia.
+
+Verifica locale: 252 test web, lint e build Vite riusciti; build iOS Simulator
+non firmata e 31 test unitari Apple riusciti. Playwright non è installato nel
+progetto, quindi l'interazione web è stata verificata con test DOM. Non sono
+necessarie modifiche allo schema del database.
+
+## Pagamenti misti e commissioni — pubblicato il 10 settembre
 
 Web e client Apple supportano ora il pagamento misto anche quando il conto
 primario è Wellfare (“Completa con altri fondi”). Le spese da conto bancario
@@ -15,9 +34,9 @@ e mantiene visibile il campo attivo nei browser touch che non ridimensionano la
 viewport, incluso il caso segnalato su Tesla; il comportamento reale della
 tastiera Tesla resta da provare sul veicolo.
 
-Verifica locale: 246 test web, lint e build Vite riusciti; build iOS Simulator
-non firmata e 31 test unitari Apple riusciti. Nessun commit, push, migration o deploy
-è stato eseguito per questo intervento.
+Verifica di rilascio: 246 test web, lint, build Vite, controllo Cloudflare,
+build iOS Simulator non firmata e 31 test unitari Apple riusciti. Commit
+`d9195e2`, push su `origin/main` e deploy Cloudflare Pages completati.
 
 ## Ingressi familiari — pubblicato il 7 settembre
 

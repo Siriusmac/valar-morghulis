@@ -7,7 +7,7 @@ import { bankingOperationLabels, resolveBankFeeCategory } from '../lib/bankFees'
 import { debtCompensationAccountId, debtCompensationAccountLabel } from '../lib/commissioned'
 import { addMonthsISO, makeId, splitAllocationsAcrossInstallments, splitAmount, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
-import type { AppData, BankingOperationType, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
+import type { Account, AppData, BankingOperationType, Beneficiary, Category, Contact, Movement, MovementSplit, MovementType, ScheduledPayment, Sender, Tag, User } from '../types'
 
 export interface CommissionedPurchaseDraft {
   id: string
@@ -39,6 +39,7 @@ interface Props {
   contacts?: Contact[]
   members?: User[]
   onCommissionedPurchase?: (draft: CommissionedPurchaseDraft) => Promise<void>
+  onRequireBankInstitution?: (account: Account) => Promise<Account | undefined>
 }
 
 const providers = ['PayPal', 'Klarna', 'Scalapay', 'Amazon', 'Altro']
@@ -118,7 +119,7 @@ function installmentPlanDraft(data: AppData, initial?: Movement) {
   }
 }
 
-export function MovementForm({ data, user, memberCount = 2, familyName = 'Famiglia attiva', onSave, onCancel, onDelete, initial, personalOnly = false, initialType, initialComposerType, defaultAccountId, onSelectTransfer, contacts = [], members = [], onCommissionedPurchase }: Props) {
+export function MovementForm({ data, user, memberCount = 2, familyName = 'Famiglia attiva', onSave, onCancel, onDelete, initial, personalOnly = false, initialType, initialComposerType, defaultAccountId, onSelectTransfer, contacts = [], members = [], onCommissionedPurchase, onRequireBankInstitution }: Props) {
   const initialPlan = installmentPlanDraft(data, initial)
   const [composerSelected, setComposerSelected] = useState(Boolean(initial || initialType || initialComposerType))
   const [type, setType] = useState<MovementType>(initial?.type ?? initialType ?? 'expense')
@@ -189,6 +190,12 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const [requestError, setRequestError] = useState('')
   const isDebtCompensationMovement = initial?.accountId === debtCompensationAccountId
   const selectedAccount = data.accounts.find((item) => item.id === accountId)
+  const secondaryFundingAccount = useWelfare && selectedAccount?.type === 'welfare'
+    ? data.accounts.find((item) => item.id === welfareAccountId)
+    : undefined
+  const fundingBankAccount = type === 'expense'
+    ? selectedAccount?.type === 'bank' ? selectedAccount : secondaryFundingAccount?.type === 'bank' ? secondaryFundingAccount : undefined
+    : undefined
   const effectivelyShared = !commissioned && !personalOnly && (selectedAccount?.scope === 'family' || shared)
   const isBeforeOpeningBalance = Boolean(date && selectedAccount?.openingBalanceDate && date < selectedAccount.openingBalanceDate)
   const splitPercentage = new Intl.NumberFormat('it-IT', { style: 'percent', maximumFractionDigits: 2 }).format(1 / Math.max(memberCount, 1))
@@ -420,6 +427,18 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     )
     const mainAllocationRequired = !activeSplitsEnabled || mainRemainder > 0
     if (!numericAmount || numericAmount <= 0 || !accountId || welfareInvalid || bankFeeInvalid || (installmentsEnabled && primaryChargeTotal <= 0) || (mainAllocationRequired && !commissioned && !categoryName) || beneficiaryMissing || senderMissing || invalidSplits || commissionedTargetMissing || splitCommissionedTargetMissing || reimbursementAmountsInvalid || (hasCommissionedAllocation && !description.trim())) return
+    let resolvedFundingBankAccount = fundingBankAccount
+    if (resolvedFundingBankAccount && !resolvedFundingBankAccount.institution.trim()) {
+      if (!onRequireBankInstitution) {
+        setRequestError('Inserisci l’istituto del conto bancario prima di salvare il movimento.')
+        return
+      }
+      setSaving(true)
+      setRequestError('')
+      resolvedFundingBankAccount = await onRequireBankInstitution(resolvedFundingBankAccount)
+      setSaving(false)
+      if (!resolvedFundingBankAccount) return
+    }
     const categoryMatch = findByName(categories, resolvedMainCategoryName)
     const beneficiaryMatch = findByName(beneficiaries, resolvedMainBeneficiaryName)
     const senderMatch = findByName(senders, senderName)
@@ -461,8 +480,11 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     const resolvedTagId = resolvedTagIds[0]
     const resolvedDescription = description.trim() || categoryName || 'Movimento'
     const resolvedComments = comments.trim() || undefined
-    const feeCategoryResolution = numericBankFeeAmount > 0 && selectedAccount
-      ? resolveBankFeeCategory(data, user, selectedAccount)
+    const feeAccount = selectedAccount?.type === 'bank' && resolvedFundingBankAccount?.id === selectedAccount.id
+      ? resolvedFundingBankAccount
+      : selectedAccount
+    const feeCategoryResolution = numericBankFeeAmount > 0 && feeAccount
+      ? resolveBankFeeCategory(data, user, feeAccount)
       : undefined
     const savedAccountId = useWelfare && welfareIsPrimary ? welfareAccountId : accountId
     const savedWelfareAccountId = useWelfare ? (welfareIsPrimary ? accountId : welfareAccountId) : undefined
@@ -664,7 +686,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     </section> : null}
     {type === 'expense' && selectedAccount?.type === 'bank' ? <section className={`welfare-box ${bankFeesEnabled ? 'welfare-box--active' : ''}`}>
       <label className="welfare-toggle"><input type="checkbox" checked={bankFeesEnabled} onChange={(event) => setBankFeesEnabled(event.target.checked)} /><span><strong>Commissioni bancarie</strong><small>Registra separatamente il costo dell’operazione.</small></span></label>
-      {bankFeesEnabled ? <div className="welfare-fields"><label>Tipologia di operazione<select value={bankingOperationType} onChange={(event) => setBankingOperationType(event.target.value as BankingOperationType)}>{Object.entries(bankingOperationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Importo commissioni<div className="money-input"><span>€</span><input aria-label="Importo commissioni bancarie" inputMode="decimal" value={bankFeeAmount} onChange={(event) => setBankFeeAmount(event.target.value)} placeholder="0,00" /></div><small>Sarà assegnato a “Commissioni {selectedAccount.institution.trim() || selectedAccount.name}”.</small></label>{submitted && bankFeeInvalid ? <small className="field-error">Inserisci un importo di commissione maggiore di zero.</small> : null}</div> : null}
+      {bankFeesEnabled ? <div className="welfare-fields bank-fee-fields"><label>Tipologia di operazione<select value={bankingOperationType} onChange={(event) => setBankingOperationType(event.target.value as BankingOperationType)}>{Object.entries(bankingOperationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Importo commissioni<div className="money-input"><span>€</span><input aria-label="Importo commissioni bancarie" inputMode="decimal" value={bankFeeAmount} onChange={(event) => setBankFeeAmount(event.target.value)} placeholder="0,00" /></div><small>Sarà assegnato a “Commissioni {selectedAccount.institution.trim() || selectedAccount.name}”.</small></label>{submitted && bankFeeInvalid ? <small className="field-error">Inserisci un importo di commissione maggiore di zero.</small> : null}</div> : null}
     </section> : null}
     {type === 'expense' && !romanMode && installmentsAvailable ? <section className={`installment-box ${installmentsEnabled ? 'installment-box--active' : ''}`}>
       <button type="button" className="installment-toggle" disabled={Boolean(initialPlan)} onClick={() => setInstallmentsEnabled((value) => !value)}><CalendarClock /><span><strong>Pagamento a rate</strong><small>L’importo resta il totale; il conto verrà addebitato con i pagamenti programmati.</small></span><i aria-hidden="true"><span /></i></button>

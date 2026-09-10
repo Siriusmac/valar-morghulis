@@ -1,5 +1,13 @@
 import SwiftUI
 
+private struct MissingBankInstitutionContext: Identifiable {
+    enum Action { case movement, transfer }
+
+    let account: AccountSummary
+    let action: Action
+    var id: String { account.id }
+}
+
 struct MovementComposerView: View {
     let appModel: AppModel
     let movement: LedgerMovement?
@@ -30,6 +38,10 @@ struct MovementComposerView: View {
     @State private var romanContactID: UUID?
     @State private var romanParticipants: [RomanParticipantDraft] = []
     @State private var splitDirectorySheet: SplitDirectorySheetContext?
+    @State private var missingBankInstitution: MissingBankInstitutionContext?
+    @State private var missingInstitutionText = ""
+    @State private var isSavingInstitution = false
+    @State private var institutionError: String?
     @State private var affectsAccountBalance = false
     @State private var installmentsEnabled = false
     @State private var installmentCount = 3
@@ -132,9 +144,51 @@ struct MovementComposerView: View {
                 .presentationDetents([.large])
                 #endif
             }
+            .sheet(item: $missingBankInstitution) { context in
+                missingInstitutionSheet(context)
+            }
         }
         #if os(iOS)
         .presentationDetents([.large])
+        #endif
+    }
+
+    private func missingInstitutionSheet(_ context: MissingBankInstitutionContext) -> some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Istituto", text: $missingInstitutionText)
+                        .textContentType(.organizationName)
+                        .disabled(isSavingInstitution)
+                } header: {
+                    Text("Conto bancario")
+                } footer: {
+                    Text("Il conto \(context.account.name) non ha un istituto associato. Questo dato è necessario per identificare correttamente il conto e classificare le eventuali spese bancarie nella categoria “Commissioni <Istituto>”.")
+                }
+                if let institutionError {
+                    Section { Text(institutionError).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Completa i dati del conto")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annulla") { missingBankInstitution = nil }
+                        .disabled(isSavingInstitution)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSavingInstitution ? "Salvataggio…" : "Salva e continua") {
+                        saveMissingInstitution(context)
+                    }
+                    .disabled(isSavingInstitution || missingInstitutionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .interactiveDismissDisabled(isSavingInstitution)
+        }
+        #if os(iOS)
+        .presentationDetents([.height(330)])
         #endif
     }
 
@@ -697,6 +751,83 @@ struct MovementComposerView: View {
         options?.accounts.first { $0.id == secondaryAccountID }
     }
 
+    private var fundingBankAccount: AccountSummary? {
+        guard type == .expense else { return nil }
+        if selectedAccount?.kind == .bank { return selectedAccount }
+        if usesSecondaryFunds, selectedAccount?.kind == .welfare, secondaryAccount?.kind == .bank {
+            return secondaryAccount
+        }
+        return nil
+    }
+
+    private func requestInstitutionIfNeeded(
+        for account: AccountSummary?,
+        action: MissingBankInstitutionContext.Action
+    ) -> Bool {
+        guard let account, account.kind == .bank,
+              account.institution.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return false }
+        missingInstitutionText = ""
+        institutionError = nil
+        missingBankInstitution = MissingBankInstitutionContext(account: account, action: action)
+        return true
+    }
+
+    private func saveMissingInstitution(_ context: MissingBankInstitutionContext) {
+        let institution = missingInstitutionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !institution.isEmpty, !isSavingInstitution else { return }
+        isSavingInstitution = true
+        institutionError = nil
+        let account = context.account
+        let openingDate = account.openingBalanceDate.flatMap(Self.dayFormatter.date(from:)) ?? Date()
+        let draft = AccountDraft(
+            id: account.id,
+            isNew: false,
+            familyID: account.familyID,
+            name: account.name,
+            institution: institution,
+            kind: account.kind,
+            openingBalance: account.openingBalance,
+            openingBalanceDate: openingDate,
+            reimbursementFamilyIDs: nil
+        )
+
+        Task {
+            do {
+                try await appModel.saveAccount(draft)
+                let updatedAccount = AccountSummary(
+                    id: account.id,
+                    familyID: account.familyID,
+                    name: account.name,
+                    institution: institution,
+                    kind: account.kind,
+                    openingBalance: account.openingBalance,
+                    openingBalanceDate: account.openingBalanceDate
+                )
+                if let current = options {
+                    options = MovementOptions(
+                        accounts: current.accounts.map { $0.id == updatedAccount.id ? updatedAccount : $0 },
+                        categories: current.categories,
+                        beneficiaries: current.beneficiaries,
+                        senders: current.senders,
+                        tags: current.tags
+                    )
+                }
+                missingBankInstitution = nil
+                isSavingInstitution = false
+                switch context.action {
+                case .movement: save()
+                case .transfer: saveTransfer()
+                }
+            } catch is CancellationError {
+                isSavingInstitution = false
+            } catch {
+                institutionError = error.localizedDescription
+                isSavingInstitution = false
+            }
+        }
+    }
+
     private var availableCommissionedContacts: [ContactSummary] {
         guard case .loaded(let workspace) = appModel.workspaceState else { return [] }
         var contacts = Dictionary(uniqueKeysWithValues: workspace.contacts.map { ($0.id, $0) })
@@ -1065,6 +1196,7 @@ struct MovementComposerView: View {
         else {
             return
         }
+        if requestInstitutionIfNeeded(for: fundingBankAccount, action: .movement) { return }
 
         guard let primaryCategory = category ?? resolvedSplits?.first?.category,
               let primaryCounterparty = counterparty
@@ -1218,6 +1350,7 @@ struct MovementComposerView: View {
         else {
             return
         }
+        if requestInstitutionIfNeeded(for: fromAccount, action: .transfer) { return }
 
         isSaving = true
         focusedField = nil

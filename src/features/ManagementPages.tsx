@@ -8,7 +8,18 @@ import { accountBalance, movementAllocations, visibleMovements } from '../lib/ca
 import { formatDate, formatMoney, makeId, todayISO } from '../lib/format'
 import type { Account, AppData, Beneficiary, Category, Movement, MovementType, ReimbursementAccountReference, Sender, Tag, User } from '../types'
 
-interface BaseProps { data: AppData; user: User; onShowMovements: (title: string, filter: (movement: AppData['movements'][number]) => boolean, amount?: (movement: AppData['movements'][number]) => number, accountId?: string) => void }
+interface BaseProps {
+  data: AppData
+  user: User
+  onShowMovements: (
+    title: string,
+    filter: (movement: AppData['movements'][number]) => boolean,
+    amount?: (movement: AppData['movements'][number]) => number,
+    accountId?: string,
+    transferFilter?: (transfer: AppData['transfers'][number]) => boolean,
+    transferAmount?: (transfer: AppData['transfers'][number]) => number,
+  ) => void
+}
 
 const byName = <T extends { name: string }>(left: T, right: T) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true })
 
@@ -195,6 +206,9 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
     `Movimenti · ${item.name}`,
     (movement) => movementAllocations(movement).some((allocation) => allocation.categoryId === item.id),
     (movement) => movementAllocations(movement).filter((allocation) => allocation.categoryId === item.id).reduce((sum, allocation) => sum + allocation.amount, 0),
+    undefined,
+    (transfer) => transfer.feeCategoryId === item.id && Boolean(transfer.feeAmount),
+    (transfer) => transfer.feeAmount ?? 0,
   )
   return <DirectoryPage title="Categorie" subtitle="Categorie distinte per spese ed entrate." addLabel="Nuova categoria" showForm={showForm} setShowForm={setShowForm}>
     {showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(event) => setMovementType(event.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}

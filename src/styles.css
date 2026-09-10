@@ -520,6 +520,9 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .welfare-toggle strong { color: #7d5817; font-size: 12px; }
 .welfare-toggle small, .welfare-fields label > small { color: var(--muted); font-size: 10px; font-weight: 400; }
 .welfare-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bank-fee-fields > label { grid-template-rows: 16px 43px auto; align-content: start; }
+.bank-fee-fields > label > select, .bank-fee-fields > label > .money-input { grid-row: 2; margin: 0; }
+.bank-fee-fields > label > small { grid-row: 3; }
 .budget-alerts { display: grid; gap: 8px; margin: -26px 0 28px; }
 .budget-alert { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 16px; border: 1px solid #d7bd87; border-radius: 8px; background: #fbf6ea; }
 .budget-alert--exceeded { border-color: #e2b9b5; background: #fff2ef; }
@@ -1189,6 +1192,10 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .reimbursement-review__actions { display: flex; gap: 8px; }
 .reimbursement-review--rejected { opacity: .72; }
 .reimbursement-review--rejected > span { color: #a93d34; background: #fff2f0; }
+.institution-prompt { display: grid; gap: 14px; }
+.institution-prompt > p { margin: 0; }
+.institution-prompt > label { display: grid; gap: 6px; font-weight: 700; }
+.institution-prompt .field-help { color: var(--muted); line-height: 1.5; }
 .loan-form, .loan-card { border: 1px solid var(--line); border-radius: 18px; background: var(--white); padding: 18px; }
 .loan-form { display: grid; gap: 14px; margin-bottom: 22px; }
 .loan-form__heading, .loan-card__summary { display: flex; align-items: center; gap: 12px; }

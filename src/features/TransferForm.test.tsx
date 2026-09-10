@@ -49,6 +49,21 @@ describe('TransferForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 100, feeAmount: 1.75 }))
   })
 
+  it('richiede l’istituto mancante prima di salvare da un giro fondi bancario', async () => {
+    const data = structuredClone(defaultData)
+    const account = data.accounts.find((item) => item.id === 'simone-bank')!
+    account.institution = ''
+    const onSubmit = vi.fn()
+    const onRequireBankInstitution = vi.fn().mockResolvedValue({ ...account, institution: 'Unicredit' })
+    render(<TransferForm data={data} user={users[0]} onSubmit={onSubmit} onRequireBankInstitution={onRequireBankInstitution} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    await waitFor(() => expect(onRequireBankInstitution).toHaveBeenCalledWith(account))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
+  })
+
   it('rifiuta spese bancarie negative', () => {
     const onSubmit = vi.fn()
     render(<TransferForm data={structuredClone(defaultData)} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)

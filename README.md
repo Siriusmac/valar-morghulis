@@ -32,7 +32,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine e classificate automaticamente in “Commissioni &lt;Istituto&gt;”;
 - PayPal come conto personale;
 - conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare il residuo sul conto principale oppure partire dal Wellfare e completare con un altro conto, mantenendo importo e statistiche unitari;
-- commissioni bancarie opzionali sulle spese da conto bancario, con scelta fra Bonifico, Bollettino, CBILL, F24 e PagoPA: il conto sostiene importo netto e commissione, mentre le categorie mantengono separati beni e costo bancario;
+- commissioni bancarie opzionali sulle spese da conto bancario, con scelta fra Bonifico, Bollettino, CBILL, F24 e PagoPA: il conto sostiene importo netto e commissione, mentre le categorie mantengono separati beni e costo bancario; se manca l'istituto, prima del salvataggio viene richiesto in una finestra che ne spiega l'uso e aggiorna il conto;
 - budget mensile configurabile dal menu di ogni categoria di spesa, personale o familiare; la bacheca avvisa dal 90% e, in caso di superamento, consente di riportare l’eccedenza sul budget del mese successivo;
 - categorie, beneficiari, mittenti e tag ricercabili mentre si scrive attraverso lo stesso menu; quando il nome non esiste compare il comando “Aggiungi …” e la voce viene creata con il movimento; la web app accetta fino a tre tag per movimento e, negli acquisti multipli, fino a tre tag indipendenti per ogni parziale;
 - beneficiari per le spese e mittenti per le entrate, gestiti in due schede della stessa pagina e selezionabili anche durante la modifica dei movimenti storici;
@@ -234,14 +234,13 @@ pnpm lint
 pnpm run build
 ```
 
-Ultima verifica web completata il 5 settembre 2026: 207 test, lint, build Vite
-e gate Cloudflare.
+Ultima verifica web completata il 10 settembre 2026: 252 test, lint e build Vite.
 I test coprono anche la distinzione fra account esistente, account nuovo e
 account creato da un invito ma non ancora completato, i rimborsi diretti o
 tramite acquisto, la modifica dei piani rateali sul totale e i menu ricercabili
 uniformi per categorie, beneficiari, mittenti e tag, la console amministrativa
 globale e le spese bancarie opzionali dei giri fondi. La verifica Apple comprende
-build iOS/macOS e 30 test unitari. Il precedente collaudo browser desktop e
+build iOS Simulator e 31 test unitari. Il precedente collaudo browser desktop e
 mobile ha confermato il menu unificato per acquisto ordinario, per conto terzi e
 rimborso tramite acquisto, disponibile sia sul movimento singolo sia su ogni
 voce dell'acquisto multiplo. Il nuovo controllo visuale dei menu ricercabili è

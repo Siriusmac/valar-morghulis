@@ -104,6 +104,26 @@ describe('MovementForm', () => {
     expect(onSave.mock.calls[0][1].categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Commissioni Intesa Sanpaolo' })]))
   })
 
+  it('richiede l’istituto mancante e lo usa per classificare le commissioni', async () => {
+    const data = structuredClone(defaultData)
+    const account = data.accounts.find((item) => item.id === 'simone-bank')!
+    account.institution = ''
+    const onSave = vi.fn()
+    const onRequireBankInstitution = vi.fn().mockResolvedValue({ ...account, institution: 'Unicredit' })
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-bank" onRequireBankInstitution={onRequireBankInstitution} onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.click(screen.getByLabelText(/Commissioni bancarie/))
+    fireEvent.change(screen.getByLabelText('Importo commissioni bancarie'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    await waitFor(() => expect(onRequireBankInstitution).toHaveBeenCalledWith(account))
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
+    expect(onSave.mock.calls[0][1].categories).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Commissioni Unicredit' })]))
+  })
+
   it('nasconde il pagamento a rate con Contanti o con una quota Wellfare', () => {
     const data = structuredClone(defaultData)
     data.accounts.push({ id: 'simone-welfare', name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', ownerId: users[0].id, openingBalance: 100 })

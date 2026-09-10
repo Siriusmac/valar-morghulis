@@ -16,10 +16,11 @@ interface Props {
   compact?: boolean
   sharedAmountsOnly?: boolean
   transfers?: Transfer[]
+  transferAmount?: (transfer: Transfer) => number
   accountId?: string
 }
 
-export function MovementList({ data, movements, user, onEdit, onDelete, onEditTransfer, onDeleteTransfer, compact = false, sharedAmountsOnly = false, transfers = [], accountId }: Props) {
+export function MovementList({ data, movements, user, onEdit, onDelete, onEditTransfer, onDeleteTransfer, compact = false, sharedAmountsOnly = false, transfers = [], transferAmount, accountId }: Props) {
   const hasActions = Boolean((onEdit && onDelete) || (onEditTransfer && onDeleteTransfer))
   const entries = [
     ...movements.map((movement) => ({ kind: 'movement' as const, date: movement.date, movement })),
@@ -36,14 +37,15 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
         const isOutgoing = transfer.fromAccountId === accountId
         const otherAccount = isOutgoing ? to : from
         const canEdit = user?.id === transfer.authorId
+        const categoryAmount = transferAmount?.(transfer)
         return <article className="movement-row movement-row--account-transfer" key={`transfer-${transfer.id}`}>
           <span className="movement-row__icon movement-row__icon--transfer"><ArrowLeftRight /></span>
-          <div className="movement-row__name"><strong>{transfer.description}</strong><small>{isOutgoing ? `Verso ${otherAccount?.name ?? missingAccountLabel.toLocaleLowerCase('it-IT')}` : `Da ${otherAccount?.name ?? missingAccountLabel.toLocaleLowerCase('it-IT')}`}{transfer.feeAmount ? ` · spese ${formatMoney(transfer.feeAmount)}` : ''}</small></div>
+          <div className="movement-row__name"><strong>{categoryAmount === undefined ? transfer.description : `Commissione · ${transfer.description}`}</strong><small>{categoryAmount === undefined ? `${isOutgoing ? `Verso ${otherAccount?.name ?? missingAccountLabel.toLocaleLowerCase('it-IT')}` : `Da ${otherAccount?.name ?? missingAccountLabel.toLocaleLowerCase('it-IT')}`}${transfer.feeAmount ? ` · spese ${formatMoney(transfer.feeAmount)}` : ''}` : `Giro fondi da ${from?.name ?? missingAccountLabel} a ${to?.name ?? missingAccountLabel}`}</small></div>
           <div className="movement-row__meta"><small>Dal conto</small><span>{from?.name ?? missingAccountLabel}</span></div>
           <div className="movement-row__meta"><small>Al conto</small><span>{to?.name ?? missingAccountLabel}</span></div>
           <span className="scope-label"><ArrowLeftRight />Giro fondi</span>
           <time>{formatDate(transfer.date)}</time>
-          <strong className="movement-row__amount movement-row__amount--transfer">{isOutgoing ? '−' : '+'}{formatMoney(transfer.amount)}</strong>
+          <strong className={`movement-row__amount movement-row__amount--${categoryAmount === undefined ? 'transfer' : 'expense'}`}>{categoryAmount === undefined ? isOutgoing ? '−' : '+' : '−'}{formatMoney(categoryAmount ?? transfer.amount)}</strong>
           {onEditTransfer && onDeleteTransfer ? <div className="row-actions"><ActionMenu label={`Azioni per ${transfer.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEditTransfer(transfer) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => canEdit && confirm('Eliminare questo giro fondi? I saldi dei conti verranno aggiornati.') && onDeleteTransfer(transfer.id) }]} /></div> : null}
         </article>
       }

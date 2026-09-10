@@ -43,6 +43,21 @@ describe('MovementList account activity', () => {
     expect(screen.getByText('Da Conto corrente')).toBeTruthy()
   })
 
+  it('mostra la commissione del giro fondi come importo della relativa categoria', () => {
+    const data = structuredClone(defaultData)
+    const transfer = {
+      id: 'transfer-fee-category', authorId: 'simone',
+      fromAccountId: 'simone-bank', toAccountId: 'simone-cash',
+      amount: 250, feeAmount: 1, feeCategoryId: 'fees', date: '2026-09-10', description: 'Giro fondi',
+    }
+
+    render(<MovementList data={data} movements={[]} transfers={[transfer]} transferAmount={(item) => item.feeAmount ?? 0} compact />)
+
+    expect(screen.getByText('Commissione · Giro fondi')).toBeTruthy()
+    expect(screen.getByText('−1,00 €')).toBeTruthy()
+    expect(screen.queryByText('−250,00 €')).toBeNull()
+  })
+
   it('consente all’autore di modificare ed eliminare movimenti e giri fondi dal conto', () => {
     const data = structuredClone(defaultData)
     const movement = data.movements.find((item) => item.authorId === users[0].id)!

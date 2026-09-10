@@ -1,6 +1,7 @@
 import { ArrowRight, CheckCircle2, LoaderCircle, Scale } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from './components/AppShell'
+import { BankInstitutionPrompt } from './components/BankInstitutionPrompt'
 import { Login } from './components/Login'
 import { Modal } from './components/Modal'
 import { CloudAccess, type FamilySession } from './features/CloudAccess'
@@ -18,7 +19,7 @@ import { createCommissionedPurchase, familyContacts, inviteContact, issueCommiss
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { reconcileConfirmedLoanPurchases } from './lib/loans'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { AppData, Beneficiary, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+import type { Account, AppData, Beneficiary, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
 import type { LoanDraft, LoanRepaymentDraft } from './features/ReimbursementsPage'
 import type { ComposerType } from './components/MovementTypeSelector'
@@ -39,7 +40,15 @@ const AccountSettings = lazy(() => import('./features/AccountSettings').then((mo
 const ContactsPage = lazy(() => import('./features/ContactsPage').then((module) => ({ default: module.ContactsPage })))
 const ReimbursementsPage = lazy(() => import('./features/ReimbursementsPage').then((module) => ({ default: module.ReimbursementsPage })))
 
-type DetailsModalState = { type: 'details'; title: string; filter: (movement: Movement) => boolean; amount?: (movement: Movement) => number; accountId?: string }
+type DetailsModalState = {
+  type: 'details'
+  title: string
+  filter: (movement: Movement) => boolean
+  amount?: (movement: Movement) => number
+  accountId?: string
+  transferFilter?: (transfer: Transfer) => boolean
+  transferAmount?: (transfer: Transfer) => number
+}
 
 type ModalState =
   | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType; returnTo?: DetailsModalState }
@@ -47,6 +56,11 @@ type ModalState =
   | { type: 'transfer'; transfer?: Transfer; returnTo?: DetailsModalState }
   | DetailsModalState
   | null
+
+type BankInstitutionRequest = {
+  account: Account
+  resolve: (account?: Account) => void
+}
 
 interface ReimbursementSubmission {
   amount: number
@@ -95,6 +109,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'budgets', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
+  const [bankInstitutionRequest, setBankInstitutionRequest] = useState<BankInstitutionRequest | null>(null)
   const [toast, setToast] = useState('')
   const [contactData, setContactData] = useState<ContactData>(emptyContactData)
   const [cloudDataReady, setCloudDataReady] = useState(!cloud)
@@ -520,11 +535,25 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setData((current) => ({ ...current, accounts: current.accounts.map((item) => item.id === account.id ? account : item) }))
     if (cloud && account.scope === 'family') {
       void cloud.updateSharedAccount(account)
-        .then(() => setToast('Saldo iniziale condiviso aggiornato'))
-        .catch(() => setToast('Saldo aggiornato sul dispositivo, ma non sincronizzato'))
+        .then(() => setToast('Conto condiviso aggiornato'))
+        .catch(() => setToast('Conto aggiornato sul dispositivo, ma non sincronizzato'))
       return
     }
-    setToast('Saldo iniziale aggiornato')
+    setToast('Conto aggiornato')
+  }
+  const requestBankInstitution = (account: Account) => new Promise<Account | undefined>((resolve) => {
+    setBankInstitutionRequest({ account, resolve })
+  })
+  const cancelBankInstitution = () => {
+    bankInstitutionRequest?.resolve(undefined)
+    setBankInstitutionRequest(null)
+  }
+  const confirmBankInstitution = (institution: string) => {
+    if (!bankInstitutionRequest) return
+    const updatedAccount = { ...bankInstitutionRequest.account, institution }
+    updateAccount(updatedAccount)
+    bankInstitutionRequest.resolve(updatedAccount)
+    setBankInstitutionRequest(null)
   }
   const deleteAccount = async (account: AppData['accounts'][number], mode: AccountDeletionMode, replacementAccountId?: string) => {
     if (cloud && account.scope === 'family') {
@@ -535,7 +564,14 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setData((current) => deleteAccountData(current, account.id, mode, replacementAccountId))
     setToast(mode === 'keep' ? 'Conto eliminato, movimenti conservati nello storico' : mode === 'delete' ? 'Conto e movimenti collegati eliminati' : 'Conto eliminato e movimenti ricondotti al nuovo conto')
   }
-  const showMovements = (title: string, filter: (movement: Movement) => boolean, amount?: (movement: Movement) => number, accountId?: string) => setModal({ type: 'details', title, filter, amount, accountId })
+  const showMovements = (
+    title: string,
+    filter: (movement: Movement) => boolean,
+    amount?: (movement: Movement) => number,
+    accountId?: string,
+    transferFilter?: (transfer: Transfer) => boolean,
+    transferAmount?: (transfer: Transfer) => number,
+  ) => setModal({ type: 'details', title, filter, amount, accountId, transferFilter, transferAmount })
   const sendContactInvite = async (email: string) => {
     await inviteContact(email)
     await refreshContacts()
@@ -703,23 +739,27 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : <AccountSettings user={user} cloud={cloud} data={data} personalOnly={Boolean(cloud?.personalMode)} defaultMovementAccountId={defaultMovementAccountId} onDefaultMovementAccountChange={setDefaultMovementAccount} />
 
   const detailMovements = modal?.type === 'details' ? visibleMovements(data, user.id).filter(modal.filter).toSorted((a, b) => b.date.localeCompare(a.date)) : []
-  const detailTransfers = modal?.type === 'details' && modal.accountId
-    ? data.transfers.filter((transfer) => transfer.fromAccountId === modal.accountId || transfer.toAccountId === modal.accountId)
+  const detailTransfers = modal?.type === 'details'
+    ? data.transfers.filter((transfer) => modal.accountId
+      ? transfer.fromAccountId === modal.accountId || transfer.toAccountId === modal.accountId
+      : modal.transferFilter?.(transfer) ?? false)
     : []
   const detailTotal = modal?.type === 'details'
     ? modal.accountId
       ? accountBalance(data, modal.accountId)
       : detailMovements.reduce((sum, movement) => sum + (modal.amount?.(movement) ?? movement.amount), 0)
+        + detailTransfers.reduce((sum, transfer) => sum + (modal.transferAmount?.(transfer) ?? 0), 0)
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
     <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
-    {modal?.type === 'transfer' ? <Modal title={modal.transfer ? 'Modifica giro fondi' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} initial={modal.transfer} onSubmit={saveTransfer} onDelete={modal.transfer ? deleteTransfer : undefined} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
-    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} accountId={modal.accountId} compact user={user} onEdit={(movement) => setModal({ type: 'movement', movement, returnTo: modal })} onDelete={deleteMovement} onEditTransfer={modal.accountId ? (transfer) => setModal({ type: 'transfer', transfer, returnTo: modal }) : undefined} onDeleteTransfer={modal.accountId ? deleteTransfer : undefined} /></Suspense></Modal> : null}
+    {modal?.type === 'transfer' ? <Modal title={modal.transfer ? 'Modifica giro fondi' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} initial={modal.transfer} onRequireBankInstitution={requestBankInstitution} onSubmit={saveTransfer} onDelete={modal.transfer ? deleteTransfer : undefined} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
+    {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} transferAmount={modal.transferAmount} accountId={modal.accountId} compact user={user} onEdit={(movement) => setModal({ type: 'movement', movement, returnTo: modal })} onDelete={deleteMovement} onEditTransfer={modal.accountId || modal.transferFilter ? (transfer) => setModal({ type: 'transfer', transfer, returnTo: modal }) : undefined} onDeleteTransfer={modal.accountId || modal.transferFilter ? deleteTransfer : undefined} /></Suspense></Modal> : null}
+    {bankInstitutionRequest ? <BankInstitutionPrompt account={bankInstitutionRequest.account} onConfirm={confirmBankInstitution} onCancel={cancelBankInstitution} /> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
   </>
 }

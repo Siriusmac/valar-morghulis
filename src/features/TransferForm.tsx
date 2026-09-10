@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { accountBalance } from '../lib/calculations'
 import { formatMoney, makeId, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
-import type { AppData, Transfer, User } from '../types'
+import type { Account, AppData, Transfer, User } from '../types'
 
 interface Props {
   data: AppData
@@ -13,9 +13,10 @@ interface Props {
   onSubmit: (transfer: Transfer) => void | Promise<void>
   onDelete?: (id: string) => void | Promise<void>
   onCancel: () => void
+  onRequireBankInstitution?: (account: Account) => Promise<Account | undefined>
 }
 
-export function TransferForm({ data, user, memberCount = 2, initial, onSubmit, onDelete, onCancel }: Props) {
+export function TransferForm({ data, user, memberCount = 2, initial, onSubmit, onDelete, onCancel, onRequireBankInstitution }: Props) {
   const accounts = data.accounts.filter((item) => item.scope === 'family' || item.ownerId === user.id)
   const [fromAccountId, setFrom] = useState(initial?.fromAccountId ?? accounts[0]?.id ?? '')
   const [toAccountId, setTo] = useState(() => initial?.toAccountId ?? accounts.find((item) => item.id !== accounts[0]?.id)?.id ?? '')
@@ -39,6 +40,11 @@ export function TransferForm({ data, user, memberCount = 2, initial, onSubmit, o
     setError('')
     setBusy(true)
     try {
+      if (fromAccount?.type === 'bank' && !fromAccount.institution.trim()) {
+        if (!onRequireBankInstitution) throw new Error('Inserisci l’istituto del conto bancario prima di salvare il giro fondi.')
+        const updatedAccount = await onRequireBankInstitution(fromAccount)
+        if (!updatedAccount) return
+      }
       await onSubmit({ id: initial?.id ?? makeId('transfer'), authorId: initial?.authorId ?? user.id, fromAccountId, toAccountId, amount: value, feeAmount: feeValue || undefined, date, description: description.trim() || 'Giro fondi' })
     } catch (reason) {
       setError(functionErrorMessage(reason, 'Non è stato possibile salvare il giro fondi. Riprova tra poco.'))

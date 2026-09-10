@@ -406,9 +406,9 @@ describe('accountBalance', () => {
     const data = cleanData()
     const sourceBase = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance
     const destinationBase = data.accounts.find((item) => item.id === 'simone-cash')!.openingBalance
-    data.transfers = [{ id: 'with-fee', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 250, feeAmount: 0.9, date: '2026-09-04', description: 'Bonifico' }]
+    data.transfers = [{ id: 'with-fee', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 250, feeAmount: 1, date: '2026-09-04', description: 'Bonifico' }]
 
-    expect(accountBalance(data, 'simone-bank')).toBe(sourceBase - 250.9)
+    expect(accountBalance(data, 'simone-bank')).toBe(sourceBase - 251)
     expect(accountBalance(data, 'simone-cash')).toBe(destinationBase + 250)
   })
 

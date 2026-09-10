@@ -43,6 +43,10 @@ Giro fondi richiede conto di origine, conto di destinazione, importo e data; una
 commissione facoltativa viene classificata in “Commissioni <Istituto>”. Non
 crea una spesa o un'entrata; se sposta denaro da un conto familiare a uno
 personale aggiorna il debito verso la famiglia in base al numero dei membri.
+Se il conto bancario di origine non ha istituto, prima del salvataggio mostrare
+una finestra breve con il campo obbligatorio e la spiegazione: il dato serve a
+identificare il conto e a classificare correttamente le commissioni. Dopo il
+salvataggio del conto, riprendere automaticamente l'operazione interrotta.
 
 Per categoria, beneficiario, mittente e tag usare lo stesso campo testuale e lo
 stesso foglio di stile: i risultati vengono filtrati mentre si scrive e, quando

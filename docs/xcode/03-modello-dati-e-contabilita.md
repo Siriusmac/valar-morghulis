@@ -59,6 +59,10 @@
 16. `amount` resta il costo netto dei beni. `bankFeeAmount` viene addebitato in
     aggiunta sul conto bancario e crea/riusa `bankFeeCategoryId` con nome
     “Commissioni <Istituto>”; la relativa allocazione non è condivisa.
+17. Se il conto bancario usato in uscita non ha `institution`, il salvataggio
+    del movimento o del giro fondi resta sospeso. L'utente deve completare il
+    dato sul conto; soltanto dopo l'operazione riprende e l'eventuale categoria
+    delle commissioni viene risolta usando il nuovo istituto.
 
 ## Saldo conto
 
