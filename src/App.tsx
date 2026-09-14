@@ -1,5 +1,5 @@
 import { ArrowRight, CheckCircle2, LoaderCircle, Scale } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from './components/AppShell'
 import { BankInstitutionPrompt } from './components/BankInstitutionPrompt'
 import { Login } from './components/Login'
@@ -123,7 +123,6 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const skipNextCloudSave = useRef(false)
   const sharedRefreshTimer = useRef<number | undefined>(undefined)
 
-  useEffect(() => { if (storageKey) saveData(data, storageKey); else saveData(data) }, [data, storageKey])
   useEffect(() => {
     if (!cloud || !storageKey) return
     const fallback = () => cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
@@ -239,7 +238,9 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     })
     return () => { cancelled = true }
   }, [cloud, runCloudWrite, storageKey])
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (storageKey) saveData(data, storageKey)
+    else saveData(data)
     if (!cloud || !cloudDataReady || !storageKey) return
     if (skipNextCloudSave.current) {
       skipNextCloudSave.current = false
@@ -724,7 +725,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         }
       },
     } : undefined} />
-    : page === 'budgets' ? <BudgetPage data={data} user={user} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} />
+    : page === 'budgets' ? <BudgetPage data={data} user={user} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onShowMovements={showMovements} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onDelete={(id, replacementId) => deleteDirectory('category', id, replacementId)} />
     : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAddBeneficiary={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} onUpdateBeneficiary={(beneficiary) => {
       setData((current) => ({ ...current, beneficiaries: current.beneficiaries.map((item) => item.id === beneficiary.id ? beneficiary : item) }))

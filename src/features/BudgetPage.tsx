@@ -1,8 +1,8 @@
-import { Gauge, Plus, Share2, WalletCards } from 'lucide-react'
+import { ChevronRight, Gauge, Plus, Share2, WalletCards } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ActionMenu } from '../components/ActionMenu'
 import { CreatableLookup } from '../components/CreatableLookup'
-import { categoryBudgetForMonth, categorySpentForMonth } from '../lib/calculations'
+import { categoryBudgetForMonth, categorySpentForMonth, movementAllocations } from '../lib/calculations'
 import { formatMoney, makeId, todayISO } from '../lib/format'
 import type { AppData, Category, Scope, User } from '../types'
 
@@ -11,12 +11,20 @@ interface Props {
   user: User
   onAdd: (category: Category) => void
   onUpdate: (category: Category) => void
+  onShowMovements: (
+    title: string,
+    filter: (movement: AppData['movements'][number]) => boolean,
+    amount?: (movement: AppData['movements'][number]) => number,
+    accountId?: string,
+    transferFilter?: (transfer: AppData['transfers'][number]) => boolean,
+    transferAmount?: (transfer: AppData['transfers'][number]) => number,
+  ) => void
 }
 
 const normalizedName = (value: string) => value.trim().toLocaleLowerCase('it-IT')
 const byName = (left: Category, right: Category) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true })
 
-export function BudgetPage({ data, user, onAdd, onUpdate }: Props) {
+export function BudgetPage({ data, user, onAdd, onUpdate, onShowMovements }: Props) {
   const month = todayISO().slice(0, 7)
   const [formOpen, setFormOpen] = useState(false)
   const [categoryQuery, setCategoryQuery] = useState('')
@@ -61,6 +69,14 @@ export function BudgetPage({ data, user, onAdd, onUpdate }: Props) {
     })
     closeForm()
   }
+  const showBudgetMovements = (category: Category) => onShowMovements(
+    `Movimenti · ${category.name}`,
+    (movement) => movementAllocations(movement).some((allocation) => allocation.categoryId === category.id),
+    (movement) => movementAllocations(movement).filter((allocation) => allocation.categoryId === category.id).reduce((sum, allocation) => sum + allocation.amount, 0),
+    undefined,
+    (transfer) => transfer.feeCategoryId === category.id && Boolean(transfer.feeAmount),
+    (transfer) => transfer.feeAmount ?? 0,
+  )
 
   return <div className="page budget-page">
     <header className="page-heading">
@@ -83,7 +99,7 @@ export function BudgetPage({ data, user, onAdd, onUpdate }: Props) {
           <span className="budget-row__icon"><Gauge /></span>
           <div className="budget-row__body"><div><strong>{category.name}</strong><small>{category.scope === 'family' ? <><Share2 /> Famiglia</> : <><WalletCards /> Personale</>}</small></div><div className="budget-progress"><span><i style={{ width: `${Math.min(percentage, 100)}%` }} /></span><small>{percentage}% utilizzato</small></div></div>
           <div className="budget-row__amount"><strong>{formatMoney(spent)}</strong><small>su {formatMoney(budget)}</small></div>
-          <ActionMenu label={`Azioni per il budget ${category.name}`} items={[{ label: 'Modifica budget', onSelect: () => editBudget(category) }, { label: 'Elimina budget', danger: true, onSelect: () => onUpdate({ ...category, monthlyBudget: undefined, budgetCarryovers: undefined }) }]} />
+          <div className="budget-row__actions"><ActionMenu label={`Azioni per il budget ${category.name}`} items={[{ label: 'Modifica budget', onSelect: () => editBudget(category) }, { label: 'Elimina budget', danger: true, onSelect: () => onUpdate({ ...category, monthlyBudget: undefined, budgetCarryovers: undefined }) }]} /><button className="row-disclosure" type="button" aria-label={`Vedi movimenti del budget ${category.name}`} onClick={() => showBudgetMovements(category)}><ChevronRight /></button></div>
         </article>
       })}
     </section> : <section className="empty-state"><Gauge /><h3>Nessun budget impostato</h3><p>Aggiungi un budget mensile a una categoria di spesa.</p></section>}

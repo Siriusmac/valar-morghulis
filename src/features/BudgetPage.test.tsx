@@ -15,7 +15,7 @@ describe('BudgetPage', () => {
     data.categories = data.categories.map((category) => category.id === 'alimentari' ? { ...category, monthlyBudget: 100 } : category)
     data.movements.push({ ...data.movements[0], id: 'budget-current', date: todayISO(), amount: 40, splits: undefined })
 
-    render(<BudgetPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} />)
+    render(<BudgetPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
 
     const row = screen.getByText('Alimentari').closest('article')!
     expect(within(row).getByText('40% utilizzato')).toBeTruthy()
@@ -27,7 +27,7 @@ describe('BudgetPage', () => {
     data.categories = data.categories.map((category) => category.id === 'alimentari' ? { ...category, monthlyBudget: 150 } : category)
     const onAdd = vi.fn()
     const onUpdate = vi.fn()
-    render(<BudgetPage data={data} user={users[0]} onAdd={onAdd} onUpdate={onUpdate} />)
+    render(<BudgetPage data={data} user={users[0]} onAdd={onAdd} onUpdate={onUpdate} onShowMovements={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi budget' }))
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Tempo libero' } })
@@ -39,5 +39,23 @@ describe('BudgetPage', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Azioni per il budget Alimentari' }))
     fireEvent.click(within(row).getByRole('menuitem', { name: 'Elimina budget' }))
     expect((onUpdate.mock.calls[0][0] as Category).monthlyBudget).toBeUndefined()
+  })
+
+  it('apre lo storico della categoria mantenendo gli importi delle singole allocazioni', () => {
+    const data = structuredClone(defaultData)
+    data.categories = data.categories.map((category) => category.id === 'alimentari' ? { ...category, monthlyBudget: 150 } : category)
+    const onShowMovements = vi.fn()
+    render(<BudgetPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={onShowMovements} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vedi movimenti del budget Alimentari' }))
+
+    expect(onShowMovements).toHaveBeenCalledWith(
+      'Movimenti · Alimentari',
+      expect.any(Function),
+      expect.any(Function),
+      undefined,
+      expect.any(Function),
+      expect.any(Function),
+    )
   })
 })

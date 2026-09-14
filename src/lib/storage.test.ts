@@ -129,4 +129,20 @@ describe('persistenza dei dati operativi', () => {
 
     expect(merged.movements).toEqual([otherMovement])
   })
+
+  it('mantiene un piano rateale locale ancora da sincronizzare quando il cloud è precedente', () => {
+    const fallback = createStarterData('user-1', [sharedAccount])
+    const scheduledPayment = {
+      id: 'installment-2', planId: 'plan-1', authorId: 'user-1', memberId: 'user-1',
+      amount: 50, totalAmount: 100, dueDate: '2026-11-01', description: 'Acquisto a rate',
+      categoryId: 'alimentari', beneficiaryId: 'negozio', accountId: 'user-1-cash',
+      shared: false, installmentNumber: 2, installmentCount: 2, status: 'scheduled' as const,
+    }
+    const local = { ...fallback, scheduledPayments: [scheduledPayment] }
+    const remote = { ...fallback, scheduledPayments: [] }
+
+    const merged = mergePendingAppData(remote, local, fallback, 'user-1')
+
+    expect(merged.scheduledPayments).toContainEqual(scheduledPayment)
+  })
 })

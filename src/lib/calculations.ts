@@ -254,7 +254,7 @@ export function categorySpentForMonth(data: AppData, categoryId: string, month: 
     const matching = movementAllocations(movement).filter((allocation) =>
       allocation.categoryId === categoryId
       && !allocation.excludeFromReports
-      && (category.scope === 'personal' || allocation.shared || accountIsFamily))
+      && (category.scope === 'personal' || movement.authorId === userId || allocation.shared || accountIsFamily))
     return sum + matching.reduce((allocationTotal, allocation) => allocationTotal + allocation.amount, 0)
   }, 0)
   const transferFees = data.transfers.reduce((sum, transfer) => {

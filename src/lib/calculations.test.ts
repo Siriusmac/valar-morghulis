@@ -525,4 +525,18 @@ describe('category budgets', () => {
     expect(categorySpentForMonth(data, 'alimentari', '2026-09', 'simone')).toBe(100)
     expect(categoryBudgetForMonth(category, '2026-10')).toBe(87.5)
   })
+
+  it('include nel budget familiare le spese personali dell’autore già presenti nello stesso mese', () => {
+    const data = cleanData()
+    const category = data.categories.find((item) => item.id === 'alimentari')!
+    category.scope = 'family'
+    data.movements = [
+      { ...expense('before-budget', 'simone', 35, 'simone-bank'), date: '2026-09-02', shared: false },
+      { ...expense('private-other-member', 'anna', 65, 'anna-bank'), date: '2026-09-03', shared: false },
+    ]
+
+    category.monthlyBudget = 100
+
+    expect(categorySpentForMonth(data, 'alimentari', '2026-09', 'simone')).toBe(35)
+  })
 })
