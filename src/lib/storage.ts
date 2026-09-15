@@ -148,6 +148,40 @@ export function mergePendingAppData(remote: Partial<AppData>, local: AppData, fa
   }, fallbackData)
 }
 
+export function mergeConcurrentPendingAppData(
+  remote: Partial<AppData>,
+  local: AppData,
+  baseline: Pick<AppData, 'movements' | 'scheduledPayments' | 'transfers'>,
+  fallbackData: AppData,
+  userId: UserId,
+): AppData {
+  const remoteData = hydrateData(remote, fallbackData)
+  const merged = mergeAppData(remoteData, local, fallbackData)
+  const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+  const mergeAuthored = <T extends { id: string; authorId: UserId }>(localItems: T[], remoteItems: T[], baseItems: T[]) => {
+    const localById = new Map(localItems.filter((item) => item.authorId === userId).map((item) => [item.id, item]))
+    const remoteById = new Map(remoteItems.filter((item) => item.authorId === userId).map((item) => [item.id, item]))
+    const baseById = new Map(baseItems.filter((item) => item.authorId === userId).map((item) => [item.id, item]))
+    const authoredIds = new Set([...baseById.keys(), ...localById.keys(), ...remoteById.keys()])
+    const authored: T[] = []
+    for (const id of authoredIds) {
+      const localItem = localById.get(id)
+      const baseItem = baseById.get(id)
+      const remoteItem = remoteById.get(id)
+      const localChanged = !same(localItem, baseItem)
+      const resolved = localChanged ? localItem : remoteItem
+      if (resolved) authored.push(resolved)
+    }
+    return [...authored, ...remoteItems.filter((item) => item.authorId !== userId)]
+  }
+  return hydrateData({
+    ...merged,
+    movements: mergeAuthored(local.movements, remoteData.movements, baseline.movements),
+    scheduledPayments: mergeAuthored(local.scheduledPayments, remoteData.scheduledPayments, baseline.scheduledPayments),
+    transfers: mergeAuthored(local.transfers, remoteData.transfers, baseline.transfers),
+  }, fallbackData)
+}
+
 function mergePreferredById<T extends { id: string }>(preferred: T[], existing: T[]) {
   const preferredIds = new Set(preferred.map((item) => item.id))
   return [...preferred, ...existing.filter((item) => !preferredIds.has(item.id))]

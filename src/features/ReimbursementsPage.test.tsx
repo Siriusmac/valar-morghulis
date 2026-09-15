@@ -17,7 +17,7 @@ describe('ReimbursementsPage', () => {
     render(<ReimbursementsPage data={data} user={users[0]} members={users} />)
     expect(screen.getByText(/25,00/)).toBeTruthy()
     expect(screen.queryByText(/40,00/)).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
+    fireEvent.click(screen.getByRole('tab', { name: /Dovuti/ }))
     expect(screen.getByText(/40,00/)).toBeTruthy()
     expect(screen.queryByText(/25,00/)).toBeNull()
   })
@@ -135,7 +135,7 @@ describe('ReimbursementsPage', () => {
     }
     const onRespondPurchase = vi.fn().mockResolvedValue(undefined)
     render(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[purchase]} onRespondPurchase={onRespondPurchase} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
+    fireEvent.click(screen.getByRole('tab', { name: /Dovuti/ }))
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Cene occasionali' } })
     expect(screen.getByRole('option', { name: 'Aggiungi “Cene occasionali”' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Conferma e cataloga' }))
@@ -151,7 +151,7 @@ describe('ReimbursementsPage', () => {
     expect(screen.getByText('Farmaci')).toBeTruthy()
     expect(screen.getByText(/In attesa di conferma/)).toBeTruthy()
     rerender(<ReimbursementsPage data={structuredClone(defaultData)} user={users[1]} members={users} purchases={[purchase]} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
+    fireEvent.click(screen.getByRole('tab', { name: /Dovuti/ }))
     expect(screen.getByRole('button', { name: 'Conferma e cataloga' })).toBeTruthy()
     expect(screen.queryByLabelText('Conto personale')).toBeNull()
   })
@@ -166,14 +166,14 @@ describe('ReimbursementsPage', () => {
     }
     const onIssue = vi.fn().mockResolvedValue(undefined)
     const { rerender } = render(<ReimbursementsPage data={data} user={users[1]} members={users} purchases={[receivedPurchase]} onIssuePurchaseReimbursement={onIssue} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Dovuti' }))
+    fireEvent.click(screen.getByRole('tab', { name: /Dovuti/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Emetti rimborso' }))
     await waitFor(() => expect(onIssue).toHaveBeenCalledWith(receivedPurchase, expect.any(String)))
 
     const issuedPurchase = { ...receivedPurchase, reimbursementStatus: 'pending' as const, reimbursementSourceAccountId: 'anna-bank', reimbursementIssuedAt: '2026-08-30T09:00:00Z' }
     const onRespond = vi.fn().mockResolvedValue(undefined)
     rerender(<ReimbursementsPage data={data} user={users[0]} members={users} purchases={[issuedPurchase]} onRespondPurchaseReimbursement={onRespond} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Attesi' }))
+    fireEvent.click(screen.getByRole('tab', { name: /Attesi/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Conferma ricezione' }))
     await waitFor(() => expect(onRespond).toHaveBeenCalledWith(issuedPurchase, true, expect.any(String)))
   })

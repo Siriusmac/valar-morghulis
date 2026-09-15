@@ -9,12 +9,13 @@ const options: Array<{ value: ComposerType; title: string; description: string; 
   { value: 'roman', title: 'Paga alla romana', description: 'Dividi in parti uguali una spesa occasionale tra più persone.', className: 'movement-type__roman' },
 ]
 
-export function MovementTypeSelector({ value, onChange, includeTransfer = true }: {
+export function MovementTypeSelector({ value, onChange, includeTransfer = true, includeRoman = true }: {
   value?: ComposerType
   onChange: (value: ComposerType) => void
   includeTransfer?: boolean
+  includeRoman?: boolean
 }) {
-  const visibleOptions = includeTransfer ? options : options.filter((option) => option.value === 'expense' || option.value === 'income')
+  const visibleOptions = options.filter((option) => (includeTransfer || option.value !== 'transfer') && (includeRoman || option.value !== 'roman'))
   return <div className="movement-type" aria-label="Tipo di movimento">
     {visibleOptions.map((option) => <button
       key={option.value}

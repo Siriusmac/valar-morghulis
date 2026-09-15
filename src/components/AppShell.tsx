@@ -27,6 +27,7 @@ interface Props {
   user: User
   registeredUserCount?: number
   contactsEnabled?: boolean
+  scheduledPaymentsEnabled?: boolean
   syncStatus?: CloudSyncStatus
   onRetrySync?: () => void
   onPageChange: (page: PageId) => void
@@ -34,7 +35,7 @@ interface Props {
   onLogout: () => void
 }
 
-export function AppShell({ children, page, user, registeredUserCount, contactsEnabled = false, syncStatus, onRetrySync, onPageChange, onAddMovement, onLogout }: Props) {
+export function AppShell({ children, page, user, registeredUserCount, contactsEnabled = false, scheduledPaymentsEnabled = false, syncStatus, onRetrySync, onPageChange, onAddMovement, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches)
   useEffect(() => {
@@ -63,7 +64,7 @@ export function AppShell({ children, page, user, registeredUserCount, contactsEn
           <button className="icon-button sidebar__close" onClick={() => setMenuOpen(false)} aria-label="Chiudi menu"><X /></button>
         </div>
         <nav className="sidebar__nav" aria-label="Navigazione principale">
-          {items.filter((item) => item.id !== 'contacts' || contactsEnabled).map(({ id, label, icon: Icon }) => (
+          {items.filter((item) => (item.id !== 'contacts' || contactsEnabled) && (item.id !== 'scheduled' || scheduledPaymentsEnabled || page === 'scheduled')).map(({ id, label, icon: Icon }) => (
             <button key={id} className={page === id ? 'nav-item nav-item--active' : 'nav-item'} onClick={() => selectPage(id)}>
               <Icon aria-hidden="true" /><span>{label}</span>
             </button>

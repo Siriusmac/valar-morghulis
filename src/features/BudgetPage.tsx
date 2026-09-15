@@ -9,6 +9,7 @@ import type { AppData, Category, Scope, User } from '../types'
 interface Props {
   data: AppData
   user: User
+  personalOnly?: boolean
   onAdd: (category: Category) => void
   onUpdate: (category: Category) => void
   onShowMovements: (
@@ -24,7 +25,7 @@ interface Props {
 const normalizedName = (value: string) => value.trim().toLocaleLowerCase('it-IT')
 const byName = (left: Category, right: Category) => left.name.localeCompare(right.name, 'it-IT', { sensitivity: 'base', numeric: true })
 
-export function BudgetPage({ data, user, onAdd, onUpdate, onShowMovements }: Props) {
+export function BudgetPage({ data, user, personalOnly = false, onAdd, onUpdate, onShowMovements }: Props) {
   const month = todayISO().slice(0, 7)
   const [formOpen, setFormOpen] = useState(false)
   const [categoryQuery, setCategoryQuery] = useState('')
@@ -32,8 +33,8 @@ export function BudgetPage({ data, user, onAdd, onUpdate, onShowMovements }: Pro
   const [scope, setScope] = useState<Scope>('personal')
   const [editingId, setEditingId] = useState('')
   const categories = useMemo(() => data.categories
-    .filter((item) => item.movementType === 'expense' && (item.scope === 'family' || item.ownerId === user.id))
-    .toSorted(byName), [data.categories, user.id])
+    .filter((item) => item.movementType === 'expense' && ((!personalOnly && item.scope === 'family') || item.ownerId === user.id))
+    .toSorted(byName), [data.categories, personalOnly, user.id])
   const budgetCategories = categories.filter((item) => (item.monthlyBudget ?? 0) > 0)
   const availableCategories = categories.filter((item) => !item.monthlyBudget || item.id === editingId)
   const selectedCategory = categories.find((item) => normalizedName(item.name) === normalizedName(categoryQuery))
@@ -86,7 +87,7 @@ export function BudgetPage({ data, user, onAdd, onUpdate, onShowMovements }: Pro
     {formOpen ? <form className="budget-editor" onSubmit={saveBudget}>
       <div><strong>{editingId ? 'Modifica budget' : 'Aggiungi budget'}</strong><p>Scegli una categoria di spesa o aggiungine una nuova.</p></div>
       <CreatableLookup label="Categoria" value={categoryQuery} options={availableCategories} placeholder="Cerca o aggiungi categoria" onChange={setCategoryQuery} />
-      {creatingCategory ? <label>Visibilità<select value={scope} onChange={(event) => setScope(event.target.value as Scope)}><option value="personal">Personale</option><option value="family">Famiglia</option></select></label> : null}
+      {creatingCategory ? personalOnly ? <label>Visibilità<output>Personale</output></label> : <label>Visibilità<select value={scope} onChange={(event) => setScope(event.target.value as Scope)}><option value="personal">Personale</option><option value="family">Famiglia</option></select></label> : null}
       <label>Importo mensile<div className="money-input"><span>€</span><input aria-label="Importo mensile" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0,00" /></div></label>
       <div className="budget-editor__actions"><button type="button" className="button button--ghost" onClick={closeForm}>Annulla</button><button type="submit" className="button button--primary">Salva budget</button></div>
     </form> : null}

@@ -46,7 +46,13 @@ interface Props {
 }
 
 export function ReimbursementsPage({ data, user, members, contacts = [], purchases = [], onRespond, onRespondPurchase, onIssuePurchaseReimbursement, onRespondPurchaseReimbursement, onRequestChange, onRespondChange, onWithdrawChange, onCreateLoan, onRespondLoan, onCreateLoanRepayment, onRespondLoanRepayment }: Props) {
-  const [section, setSection] = useState<'expected' | 'owed'>('expected')
+  const expectedCount = data.reimbursements.filter((item) => item.toId === user.id).length
+    + purchases.filter((item) => isOrdinaryCommissionedPurchase(item) && item.payerId === user.id).length
+    + data.loans.filter((item) => item.lenderId === user.id).length
+  const owedCount = data.reimbursements.filter((item) => item.fromId === user.id).length
+    + purchases.filter((item) => isOrdinaryCommissionedPurchase(item) && item.recipientId === user.id).length
+    + data.loans.filter((item) => item.borrowerId === user.id).length
+  const [section, setSection] = useState<'expected' | 'owed'>(() => expectedCount === 0 && owedCount > 0 ? 'owed' : 'expected')
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [repayingLoanId, setRepayingLoanId] = useState<string>()
   const [busyPurchaseId, setBusyPurchaseId] = useState<string>()
@@ -61,6 +67,8 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
   const loans = data.loans
     .filter((item) => section === 'expected' ? item.lenderId === user.id : item.borrowerId === user.id)
     .toSorted((left, right) => right.date.localeCompare(left.date))
+  const personalAccounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === user.id)
+  const canCreateLoan = Boolean(onCreateLoan && personalAccounts.length && members.some((member) => member.id !== user.id))
   const respondToPurchase = async (purchase: CommissionedPurchase, accepted: boolean, categoryId?: string, accountId?: string, category?: Category) => {
     if (!onRespondPurchase) return
     setBusyPurchaseId(purchase.id)
@@ -71,11 +79,11 @@ export function ReimbursementsPage({ data, user, members, contacts = [], purchas
   }
 
   return <div className="page reimbursements-page">
-    <div className="page-heading"><div><h1>Rimborsi e prestiti</h1><p>Controlla rimborsi, prestiti e restituzioni ancora da completare.</p></div>{onCreateLoan ? <button className="button button--primary" type="button" onClick={() => setShowLoanForm((current) => !current)}><Plus /> Nuovo prestito</button> : null}</div>
-    {showLoanForm && onCreateLoan ? <LoanForm data={data} user={user} members={members} onCancel={() => setShowLoanForm(false)} onSubmit={async (draft) => { await onCreateLoan(draft); setShowLoanForm(false) }} /> : null}
+    <div className="page-heading"><div><h1>Rimborsi e prestiti</h1><p>Controlla rimborsi, prestiti e restituzioni ancora da completare.</p></div>{canCreateLoan ? <button className="button button--primary" type="button" onClick={() => setShowLoanForm((current) => !current)}><Plus /> Nuovo prestito</button> : null}</div>
+    {showLoanForm && canCreateLoan && onCreateLoan ? <LoanForm data={data} user={user} members={members} onCancel={() => setShowLoanForm(false)} onSubmit={async (draft) => { await onCreateLoan(draft); setShowLoanForm(false) }} /> : null}
     <div className="tabs reimbursement-tabs" role="tablist" aria-label="Tipo di rimborso">
-      <button type="button" role="tab" aria-selected={section === 'expected'} className={section === 'expected' ? 'active' : ''} onClick={() => setSection('expected')}>Attesi</button>
-      <button type="button" role="tab" aria-selected={section === 'owed'} className={section === 'owed' ? 'active' : ''} onClick={() => setSection('owed')}>Dovuti</button>
+      <button type="button" role="tab" aria-selected={section === 'expected'} className={section === 'expected' ? 'active' : ''} onClick={() => setSection('expected')}>Attesi <small>{expectedCount}</small></button>
+      <button type="button" role="tab" aria-selected={section === 'owed'} className={section === 'owed' ? 'active' : ''} onClick={() => setSection('owed')}>Dovuti <small>{owedCount}</small></button>
     </div>
     {responseError ? <p className="form-message form-message--error" role="alert">{responseError}</p> : null}
     {reimbursements.length || commissioned.length || loans.length ? <div className="reimbursement-review-list">
@@ -137,6 +145,11 @@ function CommissionedPurchaseCard({ purchase, data, user, contacts, onIssue, onR
     catch (reason) { setError(reimbursementResponseMessage(reason)) }
     finally { setBusy(false) }
   }
+  const accountField = (label: string) => accounts.length === 1
+    ? <label>{label}<output>{accounts[0].name}</output></label>
+    : accounts.length > 1
+      ? <label>{label}<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Seleziona un conto</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+      : <p className="field-explanation">Crea un conto personale per completare questa operazione.</p>
 
   if (purchase.status === 'rejected') return <CommissionedReimbursementStatus amount={purchase.amount} status="rejected" label={purchase.description} lastInteraction={lastInteraction} />
   if (purchase.status === 'pending') return <CommissionedReimbursementStatus amount={purchase.amount} status="pending" label={purchase.description} lastInteraction={lastInteraction} />
@@ -144,11 +157,11 @@ function CommissionedPurchaseCard({ purchase, data, user, contacts, onIssue, onR
   if (reimbursementStatus === 'confirmed') return <CommissionedReimbursementStatus amount={purchase.amount} status="confirmed" label={purchase.description} lastInteraction={lastInteraction} />
 
   if (purchase.recipientId === user.id && reimbursementStatus === 'not_issued') return <article className="reimbursement-review reimbursement-review--action">
-    <span><HandCoins /></span><div><strong>{purchase.description}</strong><small>{formatMoney(purchase.amount)} · acquisto ricevuto e catalogato</small><label>Dal tuo conto<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Seleziona un conto</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><small>Il conto verrà addebitato solo quando emetti il rimborso a {payer?.name ?? 'chi ha anticipato la spesa'}.</small>{error ? <small className="field-error" role="alert">{error}</small> : null}</div><div className="reimbursement-review__actions"><button className="button button--primary" type="button" disabled={busy || !accountId || !onIssue} onClick={() => void act(() => onIssue!(purchase, accountId))}><Check /> Emetti rimborso</button></div>
+    <span><HandCoins /></span><div><strong>{purchase.description}</strong><small>{formatMoney(purchase.amount)} · acquisto ricevuto e catalogato</small>{accountField('Dal tuo conto')}<small>Il conto verrà addebitato solo quando emetti il rimborso a {payer?.name ?? 'chi ha anticipato la spesa'}.</small>{error ? <small className="field-error" role="alert">{error}</small> : null}</div>{accounts.length ? <div className="reimbursement-review__actions"><button className="button button--primary" type="button" disabled={busy || !accountId || !onIssue} onClick={() => void act(() => onIssue!(purchase, accountId))}><Check /> Emetti rimborso</button></div> : null}
   </article>
 
   if (purchase.payerId === user.id && reimbursementStatus === 'pending') return <article className="reimbursement-review reimbursement-review--action">
-    <span><HandCoins /></span><div><strong>{recipient?.name ?? 'Il destinatario'} ha emesso un rimborso di {formatMoney(purchase.amount)}</strong><small>{purchase.description} · emesso il {formatDate((purchase.reimbursementIssuedAt ?? purchase.purchaseDate).slice(0, 10))}</small><label>Il tuo conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Seleziona un conto</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>{error ? <small className="field-error" role="alert">{error}</small> : null}</div><div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy || !onRespond} onClick={() => void act(() => onRespond!(purchase, false))}><X /> Rifiuta</button><button className="button button--primary" type="button" disabled={busy || !accountId || !onRespond} onClick={() => void act(() => onRespond!(purchase, true, accountId))}><Check /> Conferma ricezione</button></div>
+    <span><HandCoins /></span><div><strong>{recipient?.name ?? 'Il destinatario'} ha emesso un rimborso di {formatMoney(purchase.amount)}</strong><small>{purchase.description} · emesso il {formatDate((purchase.reimbursementIssuedAt ?? purchase.purchaseDate).slice(0, 10))}</small>{accountField('Il tuo conto di destinazione')}{error ? <small className="field-error" role="alert">{error}</small> : null}</div><div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy || !onRespond} onClick={() => void act(() => onRespond!(purchase, false))}><X /> Rifiuta</button>{accounts.length ? <button className="button button--primary" type="button" disabled={busy || !accountId || !onRespond} onClick={() => void act(() => onRespond!(purchase, true, accountId))}><Check /> Conferma ricezione</button> : null}</div>
   </article>
 
   const pendingLabel = reimbursementStatus === 'pending' ? 'Rimborso emesso, in attesa della conferma di ricezione' : `Acquisto ricevuto: ${recipient?.name ?? 'il destinatario'} deve emettere il rimborso`
@@ -181,7 +194,7 @@ function LoanForm({ data, user, members, onSubmit, onCancel }: {
       .finally(() => setBusy(false))
   }}>
     <div className="loan-form__heading"><span><Landmark /></span><div><strong>Nuovo prestito</strong><small>Il denaro sarà contabilizzato solo dopo la conferma di chi lo riceve.</small></div></div>
-    <div className="form-grid"><label>Beneficiario<select value={borrowerId} onChange={(event) => setBorrowerId(event.target.value)}>{borrowers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label><label>Importo<input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0,00" /></label><label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Dal tuo conto<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label></div>
+    <div className="form-grid"><label>Beneficiario{borrowers.length === 1 ? <output>{borrowers[0].name}</output> : <select value={borrowerId} onChange={(event) => setBorrowerId(event.target.value)}>{borrowers.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select>}</label><label>Importo<input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0,00" /></label><label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Dal tuo conto{accounts.length === 1 ? <output>{accounts[0].name}</output> : <select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>}</label></div>
     <label>Motivo<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Per cosa viene concesso" /></label>
     {error ? <small className="field-error">{error}</small> : null}<div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" disabled={busy}>{busy ? 'Invio…' : 'Invia per conferma'}</button></div>
   </form>
@@ -202,6 +215,8 @@ function LoanCard({ loan, data, user, members, repaying, onToggleRepayment, onRe
   const borrower = members.find((member) => member.id === loan.borrowerId)
   const outstanding = loanOutstanding(data, loan)
   const accounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === user.id)
+  const familyCredit = Math.max(0, Math.min(sharedBalance(data, loan.borrowerId, members.map((member) => member.id)), -sharedBalance(data, loan.lenderId, members.map((member) => member.id)), outstanding))
+  const canRepay = accounts.length > 0 || familyCredit > 0
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -215,9 +230,9 @@ function LoanCard({ loan, data, user, members, repaying, onToggleRepayment, onRe
   }
   return <article className={`loan-card loan-card--${loan.status}`}>
     <div className="loan-card__summary"><span><Landmark /></span><div><strong>{loan.description}</strong><small>{lender?.name ?? 'Prestatore'} → {borrower?.name ?? 'Beneficiario'} · {formatMoney(loan.amount)} · {loan.date}</small></div><div className="loan-card__amount"><small>Residuo</small><strong>{formatMoney(outstanding)}</strong></div></div>
-    {loan.status === 'pending' ? loan.borrowerId === user.id ? <div className="loan-card__decision"><label>Il tuo conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => respond(false)}><X /> Rifiuta</button><button className="button button--primary" type="button" disabled={busy || !accountId} onClick={() => respond(true)}><Check /> Conferma prestito</button></div></div> : <small>In attesa della conferma di {borrower?.name ?? 'chi riceve il prestito'}.</small> : null}
+    {loan.status === 'pending' ? loan.borrowerId === user.id ? <div className="loan-card__decision">{accounts.length === 1 ? <label>Il tuo conto di destinazione<output>{accounts[0].name}</output></label> : accounts.length > 1 ? <label>Il tuo conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : <p className="field-explanation">Crea un conto personale per accettare il prestito.</p>}<div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => respond(false)}><X /> Rifiuta</button>{accounts.length ? <button className="button button--primary" type="button" disabled={busy || !accountId} onClick={() => respond(true)}><Check /> Conferma prestito</button> : null}</div></div> : <small>In attesa della conferma di {borrower?.name ?? 'chi riceve il prestito'}.</small> : null}
     {loan.status === 'rejected' ? <small>Prestito rifiutato.</small> : null}
-    {loan.status === 'confirmed' && loan.borrowerId === user.id && outstanding > 0 ? <button className="button button--secondary loan-card__repay" type="button" onClick={onToggleRepayment}><RotateCcw /> Restituisci</button> : null}
+    {loan.status === 'confirmed' && loan.borrowerId === user.id && outstanding > 0 && canRepay ? <button className="button button--secondary loan-card__repay" type="button" onClick={onToggleRepayment}><RotateCcw /> Restituisci</button> : null}
     {repaying && onCreateRepayment ? <LoanRepaymentForm loan={loan} data={data} user={user} memberIds={members.map((member) => member.id)} onSubmit={onCreateRepayment} onCancel={onToggleRepayment} /> : null}
     {repayments.length ? <div className="loan-repayments"><strong>Restituzioni</strong>{repayments.map((repayment) => <LoanRepaymentRow key={repayment.id} repayment={repayment} data={data} user={user} onRespond={onRespondRepayment} />)}</div> : null}
     {error ? <small className="field-error">{error}</small> : null}
@@ -238,7 +253,11 @@ function LoanRepaymentForm({ loan, data, user, memberIds, onSubmit, onCancel }: 
   const [amount, setAmount] = useState(available.toFixed(2).replace('.', ','))
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [description, setDescription] = useState('Restituzione prestito')
-  const [method, setMethod] = useState<LoanRepaymentMethod>('money')
+  const availableMethods: Array<{ value: LoanRepaymentMethod; label: string }> = [
+    ...(accounts.length ? [{ value: 'money' as const, label: 'Denaro' }, { value: 'purchase' as const, label: 'Tramite acquisto' }] : []),
+    ...(familyCredit > 0 ? [{ value: 'family_credit' as const, label: `Credito familiare · ${formatMoney(familyCredit)}` }] : []),
+  ]
+  const [method, setMethod] = useState<LoanRepaymentMethod>(accounts.length ? 'money' : 'family_credit')
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -252,7 +271,7 @@ function LoanRepaymentForm({ loan, data, user, memberIds, onSubmit, onCancel }: 
       .catch((reason) => setError(functionErrorMessage(reason) || 'Non è stato possibile inviare la restituzione.'))
       .finally(() => setBusy(false))
   }}>
-    <div className="form-grid"><label>Importo<input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Modalità<select value={method} onChange={(event) => setMethod(event.target.value as LoanRepaymentMethod)}><option value="money">Denaro</option><option value="purchase">Tramite acquisto</option><option value="family_credit" disabled={familyCredit <= 0}>Credito familiare · {formatMoney(familyCredit)}</option></select></label>{method !== 'family_credit' ? <label>Dal tuo conto<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : null}</div>
+    <div className="form-grid"><label>Importo<input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} /></label><label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Modalità{availableMethods.length === 1 ? <output>{availableMethods[0].label}</output> : <select value={method} onChange={(event) => setMethod(event.target.value as LoanRepaymentMethod)}>{availableMethods.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>}</label>{method !== 'family_credit' ? <label>Dal tuo conto{accounts.length === 1 ? <output>{accounts[0].name}</output> : <select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>}</label> : null}</div>
     <label>Descrizione<input value={description} onChange={(event) => setDescription(event.target.value)} /></label>
     {method === 'purchase' ? <small>Il tuo conto verrà addebitato subito; il prestatore sceglierà la categoria quando conferma.</small> : method === 'family_credit' ? <small>Alla conferma, il tuo credito familiare e il debito familiare del prestatore diminuiranno dello stesso importo.</small> : null}
     {error ? <small className="field-error">{error}</small> : null}<div className="form-actions"><button className="button button--ghost" type="button" onClick={onCancel}>Annulla</button><button className="button button--primary" disabled={busy}>Invia restituzione</button></div>
@@ -284,7 +303,7 @@ function LoanRepaymentRow({ repayment, data, user, onRespond }: {
       .catch((reason) => setError(functionErrorMessage(reason) || 'Non è stato possibile rispondere.'))
       .finally(() => setBusy(false))
   }
-  return <div className="loan-repayment-row"><div><span>{formatMoney(repayment.amount)} · {methodLabel}</span><small>{repayment.date} · {repayment.status === 'pending' ? 'In attesa' : repayment.status === 'confirmed' ? 'Confermata' : 'Rifiutata'}</small></div>{repayment.status === 'pending' && repayment.lenderId === user.id && onRespond ? <div className="loan-repayment-row__response">{repayment.method === 'money' ? <label>Conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : null}{repayment.method === 'purchase' ? <CreatableLookup label="Categoria dell’acquisto" value={categoryName} options={categories} placeholder="Cerca o aggiungi categoria" onChange={setCategoryName} /> : null}<div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => respond(false)}><X /> Rifiuta</button><button className="button button--primary" type="button" disabled={busy || (repayment.method === 'money' && !accountId)} onClick={() => respond(true)}><Check /> Conferma</button></div></div> : null}{error ? <small className="field-error">{error}</small> : null}</div>
+  return <div className="loan-repayment-row"><div><span>{formatMoney(repayment.amount)} · {methodLabel}</span><small>{repayment.date} · {repayment.status === 'pending' ? 'In attesa' : repayment.status === 'confirmed' ? 'Confermata' : 'Rifiutata'}</small></div>{repayment.status === 'pending' && repayment.lenderId === user.id && onRespond ? <div className="loan-repayment-row__response">{repayment.method === 'money' ? accounts.length === 1 ? <label>Conto di destinazione<output>{accounts[0].name}</output></label> : accounts.length > 1 ? <label>Conto di destinazione<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : <p className="field-explanation">Crea un conto personale per confermare la restituzione.</p> : null}{repayment.method === 'purchase' ? <CreatableLookup label="Categoria dell’acquisto" value={categoryName} options={categories} placeholder="Cerca o aggiungi categoria" onChange={setCategoryName} /> : null}<div className="reimbursement-review__actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => respond(false)}><X /> Rifiuta</button>{repayment.method !== 'money' || accounts.length ? <button className="button button--primary" type="button" disabled={busy} onClick={() => respond(true)}><Check /> Conferma</button> : null}</div></div> : null}{error ? <small className="field-error">{error}</small> : null}</div>
 }
 
 function reimbursementResponseMessage(reason: unknown) {

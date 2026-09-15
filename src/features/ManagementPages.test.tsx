@@ -241,7 +241,8 @@ describe('AccountsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi conto' }))
     fireEvent.change(screen.getByLabelText('Nome conto'), { target: { value: 'Buoni pasto' } })
     fireEvent.change(screen.getByText('Tipo').querySelector('select')!, { target: { value: 'welfare' } })
-    expect((screen.getByText('Visibilità').querySelector('select') as HTMLSelectElement).disabled).toBe(true)
+    expect(screen.getByText('Visibilità').querySelector('select')).toBeNull()
+    expect(screen.getByText('Visibilità').querySelector('output')?.textContent).toBe('Personale')
     fireEvent.click(screen.getByRole('button', { name: 'Crea conto' }))
 
     await waitFor(() => expect(onAdd).toHaveBeenCalledOnce())

@@ -75,7 +75,7 @@ describe('family cloud persistence', () => {
       beneficiaryId: 'lidl',
       accountId: 'simone-bank',
       shared: false,
-      splits: [{ id: 'shared-home', amount: 30, categoryId: 'accessori-casa', shared: true }],
+      splits: [{ id: 'shared-home', amount: 30, categoryId: 'accessori-casa', description: 'Dettaglio casa', comments: 'Nota condivisa', shared: true }],
       createdAt: '2026-07-26T10:00:00Z',
     }
     data.movements = [movement]
@@ -85,6 +85,8 @@ describe('family cloud persistence', () => {
 
     expect(sharedMovement.amount).toBe(30)
     expect(sharedMovement.categoryId).toBe('accessori-casa')
+    expect(sharedMovement.description).toBe('Dettaglio casa')
+    expect(sharedMovement.comments).toBe('Nota condivisa')
     expect(sharedMovement.shared).toBe(true)
     expect(sharedMovement.splits).toEqual([])
     expect(payload.privateData.movements).toEqual([])

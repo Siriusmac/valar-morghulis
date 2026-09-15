@@ -94,11 +94,9 @@ describe('TransferForm', () => {
     data.accounts = data.accounts.filter((account) => account.id === 'simone-bank')
     render(<TransferForm data={data} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '12' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
-
     expect(onSubmit).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('almeno due conti')
+    expect(screen.getByRole('heading', { name: 'Servono almeno due conti' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Conferma giro fondi' })).toBeNull()
   })
 
   it('mostra un errore quando il salvataggio non riesce', async () => {

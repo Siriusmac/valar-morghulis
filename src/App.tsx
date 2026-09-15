@@ -8,9 +8,9 @@ import { CloudAccess, type FamilySession } from './features/CloudAccess'
 import { accountBalance, reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
-import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergePendingAppData, saveData } from './lib/storage'
+import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergeConcurrentPendingAppData, mergePendingAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
-import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readPendingCloudSave, recordCloudSaveFailure, type CloudSyncStatus } from './lib/cloudSync'
+import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
@@ -116,6 +116,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(cloud ? 'pending' : 'synced')
   const [runCloudWrite] = useState(() => createCloudWriteQueue())
   const cloudSaveRunning = useRef(false)
+  const cloudRefreshRunning = useRef(false)
   const cloudRetryTimer = useRef<number | undefined>(undefined)
   const flushCloudSave = useRef<() => Promise<void>>(async () => undefined)
   const refreshRemoteData = useRef<() => Promise<void>>(async () => undefined)
@@ -131,14 +132,34 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       cloudRetryTimer.current = window.setTimeout(() => { void flushCloudSave.current() }, delay)
     }
     refreshRemoteData.current = async () => {
-      if (cloudSaveRunning.current || readPendingCloudSave(storageKey)) {
+      if (cloudSaveRunning.current || cloudRefreshRunning.current || readPendingCloudSave(storageKey)) {
         remoteRefreshPending.current = true
         return
       }
-      const remoteData = await cloud.loadAppData()
-      if (!remoteData) return
-      skipNextCloudSave.current = true
-      setData(hydrateData(remoteData, fallback()))
+      cloudRefreshRunning.current = true
+      try {
+        const remoteData = await runCloudWrite(() => cloud.loadAppData())
+        if (!remoteData) return
+        const remote = hydrateData(remoteData, fallback())
+        const pendingAfterLoad = readPendingCloudSave(storageKey)
+        if (pendingAfterLoad) {
+          const local = loadData(storageKey, fallback())
+          const baseline = readCloudSyncBaseline(storageKey)
+          const resolved = baseline
+            ? mergeConcurrentPendingAppData(remote, local, baseline, fallback(), cloud.user.id)
+            : mergePendingAppData(remote, local, fallback(), cloud.user.id)
+          saveData(resolved, storageKey)
+          skipNextCloudSave.current = true
+          setData(resolved)
+          void flushCloudSave.current()
+          return
+        }
+        writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
+        skipNextCloudSave.current = true
+        setData(remote)
+      } finally {
+        cloudRefreshRunning.current = false
+      }
     }
     flushCloudSave.current = async () => {
       if (cloudSaveRunning.current) return
@@ -157,7 +178,9 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       let retryImmediately = false
       let refreshAfterSave = false
       try {
-        await runCloudWrite(() => cloud.saveAppData(loadData(storageKey, fallback()), pending.mutationId))
+        const dataToSave = loadData(storageKey, fallback())
+        await runCloudWrite(() => cloud.saveAppData(dataToSave, pending.mutationId))
+        writeCloudSyncBaseline(storageKey, dataToSave, cloud.user.id)
         const cleared = clearCloudSavePending(storageKey, pending.mutationId)
         if (cleared) {
           setCloudSyncStatus('synced')
@@ -172,7 +195,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
           try {
             const localData = loadData(storageKey, fallback())
             const remoteData = await cloud.loadAppData()
-            const resolved = remoteData ? mergePendingAppData(remoteData, localData, fallback(), cloud.user.id) : localData
+            const baseline = readCloudSyncBaseline(storageKey)
+            const resolved = remoteData
+              ? baseline
+                ? mergeConcurrentPendingAppData(remoteData, localData, baseline, fallback(), cloud.user.id)
+                : mergePendingAppData(remoteData, localData, fallback(), cloud.user.id)
+              : localData
             saveData(resolved, storageKey)
             skipNextCloudSave.current = true
             setData(resolved)
@@ -223,6 +251,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       }
       if (cancelled) return
       saveData(resolved, storageKey)
+      writeCloudSyncBaseline(storageKey, resolved, cloud.user.id)
       localStorage.setItem(importKey, '1')
       skipNextCloudSave.current = true
       setData(resolved)
@@ -253,16 +282,19 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }, [cloud, cloudDataReady, data, storageKey])
   useEffect(() => {
     if (!cloud || !storageKey) return
-    const retry = () => { if (readPendingCloudSave(storageKey)) void flushCloudSave.current() }
+    const synchronize = () => {
+      if (readPendingCloudSave(storageKey)) void flushCloudSave.current()
+      else void refreshRemoteData.current().catch(() => { remoteRefreshPending.current = true })
+    }
     const handleOffline = () => { if (readPendingCloudSave(storageKey)) setCloudSyncStatus('offline') }
-    const handleVisibility = () => { if (document.visibilityState === 'visible') retry() }
-    window.addEventListener('online', retry)
-    window.addEventListener('focus', retry)
+    const handleVisibility = () => { if (document.visibilityState === 'visible') synchronize() }
+    window.addEventListener('online', synchronize)
+    window.addEventListener('focus', synchronize)
     window.addEventListener('offline', handleOffline)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
-      window.removeEventListener('online', retry)
-      window.removeEventListener('focus', retry)
+      window.removeEventListener('online', synchronize)
+      window.removeEventListener('focus', synchronize)
       window.removeEventListener('offline', handleOffline)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
@@ -695,7 +727,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
   }
 
-  const common = { data, user, onShowMovements: showMovements }
+  const common = { data, user, personalOnly: Boolean(cloud?.personalMode), onShowMovements: showMovements }
   const content = page === 'dashboard' ? <Dashboard data={data} user={user} members={appUsers} onNavigate={setPage} onReimburse={() => setModal({ type: 'reimburse' })} onUpdateCategory={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onRespondReimbursement={cloud ? respondToReimbursement : undefined} workspace={cloud ? {
     familyId: cloud.familyId,
     families: cloud.families,
@@ -725,7 +757,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         }
       },
     } : undefined} />
-    : page === 'budgets' ? <BudgetPage data={data} user={user} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onShowMovements={showMovements} />
+    : page === 'budgets' ? <BudgetPage data={data} user={user} personalOnly={Boolean(cloud?.personalMode)} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onShowMovements={showMovements} />
     : page === 'categories' ? <CategoriesPage {...common} onAdd={(category) => setData((current) => ({ ...current, categories: [...current.categories, category] }))} onUpdate={(category) => setData((current) => ({ ...current, categories: current.categories.map((item) => item.id === category.id ? category : item) }))} onDelete={(id, replacementId) => deleteDirectory('category', id, replacementId)} />
     : page === 'beneficiaries' ? <BeneficiariesPage {...common} onAddBeneficiary={(beneficiary: Beneficiary) => setData((current) => ({ ...current, beneficiaries: [...current.beneficiaries, beneficiary] }))} onUpdateBeneficiary={(beneficiary) => {
       setData((current) => ({ ...current, beneficiaries: current.beneficiaries.map((item) => item.id === beneficiary.id ? beneficiary : item) }))
@@ -753,7 +785,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} scheduledPaymentsEnabled={data.scheduledPayments.some((payment) => payment.authorId === user.id && payment.status === 'scheduled')} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}

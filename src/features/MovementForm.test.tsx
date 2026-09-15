@@ -19,7 +19,8 @@ describe('MovementForm', () => {
   it('offers the four simplified choices only for a new movement', () => {
     const onSelectTransfer = vi.fn()
     const data = structuredClone(defaultData)
-    const { unmount } = render(<MovementForm data={data} user={users[0]} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
+    const contacts = [{ id: users[1].id, name: users[1].name, email: users[1].email, initials: users[1].initials, source: 'family' as const }]
+    const { unmount } = render(<MovementForm data={data} user={users[0]} contacts={contacts} onSave={vi.fn()} onCancel={vi.fn()} onSelectTransfer={onSelectTransfer} />)
 
     expect(screen.queryByLabelText('Importo')).toBeNull()
     expect(screen.getByRole('button', { name: 'Spesa' }).classList.contains('movement-type__expense')).toBe(true)
@@ -633,12 +634,13 @@ describe('MovementForm', () => {
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
-    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Spesa mista' } })
     fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
     fireEvent.click(screen.getByRole('button', { name: /Pagamento a rate/ }))
     fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'commissioned' } })
+    fireEvent.change(screen.getByLabelText('Descrizione parziale 1'), { target: { value: 'Spesa mista' } })
+    fireEvent.change(screen.getByLabelText('Commenti parziale 1'), { target: { value: 'Quota per Anna' } })
     fireEvent.change(screen.getByLabelText('Committente'), { target: { value: users[1].id } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
@@ -652,6 +654,8 @@ describe('MovementForm', () => {
     expect(movement.amount).toBe(33.33)
     expect(movement.splits[0]).toMatchObject({
       commissionedPurchaseId: expect.any(String),
+      description: 'Spesa mista',
+      comments: 'Quota per Anna',
       excludeFromReports: true,
       shared: false,
     })
@@ -762,10 +766,10 @@ describe('MovementForm', () => {
     chooseExpense()
 
     fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '30' } })
-    fireEvent.change(screen.getByLabelText('Descrizione'), { target: { value: 'Acquisto in compensazione' } })
     fireEvent.change(screen.getByLabelText('Tipo di acquisto'), { target: { value: 'multiple' } })
     fireEvent.change(screen.getByLabelText('Importo parziale 1'), { target: { value: '30' } })
     fireEvent.change(screen.getByLabelText('Tipo di spesa parziale 1'), { target: { value: 'reimbursement' } })
+    fireEvent.change(screen.getByLabelText('Descrizione parziale 1'), { target: { value: 'Acquisto in compensazione' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())

@@ -1,9 +1,43 @@
+import type { AppData, UserId } from '../types'
+
 export type CloudSyncStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'error'
 
 export interface PendingCloudSave {
   mutationId: string
   createdAt: string
   attempts: number
+}
+
+export type CloudSyncBaseline = Pick<AppData, 'movements' | 'scheduledPayments' | 'transfers'>
+
+function cloudSyncBaselineKey(storageKey: string) {
+  return `${storageKey}:cloud-sync-baseline`
+}
+
+export function readCloudSyncBaseline(storageKey: string): CloudSyncBaseline | null {
+  try {
+    const raw = localStorage.getItem(cloudSyncBaselineKey(storageKey))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<CloudSyncBaseline>
+    if (!Array.isArray(parsed.movements) || !Array.isArray(parsed.scheduledPayments) || !Array.isArray(parsed.transfers)) return null
+    return parsed as CloudSyncBaseline
+  } catch {
+    return null
+  }
+}
+
+export function writeCloudSyncBaseline(storageKey: string, data: AppData, userId: UserId) {
+  try {
+    const authored = <T extends { authorId: UserId }>(items: T[]) => items.filter((item) => item.authorId === userId)
+    const baseline: CloudSyncBaseline = {
+      movements: authored(data.movements),
+      scheduledPayments: authored(data.scheduledPayments),
+      transfers: authored(data.transfers),
+    }
+    localStorage.setItem(cloudSyncBaselineKey(storageKey), JSON.stringify(baseline))
+  } catch {
+    // Il salvataggio operativo resta disponibile anche se lo spazio locale è esaurito.
+  }
 }
 
 export function createCloudWriteQueue() {

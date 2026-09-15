@@ -351,6 +351,7 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .inline-form p { font-size: 10px; color: var(--muted); margin-top: 3px; }
 .inline-form__fields { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 12px; }
 .inline-form label, .expense-form label, .reimbursement-form label { display: grid; gap: 7px; color: var(--ink); font-size: 11px; font-weight: 600; }
+.inline-form label > output, .expense-form label > output, .reimbursement-form label > output, .transfer-form label > output, .settings-form label > output, .loan-form label > output, .loan-card label > output, .loan-repayment-form label > output, .loan-repayment-row label > output { display: flex; align-items: center; width: 100%; min-height: 43px; border: 1px solid var(--line); border-radius: 5px; padding: 0 12px; background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 600; }
 .inline-form input, .inline-form select, .expense-form input, .expense-form select, .reimbursement-form input { width: 100%; height: 43px; border: 1px solid #d5d1cb; border-radius: 5px; padding: 0 12px; background: white; color: var(--ink); font-size: 13px; }
 .expense-form textarea { width: 100%; min-height: 72px; resize: vertical; border: 1px solid #d5d1cb; border-radius: 5px; padding: 10px 12px; background: white; color: var(--ink); font: 13px/1.45 'DM Sans', system-ui, sans-serif; }
 .field-error { color: #a83b32; font-size: 10px; font-weight: 500; }
@@ -611,6 +612,10 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .split-row { display: grid; grid-template-columns: minmax(95px, .55fr) 1fr 1fr minmax(115px, .7fr) 34px; gap: 9px; align-items: end; padding: 11px; border: 1px solid rgba(125, 65, 45, .12); border-radius: 6px; background: rgba(255,255,255,.72); }
 .split-row--purchase { grid-template-columns: minmax(105px, .6fr) minmax(160px, 1fr) minmax(175px, 1fr) minmax(220px, 1.25fr) 34px; align-items: start; }
 .split-row--remainder { grid-template-columns: minmax(110px, .7fr) minmax(150px, 1fr) minmax(145px, 1fr) minmax(210px, 1.25fr) minmax(130px, .85fr); align-items: start; }
+.purchase-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; min-width: 0; }
+.split-row--purchase > .purchase-notes { grid-column: 1 / -2; }
+.split-row--purchase > .split-row__remove { grid-column: -2 / -1; grid-row: 1; }
+.split-row--remainder > .purchase-notes { grid-column: 1 / -1; }
 .single-purchase-fields { display: grid; gap: 14px; }
 .roman-split { gap: 16px; }
 .roman-split .split-editor__intro > svg { width: 22px; color: var(--accent); }
@@ -1011,6 +1016,8 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .split-row { grid-template-columns: 1fr 1fr 35px; }
   .split-row--purchase, .split-row--remainder { grid-template-columns: 1fr; }
   .split-row--purchase > *, .split-row--remainder > * { grid-column: 1 / -1; grid-row: auto; }
+  .purchase-notes { grid-template-columns: 1fr; }
+  .split-row--purchase > .purchase-notes, .split-row--remainder > .purchase-notes { grid-column: 1 / -1; }
   .split-row__amount { grid-column: 1; grid-row: 1; }
   .split-row__sharing { grid-column: 2; grid-row: 1; }
   .split-row__category { grid-column: 1 / -1; grid-row: 2; }

@@ -284,7 +284,7 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
         </div> : editing ? <div className="reimbursement-change-form">
           <label>Importo corretto<div className="money-input"><span>€</span><input aria-label="Importo corretto" value={editAmount} inputMode="decimal" onChange={(event) => setEditAmount(event.target.value)} /></div></label>
           <label>Data corretta<input aria-label="Data corretta" type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} /></label>
-          {reimbursement.settlementMethod !== 'purchase' ? <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<select value={editAccountId} onChange={(event) => setEditAccountId(event.target.value)}>{selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}</select></label> : <small>Categoria, beneficiario e tag della spesa restano modificabili dal destinatario nello storico movimenti.</small>}
+          {reimbursement.settlementMethod !== 'purchase' ? <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}{selectableAccounts.length === 1 ? <output>{selectableAccounts[0].name}{selectableAccounts[0].scope === 'family' ? ' · Condiviso' : ''}</output> : <select value={editAccountId} onChange={(event) => setEditAccountId(event.target.value)}>{selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}</select>}</label> : <small>Categoria, beneficiario e tag della spesa restano modificabili dal destinatario nello storico movimenti.</small>}
         </div> : null}
         {changeError ? <small className="field-error" role="alert">{changeError}</small> : null}
       </div>
@@ -304,15 +304,15 @@ export function ReimbursementReview({ reimbursement, data, user, members, onResp
   return <article className="reimbursement-review reimbursement-review--action">
     <span><Scale /></span>
     <div><strong>{author?.name ?? 'Un membro'} ha registrato un rimborso di {formatMoney(reimbursement.amount)}</strong><small>Verifica il conto che ti appartiene prima di confermare.</small>
-      <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
+      {selectableAccounts.length === 1 ? <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<output>{selectableAccounts[0].name}{selectableAccounts[0].scope === 'family' ? ' · Condiviso' : ''}</output></label> : selectableAccounts.length > 1 ? <label>{ownsSource ? 'Il tuo conto di origine' : 'Il tuo conto di destinazione'}<select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)}>
         <option value="">Seleziona un conto</option>
         {selectableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.scope === 'family' ? ' · Condiviso' : ''}</option>)}
-      </select></label>
+      </select></label> : <p className="field-explanation">Crea un conto personale per confermare il rimborso.</p>}
       {responseError ? <small className="field-error" role="alert">{responseError}</small> : null}
     </div>
     <div className="reimbursement-review__actions">
       <button type="button" className="button button--ghost" disabled={busy} onClick={() => void respond(false)}><X /> Rifiuta</button>
-      <button type="button" className="button button--primary" disabled={busy || !selectedAccountId} onClick={() => void respond(true)}><Check /> Conferma</button>
+      {selectableAccounts.length ? <button type="button" className="button button--primary" disabled={busy || !selectedAccountId} onClick={() => void respond(true)}><Check /> Conferma</button> : null}
     </div>
   </article>
 }

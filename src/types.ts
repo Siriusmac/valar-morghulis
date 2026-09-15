@@ -66,6 +66,8 @@ export interface MovementSplit {
   id: string
   amount: number
   categoryId: string
+  description?: string
+  comments?: string
   beneficiaryId?: string
   tagId?: string
   tagIds?: string[]

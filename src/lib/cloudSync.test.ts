@@ -3,8 +3,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict,
-  markCloudSavePending, readPendingCloudSave, recordCloudSaveFailure,
+  markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline,
 } from './cloudSync'
+import { createStarterData } from './seed'
 
 describe('persistent cloud sync state', () => {
   beforeEach(() => localStorage.clear())
@@ -27,6 +28,23 @@ describe('persistent cloud sync state', () => {
     expect(cloudSaveRetryDelay(1)).toBe(1_000)
     expect(cloudSaveRetryDelay(2)).toBe(2_000)
     expect(cloudSaveRetryDelay(20)).toBe(30_000)
+  })
+
+  it('conserva una base sincronizzata separata per risolvere i conflitti tra dispositivi', () => {
+    const data = createStarterData('user-1', [])
+    data.movements = [{
+      id: 'movement-1', type: 'expense', authorId: 'user-1', memberId: 'user-1', amount: 12,
+      date: '2026-09-15', description: 'Pranzo', categoryId: 'alimentari', accountId: 'user-1-cash',
+      shared: false, createdAt: '2026-09-15T10:00:00.000Z',
+    }, {
+      id: 'movement-other', type: 'expense', authorId: 'user-2', memberId: 'user-2', amount: 8,
+      date: '2026-09-15', description: 'Altro', categoryId: 'alimentari', accountId: 'user-2-cash',
+      shared: true, createdAt: '2026-09-15T11:00:00.000Z',
+    }]
+
+    writeCloudSyncBaseline('workspace', data, 'user-1')
+
+    expect(readCloudSyncBaseline('workspace')?.movements.map((item) => item.id)).toEqual(['movement-1'])
   })
 
   it('recognizes revision conflicts returned by Postgres', () => {

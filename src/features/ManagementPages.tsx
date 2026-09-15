@@ -11,6 +11,7 @@ import type { Account, AppData, Beneficiary, Category, Movement, MovementType, R
 interface BaseProps {
   data: AppData
   user: User
+  personalOnly?: boolean
   onShowMovements: (
     title: string,
     filter: (movement: AppData['movements'][number]) => boolean,
@@ -97,39 +98,40 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onDelete, onShowMove
   const confirmAccountDeletion = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!deletingAccount) return
-    if (deletionMode === 'reassign' && !replacementAccountId) {
+    const effectiveMode: AccountDeletionMode = linkedOperationCount === 0 ? 'delete' : hasReciprocalOperations ? 'keep' : deletionMode
+    if (effectiveMode === 'reassign' && !replacementAccountId) {
       setDeletionError('Scegli il conto al quale ricondurre i movimenti.')
       return
     }
-    if (deletionMode === 'reassign' && accountReplacementCreatesInvalidTransfer(data, deletingAccount.id, replacementAccountId)) {
+    if (effectiveMode === 'reassign' && accountReplacementCreatesInvalidTransfer(data, deletingAccount.id, replacementAccountId)) {
       setDeletionError('Questo conto è la controparte di un giro fondi collegato. Scegli un altro conto per evitare un trasferimento verso lo stesso conto.')
       return
     }
-    if (deletionMode !== 'keep' && accountHasReciprocalOperations(data, deletingAccount.id)) {
+    if (effectiveMode !== 'keep' && accountHasReciprocalOperations(data, deletingAccount.id)) {
       setDeletionError('Questo conto è collegato a rimborsi, prestiti o acquisti per un’altra persona. Per non modificare unilateralmente operazioni reciproche, mantieni lo storico oppure rettifica prima quelle operazioni.')
       return
     }
     setDeletionBusy(true); setDeletionError('')
     try {
-      await onDelete(deletingAccount, deletionMode, deletionMode === 'reassign' ? replacementAccountId : undefined)
+      await onDelete(deletingAccount, effectiveMode, effectiveMode === 'reassign' ? replacementAccountId : undefined)
       setDeletingAccountId(''); setDeletionMode('keep'); setReplacementAccountId('')
     } catch (reason) {
       setDeletionError(reason instanceof Error ? reason.message : 'Non è stato possibile eliminare il conto.')
     } finally { setDeletionBusy(false) }
   }
   return <div className="page accounts-page"><div className="page-heading accounts-heading"><div><h1>Conti</h1><p>Conti personali, condivisi e disponibilità liquide.</p></div><div className="heading-actions"><button className="button button--primary" onClick={() => setShowForm(true)}><Plus />Aggiungi conto</button></div></div>
-    {showForm ? <InlineForm title="Nuovo conto" submitLabel={formBusy ? 'Creazione…' : 'Crea conto'} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>{type === 'cash' ? 'Dettaglio' : 'Istituto'}<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => { const next = e.target.value as Account['type']; setType(next); if (next === 'welfare') setScope('personal') }}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option><option value="welfare">Wellfare</option></select></label><label>Visibilità<select value={scope} disabled={type === 'welfare'} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option>{families.length ? <option value="family">Condiviso con una famiglia</option> : null}</select>{type === 'welfare' ? <small>Le tessere e i buoni aziendali restano personali.</small> : null}</label>{scope === 'family' ? <label>Famiglia<select aria-label="Famiglia del conto" value={targetFamilyId} onChange={(event) => setTargetFamilyId(event.target.value)} required>{families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}</select></label> : null}<label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label>{formError ? <p className="form-message form-message--error" role="alert">{formError}</p> : null}</InlineForm> : null}
-    {editingAccountId ? <InlineForm title="Modifica conto" submitLabel="Salva modifiche" onSubmit={updateAccountDetails} onCancel={() => setEditingAccountId('')}><label>Nome conto<input value={editingName} onChange={(e) => setEditingName(e.target.value)} autoFocus required /></label><label>{editingType === 'cash' ? 'Dettaglio' : 'Istituto'}<input value={editingInstitution} onChange={(e) => setEditingInstitution(e.target.value)} /></label><label>Tipo<select value={editingType} onChange={(e) => setEditingType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option><option value="welfare" disabled={data.accounts.find((item) => item.id === editingAccountId)?.scope === 'family'}>Wellfare</option></select></label><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
+    {showForm ? <InlineForm title="Nuovo conto" submitLabel={formBusy ? 'Creazione…' : 'Crea conto'} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome conto<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Conto principale" autoFocus /></label><label>{type === 'cash' ? 'Dettaglio' : 'Istituto'}<input value={institution} onChange={(e) => setInstitution(e.target.value)} /></label><label>Tipo<select value={type} onChange={(e) => { const next = e.target.value as Account['type']; setType(next); if (next === 'welfare') setScope('personal') }}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option><option value="welfare">Wellfare</option></select></label>{type === 'welfare' ? <label>Visibilità<output>Personale</output><small>Le tessere e i buoni aziendali restano personali.</small></label> : <label>Visibilità<select value={scope} onChange={(e) => setScope(e.target.value as Account['scope'])}><option value="personal">Personale</option>{families.length ? <option value="family">Condiviso con una famiglia</option> : null}</select></label>}{scope === 'family' ? <label>Famiglia{families.length === 1 ? <output>{families[0].name}</output> : <select aria-label="Famiglia del conto" value={targetFamilyId} onChange={(event) => setTargetFamilyId(event.target.value)} required>{families.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}</select>}</label> : null}<label>Saldo iniziale<input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0,00" /></label><label>Data del saldo iniziale<input type="date" value={balanceDate} onChange={(e) => setBalanceDate(e.target.value)} required /></label>{formError ? <p className="form-message form-message--error" role="alert">{formError}</p> : null}</InlineForm> : null}
+    {editingAccountId ? <InlineForm title="Modifica conto" submitLabel="Salva modifiche" onSubmit={updateAccountDetails} onCancel={() => setEditingAccountId('')}><label>Nome conto<input value={editingName} onChange={(e) => setEditingName(e.target.value)} autoFocus required /></label><label>{editingType === 'cash' ? 'Dettaglio' : 'Istituto'}<input value={editingInstitution} onChange={(e) => setEditingInstitution(e.target.value)} /></label><label>Tipo<select value={editingType} onChange={(e) => setEditingType(e.target.value as Account['type'])}><option value="bank">Conto bancario</option><option value="credit">Carta di credito</option><option value="cash">Contanti</option><option value="paypal">PayPal</option>{data.accounts.find((item) => item.id === editingAccountId)?.scope !== 'family' ? <option value="welfare">Wellfare</option> : null}</select></label><label>Saldo iniziale<input inputMode="decimal" value={editingBalance} onChange={(e) => setEditingBalance(e.target.value)} required /></label><label>Data di riferimento<input type="date" value={editingBalanceDate} onChange={(e) => setEditingBalanceDate(e.target.value)} required /></label><p className="field-explanation">I movimenti precedenti a questa data possono restare solo nelle statistiche, senza modificare il saldo calcolato.</p></InlineForm> : null}
     {deletingAccount ? <form className="account-delete-form" onSubmit={(event) => void confirmAccountDeletion(event)}>
       <div><strong>Elimina {deletingAccount.name}</strong><p>{linkedOperationCount ? `${linkedOperationCount} operazioni sono collegate a questo conto.` : 'Nessuna operazione è collegata a questo conto.'}</p></div>
-      <fieldset><legend>Come gestire i movimenti</legend>
+      {linkedOperationCount > 0 && !hasReciprocalOperations ? <fieldset><legend>Come gestire i movimenti</legend>
         <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'keep'} onChange={() => { setDeletionMode('keep'); setDeletionError('') }} /> Mantieni i movimenti nello storico</label>
-        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'delete'} disabled={hasReciprocalOperations} onChange={() => { setDeletionMode('delete'); setDeletionError('') }} /> Elimina tutti i movimenti collegati</label>
-        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'reassign'} disabled={!replacementAccounts.length || hasReciprocalOperations} onChange={() => { setDeletionMode('reassign'); setDeletionError('') }} /> Riconduci i movimenti a un altro conto</label>
-      </fieldset>
+        <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'delete'} onChange={() => { setDeletionMode('delete'); setDeletionError('') }} /> Elimina tutti i movimenti collegati</label>
+        {replacementAccounts.length ? <label><input type="radio" name="account-deletion-mode" checked={deletionMode === 'reassign'} onChange={() => { setDeletionMode('reassign'); setDeletionError('') }} /> Riconduci i movimenti a un altro conto</label> : null}
+      </fieldset> : null}
       {hasReciprocalOperations ? <p className="field-explanation">Il conto partecipa a operazioni reciproche: può essere eliminato conservandole nello storico, oppure dopo averle rettificate dalla sezione Rimborsi e prestiti.</p> : null}
       {deletionMode === 'reassign' ? <label>Conto di destinazione<select aria-label="Conto al quale ricondurre i movimenti" value={replacementAccountId} onChange={(event) => { setReplacementAccountId(event.target.value); setDeletionError('') }} required><option value="">Scegli un conto</option>{replacementAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label> : null}
-      <p className="field-explanation">{deletionMode === 'keep' ? 'Le operazioni restano consultabili negli altri elenchi con l’indicazione “Conto eliminato”.' : deletionMode === 'delete' ? 'Verranno eliminati anche rate, giro fondi e altre registrazioni contabili che usano questo conto.' : 'Le operazioni manterranno importi e date, ma useranno il nuovo conto per saldi e storico.'}</p>
+      <p className="field-explanation">{linkedOperationCount === 0 ? 'Il conto non contiene operazioni e verrà eliminato direttamente.' : hasReciprocalOperations ? 'Le operazioni resteranno consultabili negli altri elenchi con l’indicazione “Conto eliminato”.' : deletionMode === 'keep' ? 'Le operazioni restano consultabili negli altri elenchi con l’indicazione “Conto eliminato”.' : deletionMode === 'delete' ? 'Verranno eliminati anche rate, giro fondi e altre registrazioni contabili che usano questo conto.' : 'Le operazioni manterranno importi e date, ma useranno il nuovo conto per saldi e storico.'}</p>
       {deletionError ? <p className="form-message form-message--error" role="alert">{deletionError}</p> : null}
       <div className="account-delete-form__actions"><button type="button" className="button button--ghost" disabled={deletionBusy} onClick={() => { setDeletingAccountId(''); setDeletionMode('keep'); setReplacementAccountId(''); setDeletionError('') }}>Annulla</button><button type="submit" className="button button--danger" disabled={deletionBusy}>{deletionBusy ? 'Eliminazione…' : 'Elimina conto'}</button></div>
     </form> : null}
@@ -138,7 +140,8 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onDelete, onShowMove
     <div className="management-list">{accounts.map((account) => {
       const selectedFamilyIds = reimbursementSharing?.references.filter((item) => item.ownerId === user.id && item.accountId === account.id).map((item) => item.familyId) ?? []
       const sharedFamilyName = families.find((family) => family.id === activeFamilyId)?.name
-      return <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div className="management-row__info"><strong>{account.name}{selectedFamilyIds.length ? <Eye aria-label="Visibile per i rimborsi" /> : null}</strong><small>{account.institution} · {account.type === 'welfare' ? 'Wellfare · ' : ''}{account.scope === 'family' ? `Condiviso con ${sharedFamilyName ?? 'la famiglia'}` : 'Personale'}</small><small>Saldo iniziale {formatMoney(account.openingBalance)}{account.openingBalanceDate ? ` · ${formatDate(account.openingBalanceDate)}` : ''}</small>{account.scope === 'personal' && reimbursementSharing ? <fieldset className="account-family-sharing"><legend>Visibile per i rimborsi in</legend>{families.map((family) => {
+      const canManage = account.scope !== 'family' || canDeleteFamilyAccounts
+      return <article className="management-row" key={account.id}><span className="management-row__icon">{account.type === 'bank' ? <Landmark /> : account.type === 'credit' || account.type === 'paypal' ? <CreditCard /> : <WalletCards />}</span><div className="management-row__info"><strong>{account.name}{selectedFamilyIds.length ? <Eye aria-label="Visibile per i rimborsi" /> : null}</strong><small>{account.institution} · {account.type === 'welfare' ? 'Wellfare · ' : ''}{account.scope === 'family' ? `Condiviso con ${sharedFamilyName ?? 'la famiglia'}` : 'Personale'}</small><small>Saldo iniziale {formatMoney(account.openingBalance)}{account.openingBalanceDate ? ` · ${formatDate(account.openingBalanceDate)}` : ''}</small>{account.scope === 'personal' && reimbursementSharing && families.length ? <fieldset className="account-family-sharing"><legend>Visibile per i rimborsi in</legend>{families.map((family) => {
         return <label key={family.id} className="account-sharing-toggle"><input type="checkbox" checked={selectedFamilyIds.includes(family.id)} disabled={sharingAccountId === account.id} onChange={(event) => {
           const nextFamilyIds = event.target.checked ? [...selectedFamilyIds, family.id] : selectedFamilyIds.filter((familyId) => familyId !== family.id)
           setSharingAccountId(account.id)
@@ -147,19 +150,19 @@ export function AccountsPage({ data, user, onAdd, onUpdate, onDelete, onShowMove
             .catch((reason) => setSharingError(reason instanceof Error ? reason.message : 'Non è stato possibile aggiornare la visibilità del conto.'))
             .finally(() => setSharingAccountId(''))
         }} /> {family.name}</label>
-      })}</fieldset> : null}</div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div><div className="management-row__actions"><ActionMenu label={`Azioni per ${account.name}`} items={[{ label: 'Modifica conto', disabled: account.scope === 'family' && !canDeleteFamilyAccounts, onSelect: () => startEditing(account) }, { label: 'Elimina conto', danger: true, disabled: deletionBusy || (account.scope === 'family' && !canDeleteFamilyAccounts), onSelect: () => { setDeletingAccountId(account.id); setDeletionMode('keep'); setReplacementAccountId(''); setDeletionError(''); setEditingAccountId('') } }]} /><button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${account.name}`} onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id || movement.welfareAccountId === account.id, undefined, account.id)}><ChevronRight /></button></div></article>
+      })}</fieldset> : null}</div><div className="management-row__value"><small>Saldo calcolato</small><b className={accountBalance(data, account.id) < 0 ? 'negative-text' : ''}>{formatMoney(accountBalance(data, account.id))}</b></div><div className="management-row__actions">{canManage ? <ActionMenu label={`Azioni per ${account.name}`} items={[{ label: 'Modifica conto', onSelect: () => startEditing(account) }, { label: 'Elimina conto', danger: true, disabled: deletionBusy, onSelect: () => { setDeletingAccountId(account.id); setDeletionMode('keep'); setReplacementAccountId(''); setDeletionError(''); setEditingAccountId('') } }]} /> : null}<button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${account.name}`} onClick={() => onShowMovements(`Movimenti · ${account.name}`, (movement) => movement.accountId === account.id || movement.welfareAccountId === account.id, undefined, account.id)}><ChevronRight /></button></div></article>
     })}</div>
   </div>
 }
 
-export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMovements }: BaseProps & {
+export function CategoriesPage({ data, user, personalOnly = false, onAdd, onUpdate, onDelete, onShowMovements }: BaseProps & {
   onAdd: (category: Category) => void
   onUpdate: (category: Category) => void
   onDelete: (categoryId: string, replacementId?: string) => void
 }) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [scope, setScope] = useState<'family' | 'personal'>('family')
+  const [scope, setScope] = useState<'family' | 'personal'>(personalOnly ? 'personal' : 'family')
   const [movementType, setMovementType] = useState<MovementType>('expense')
   const [editingId, setEditingId] = useState('')
   const [editingName, setEditingName] = useState('')
@@ -168,7 +171,7 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
   const [replacementQuery, setReplacementQuery] = useState('')
   const [budgetId, setBudgetId] = useState('')
   const [budgetAmount, setBudgetAmount] = useState('')
-  const categories = data.categories.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
+  const categories = data.categories.filter((item) => (!personalOnly && item.scope === 'family') || item.ownerId === user.id).toSorted(byName)
   const unassignedMovements = visibleMovements(data, user.id).filter((movement) =>
     movementAllocations(movement).some((allocation) => !allocation.categoryId))
   const deletingItem = categories.find((item) => item.id === deletingId)
@@ -211,10 +214,10 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
     (transfer) => transfer.feeAmount ?? 0,
   )
   return <DirectoryPage title="Categorie" subtitle="Categorie distinte per spese ed entrate." addLabel="Nuova categoria" showForm={showForm} setShowForm={setShowForm}>
-    {showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(event) => setMovementType(event.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
+    {showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(event) => setMovementType(event.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
     {deletingItem ? <form className="directory-delete-form" onSubmit={(event) => { event.preventDefault(); const match = replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === replacementQuery.trim().toLocaleLowerCase('it-IT')); const created = replacementQuery.trim() && !match ? { id: makeId('category'), name: replacementQuery.trim(), scope: deletingItem.scope, ownerId: deletingItem.scope === 'personal' ? user.id : undefined, movementType: deletingItem.movementType, color: deletingItem.color } : undefined; if (created) onAdd(created); onDelete(deletingItem.id, (created?.id ?? match?.id ?? replacementId) || undefined); setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>
       <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa categoria.` : 'Questa categoria non è utilizzata.'}</p></div>
-      <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder="Senza categoria" onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} />
+      {affectedCount ? <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder="Senza categoria" onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /> : null}
       <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}
     {budgetItem ? <form className="directory-budget-form" onSubmit={saveBudget}><div><strong>Budget mensile · {budgetItem.name}</strong><p>{budgetItem.scope === 'family' ? 'Concorrono i tuoi movimenti nella categoria e quelli condivisi di tutta la famiglia.' : 'Concorrono soltanto i tuoi movimenti personali.'}</p></div><label>Importo mensile<div className="money-input"><span>€</span><input aria-label={`Budget mensile ${budgetItem.name}`} inputMode="decimal" value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} autoFocus /></div></label><div>{budgetItem.monthlyBudget ? <button type="button" className="button button--ghost button--danger" onClick={() => { onUpdate({ ...budgetItem, monthlyBudget: undefined, budgetCarryovers: undefined }); setBudgetId(''); setBudgetAmount('') }}>Rimuovi budget</button> : null}<button type="button" className="button button--ghost" onClick={() => { setBudgetId(''); setBudgetAmount('') }}>Annulla</button><button className="button button--primary" type="submit">Salva budget</button></div></form> : null}
@@ -227,7 +230,7 @@ export function CategoriesPage({ data, user, onAdd, onUpdate, onDelete, onShowMo
 }
 
 export function BeneficiariesPage({
-  data, user, onAddBeneficiary, onUpdateBeneficiary, onDeleteBeneficiary,
+  data, user, personalOnly = false, onAddBeneficiary, onUpdateBeneficiary, onDeleteBeneficiary,
   onAddSender, onUpdateSender, onDeleteSender, onShowMovements,
 }: BaseProps & {
   onAddBeneficiary: (beneficiary: Beneficiary) => void
@@ -238,13 +241,13 @@ export function BeneficiariesPage({
   onDeleteSender: (senderId: string, replacementId?: string) => void
 }) {
   const [section, setSection] = useState<'beneficiaries' | 'senders'>('beneficiaries')
-  const [showForm, setShowForm] = useState(false); const [name, setName] = useState(''); const [scope, setScope] = useState<'family' | 'personal'>('family')
+  const [showForm, setShowForm] = useState(false); const [name, setName] = useState(''); const [scope, setScope] = useState<'family' | 'personal'>(personalOnly ? 'personal' : 'family')
   const [editingId, setEditingId] = useState(''); const [editingName, setEditingName] = useState('')
   const [deletingId, setDeletingId] = useState('')
   const [replacementId, setReplacementId] = useState('')
   const [replacementQuery, setReplacementQuery] = useState('')
-  const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && (item.scope === 'family' || item.ownerId === user.id)).toSorted(byName)
-  const senders = data.senders.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
+  const beneficiaries = data.beneficiaries.filter((item) => !item.id.startsWith('beneficiary-user-') && ((!personalOnly && item.scope === 'family') || item.ownerId === user.id)).toSorted(byName)
+  const senders = data.senders.filter((item) => (!personalOnly && item.scope === 'family') || item.ownerId === user.id).toSorted(byName)
   const items = section === 'beneficiaries' ? beneficiaries : senders
   const singular = section === 'beneficiaries' ? 'beneficiario' : 'mittente'
   const unassignedMovements = data.movements.filter((movement) => section === 'beneficiaries'
@@ -315,10 +318,10 @@ export function BeneficiariesPage({
       <button className={section === 'beneficiaries' ? 'active' : ''} onClick={() => changeSection('beneficiaries')}>Beneficiari</button>
       <button className={section === 'senders' ? 'active tab-income' : 'tab-income'} onClick={() => changeSection('senders')}>Mittenti</button>
     </div>
-    {showForm ? <InlineForm title={`Nuovo ${singular}`} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input aria-label={`Nome nuovo ${singular}`} value={name} onChange={(e) => setName(e.target.value)} placeholder={section === 'beneficiaries' ? 'Es. Lidl, Amazon' : 'Es. Datore di lavoro, INPS'} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
+    {showForm ? <InlineForm title={`Nuovo ${singular}`} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input aria-label={`Nome nuovo ${singular}`} value={name} onChange={(e) => setName(e.target.value)} placeholder={section === 'beneficiaries' ? 'Es. Lidl, Amazon' : 'Es. Datore di lavoro, INPS'} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
     {deletingItem ? <form className="directory-delete-form" onSubmit={confirmDeletion}>
       <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa anagrafica.` : 'Questa anagrafica non è utilizzata.'}</p></div>
-      <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder={section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'} onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} />
+      {affectedCount ? <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder={section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'} onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /> : null}
       <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}
     <div className="directory-grid">
@@ -328,7 +331,7 @@ export function BeneficiariesPage({
   </DirectoryPage>
 }
 
-export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveReport, onShowMovements }: BaseProps & {
+export function TagsPage({ data, user, personalOnly = false, onAdd, onUpdate, onAddReport, onRemoveReport, onShowMovements }: BaseProps & {
   onAdd: (tag: Tag) => void
   onUpdate: (tag: Tag) => void
   onAddReport: (tagId: string) => void
@@ -336,13 +339,13 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
 }) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [scope, setScope] = useState<'family' | 'personal'>('family')
+  const [scope, setScope] = useState<'family' | 'personal'>(personalOnly ? 'personal' : 'family')
   const [editingId, setEditingId] = useState('')
   const [editingName, setEditingName] = useState('')
   const [showReportForm, setShowReportForm] = useState(false)
   const [reportTagId, setReportTagId] = useState('')
   const [reportTagQuery, setReportTagQuery] = useState('')
-  const tags = data.tags.filter((item) => item.scope === 'family' || item.ownerId === user.id).toSorted(byName)
+  const tags = data.tags.filter((item) => (!personalOnly && item.scope === 'family') || item.ownerId === user.id).toSorted(byName)
   const visible = visibleMovements(data, user.id)
   const reportTags = data.tagReportIds.map((id) => tags.find((item) => item.id === id)).filter((item): item is Tag => Boolean(item))
   const availableReports = tags.filter((item) => !data.tagReportIds.includes(item.id))
@@ -377,7 +380,7 @@ export function TagsPage({ data, user, onAdd, onUpdate, onAddReport, onRemoveRep
     (movement) => movementAllocations(movement).filter((allocation) => allocation.tagIds.includes(tag.id)).reduce((sum, allocation) => sum + allocation.amount, 0),
   )
   return <DirectoryPage title="Tag" subtitle="Misura il costo o il risultato di progetti ed eventi." addLabel="Nuovo tag" showForm={showForm} setShowForm={setShowForm}>
-    {showForm ? <InlineForm title="Nuovo tag" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Vacanza a Parigi" autoFocus /></label><ScopeSelect value={scope} onChange={setScope} /></InlineForm> : null}
+    {showForm ? <InlineForm title="Nuovo tag" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Vacanza a Parigi" autoFocus /></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
     <div className="directory-grid">{tags.map((tag) => <article className="directory-selectable" key={tag.id} tabIndex={0} onClick={() => editingId !== tag.id && showTagMovements(tag)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && editingId !== tag.id) showTagMovements(tag) }}>
       <span className="directory-icon"><TagIcon /></span>
       <div>{editingId === tag.id ? <input aria-label={`Nome tag ${tag.name}`} className="directory-edit-input" value={editingName} onClick={(event) => event.stopPropagation()} onChange={(event) => setEditingName(event.target.value)} onKeyDown={(event) => { event.stopPropagation(); if (event.key === 'Enter') saveName(tag) }} autoFocus /> : <strong>{tag.name}</strong>}<small>{tag.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div>
@@ -402,4 +405,4 @@ function tagTotalsByCategory(data: AppData, movements: Movement[], tagId: string
 
 function DirectoryPage({ title, subtitle, addLabel, showForm, setShowForm, children }: { title: string; subtitle: string; addLabel: string; showForm: boolean; setShowForm: (value: boolean) => void; children: React.ReactNode }) { return <div className="page"><div className="page-heading"><div><h1>{title}</h1><p>{subtitle}</p></div><button className="button button--primary desktop-action" onClick={() => setShowForm(!showForm)}><Plus />{addLabel}</button></div>{children}</div> }
 function InlineForm({ title, submitLabel = 'Aggiungi', onSubmit, onCancel, children }: { title: string; submitLabel?: string; onSubmit: (event: React.FormEvent) => void; onCancel: () => void; children: React.ReactNode }) { return <form className="inline-form" onSubmit={onSubmit}><div><h2>{title}</h2><p>I campi restano modificabili in seguito.</p></div><div className="inline-form__fields">{children}</div><div className="inline-form__actions"><button type="button" className="button button--ghost" onClick={onCancel}>Annulla</button><button className="button button--primary" type="submit">{submitLabel === 'Aggiungi' ? <Plus /> : <Check />}{submitLabel}</button></div></form> }
-function ScopeSelect({ value, onChange }: { value: 'family' | 'personal'; onChange: (value: 'family' | 'personal') => void }) { return <label>Visibilità<select value={value} onChange={(e) => onChange(e.target.value as 'family' | 'personal')}><option value="family">Famiglia</option><option value="personal">Solo personale</option></select></label> }
+function ScopeSelect({ value, onChange, personalOnly = false }: { value: 'family' | 'personal'; onChange: (value: 'family' | 'personal') => void; personalOnly?: boolean }) { return personalOnly ? <label>Visibilità<output>Solo personale</output></label> : <label>Visibilità<select value={value} onChange={(e) => onChange(e.target.value as 'family' | 'personal')}><option value="family">Famiglia</option><option value="personal">Solo personale</option></select></label> }

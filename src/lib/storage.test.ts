@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createStarterData } from './seed'
-import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergePendingAppData } from './storage'
+import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergeConcurrentPendingAppData, mergePendingAppData } from './storage'
 import type { Account, Movement } from '../types'
 
 const sharedAccount: Account = {
@@ -144,5 +144,38 @@ describe('persistenza dei dati operativi', () => {
     const merged = mergePendingAppData(remote, local, fallback, 'user-1')
 
     expect(merged.scheduledPayments).toContainEqual(scheduledPayment)
+  })
+
+  it('fonde le modifiche concorrenti dello stesso utente senza cancellare i nuovi movimenti remoti', () => {
+    const fallback = createStarterData('user-1', [sharedAccount])
+    const baseMovement = { ...movement, description: 'Versione sincronizzata' }
+    const localMovement = { ...baseMovement, description: 'Modifica dal computer' }
+    const remoteMovement = { ...movement, id: 'movement-phone', description: 'Creato dallo smartphone' }
+    const baseline = { movements: [baseMovement], scheduledPayments: [], transfers: [] }
+
+    const merged = mergeConcurrentPendingAppData(
+      { ...fallback, movements: [baseMovement, remoteMovement] },
+      { ...fallback, movements: [localMovement] },
+      baseline,
+      fallback,
+      'user-1',
+    )
+
+    expect(merged.movements).toContainEqual(localMovement)
+    expect(merged.movements).toContainEqual(remoteMovement)
+  })
+
+  it('mantiene una cancellazione locale intenzionale durante una modifica concorrente', () => {
+    const fallback = createStarterData('user-1', [sharedAccount])
+    const baseline = { movements: [movement], scheduledPayments: [], transfers: [] }
+    const merged = mergeConcurrentPendingAppData(
+      { ...fallback, movements: [{ ...movement, description: 'Modificato altrove' }] },
+      { ...fallback, movements: [] },
+      baseline,
+      fallback,
+      'user-1',
+    )
+
+    expect(merged.movements).toEqual([])
   })
 })

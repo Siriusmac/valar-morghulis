@@ -123,7 +123,7 @@ function DefaultMovementAccountSettings({ data, user, personalOnly, defaultMovem
 
   return <section className="settings-card">
     <div className="settings-card__heading"><span><Landmark /></span><div><h2>Conto predefinito</h2><p>Viene preselezionato quando registri un nuovo movimento in questo spazio.</p></div></div>
-    {accounts.length ? <form className="settings-form" onSubmit={(event) => { event.preventDefault(); onSave(accountId) }}>
+    {accounts.length === 1 ? <div className="settings-form"><label>Conto per i nuovi movimenti<output>{accounts[0].name} · {accounts[0].institution}</output></label><p className="settings-card__note">È l’unico conto disponibile e viene usato automaticamente.</p></div> : accounts.length > 1 ? <form className="settings-form" onSubmit={(event) => { event.preventDefault(); onSave(accountId) }}>
       <label>Conto per i nuovi movimenti<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>
         {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.institution}</option>)}
       </select></label>

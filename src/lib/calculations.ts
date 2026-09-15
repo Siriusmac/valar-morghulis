@@ -2,6 +2,8 @@ import type { AppData, Category, FamilyMembershipSnapshot, Loan, Movement, Movem
 
 export interface MovementAllocation {
   categoryId: string
+  description?: string
+  comments?: string
   beneficiaryId?: string
   tagId?: string
   tagIds: string[]
@@ -17,6 +19,8 @@ function roundMoney(value: number) {
 interface AllocationSource {
   amount: number
   categoryId: string
+  description?: string
+  comments?: string
   beneficiaryId?: string
   tagId?: string
   tagIds?: string[]
@@ -41,6 +45,8 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
     .filter((item) => Number.isFinite(item.amount) && item.amount > 0)
     .map((item) => ({
       categoryId: item.categoryId,
+      description: item.description,
+      comments: item.comments,
       beneficiaryId: item.beneficiaryId,
       tagId: item.tagId,
       tagIds: movementTagIds(item),
@@ -53,6 +59,8 @@ export function movementAllocations(movement: AllocationSource): MovementAllocat
   const goodsAllocations = [
     ...(remainder > 0 ? [{
       categoryId: movement.categoryId,
+      description: movement.description,
+      comments: movement.comments,
       beneficiaryId: movement.beneficiaryId,
       tagId: movement.tagId,
       tagIds: movementTagIds(movement),
