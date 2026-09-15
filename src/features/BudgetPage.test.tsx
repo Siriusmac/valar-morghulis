@@ -18,7 +18,10 @@ describe('BudgetPage', () => {
     render(<BudgetPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onShowMovements={vi.fn()} />)
 
     const row = screen.getByText('Alimentari').closest('article')!
-    expect(within(row).getByText('40% utilizzato')).toBeTruthy()
+    const gauge = within(row).getByRole('meter', { name: 'Budget Alimentari' })
+    expect(gauge.getAttribute('aria-valuenow')).toBe('40')
+    expect(gauge.getAttribute('aria-valuetext')).toBe('40% utilizzato')
+    expect(within(gauge).getByText('40%')).toBeTruthy()
     expect(within(row).getByText('su 100,00 €')).toBeTruthy()
   })
 

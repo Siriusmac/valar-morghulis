@@ -67,7 +67,7 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
 
   return (
     <div className="page dashboard-page">
-      <div className="page-heading">
+      <div className={`page-heading${budgetAlerts.length ? ' page-heading--with-budget-alerts' : ''}`}>
         <div><h1>Ciao, {firstName(user.name)}</h1><p>{workspace?.personalMode ? 'Qui trovi la tua contabilità personale.' : 'Qui trovi il punto della situazione familiare.'}</p></div>
         <div className="dashboard-heading-actions">
           {workspace && workspace.families.length ? <label className="dashboard-family-selector">
