@@ -19,7 +19,8 @@ describe('Dashboard workspace selector', () => {
     render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onUpdateCategory={onUpdateCategory} />)
 
     expect(screen.getByText('Budget superato per Alimentari')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Scala 10,00/ }))
+    expect(screen.getByRole('meter', { name: 'Budget Alimentari' }).getAttribute('aria-valuetext')).toBe('110% utilizzato')
+    fireEvent.click(screen.getByRole('button', { name: 'Scala eccedenza' }))
     expect(onUpdateCategory).toHaveBeenCalledWith(expect.objectContaining({ budgetCarryovers: expect.objectContaining({}) }))
     expect(Object.values(onUpdateCategory.mock.calls[0][0].budgetCarryovers)).toContain(10)
   })
@@ -106,7 +107,7 @@ describe('Dashboard workspace selector', () => {
     expect(screen.getByRole('img', { name: /Simone: 42,00/ })).toBeTruthy()
   })
 
-  it('lets the counterparty choose their account and confirm a pending reimbursement', async () => {
+  it('shows actionable reimbursements first and opens the reimbursements page', () => {
     const data = structuredClone(defaultData)
     data.reimbursements = [{
       id: 'pending-reimbursement',
@@ -117,27 +118,27 @@ describe('Dashboard workspace selector', () => {
       authorId: users[1].id,
       status: 'pending',
     }]
-    const onRespond = vi.fn().mockResolvedValue(undefined)
-    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onRespondReimbursement={onRespond} />)
+    const onNavigate = vi.fn()
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={onNavigate} onReimburse={vi.fn()} />)
 
-    expect(screen.getByText(/ha registrato un rimborso di/)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Il tuo conto di origine'), { target: { value: 'simone-cash' } })
-    fireEvent.click(screen.getByRole('button', { name: /Conferma/ }))
+    expect(screen.getByRole('heading', { name: 'Notifiche' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Rimborso da confermare/ }))
 
-    await waitFor(() => expect(onRespond).toHaveBeenCalledWith('pending-reimbursement', true, 'simone-cash'))
+    expect(onNavigate).toHaveBeenCalledWith('reimbursements')
   })
 
-  it('explains an incomplete direct reimbursement instead of failing silently', async () => {
+  it('shows received purchases and issued purchase reimbursements that require confirmation', () => {
     const data = structuredClone(defaultData)
-    data.reimbursements = [{
-      id: 'pending-reimbursement', fromId: users[0].id, toId: users[1].id,
-      amount: 25, date: '2026-07-27', authorId: users[1].id, status: 'pending',
+    const purchases = [{
+      id: 'received-purchase', payerId: users[1].id, recipientId: users[0].id, payerMovementId: 'movement-1', amount: 42,
+      purchaseDate: '2026-07-27', description: 'Farmaci', status: 'pending' as const, createdAt: '2026-07-27T12:00:00Z',
+    }, {
+      id: 'received-reimbursement', payerId: users[0].id, recipientId: users[1].id, payerMovementId: 'movement-2', amount: 18,
+      purchaseDate: '2026-07-28', description: 'Cena', status: 'confirmed' as const, reimbursementStatus: 'pending' as const, createdAt: '2026-07-28T12:00:00Z',
     }]
-    const onRespond = vi.fn().mockRejectedValue({ message: 'reimbursement_accounts_required', code: 'P0001' })
-    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={vi.fn()} onReimburse={vi.fn()} onRespondReimbursement={onRespond} />)
+    render(<Dashboard data={data} user={users[0]} members={users} purchases={purchases} onNavigate={vi.fn()} onReimburse={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Conferma/ }))
-
-    expect((await screen.findByRole('alert')).textContent).toContain('Manca il conto')
+    expect(screen.getByRole('button', { name: /Acquisto ricevuto da confermare/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Rimborso ricevuto da confermare/ })).toBeTruthy()
   })
 })

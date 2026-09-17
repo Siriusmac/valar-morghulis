@@ -6,12 +6,17 @@ import { afterEach, vi } from 'vitest'
 import { CloudLogin, ContactInvitationDecision, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
 import { functionErrorMessage, invitationInvokeError } from '../lib/functionErrors'
 
-const { rpc, updateUser } = vi.hoisted(() => ({ rpc: vi.fn(), updateUser: vi.fn() }))
-vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { updateUser } }) }))
+const { resetPasswordForEmail, rpc, signInWithPassword, signUp, updateUser } = vi.hoisted(() => ({
+  resetPasswordForEmail: vi.fn(), rpc: vi.fn(), signInWithPassword: vi.fn(), signUp: vi.fn(), updateUser: vi.fn(),
+}))
+vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { resetPasswordForEmail, signInWithPassword, signUp, updateUser } }) }))
 
 afterEach(() => {
   cleanup()
   rpc.mockReset()
+  resetPasswordForEmail.mockReset()
+  signInWithPassword.mockReset()
+  signUp.mockReset()
   updateUser.mockReset()
 })
 
@@ -108,6 +113,36 @@ describe('InvitationPasswordSetup', () => {
 })
 
 describe('CloudLogin tabs', () => {
+  it('mostra email e password in due passaggi separati durante l’accesso', async () => {
+    signInWithPassword.mockResolvedValue({ error: null })
+    render(<CloudLogin />)
+
+    expect(screen.getByLabelText('Email')).toBeTruthy()
+    expect(screen.queryByLabelText('Password')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'simone@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+
+    const passwordField = screen.getByLabelText('Password')
+    expect(screen.queryByLabelText('Email')).toBeNull()
+    expect(screen.getByText('simone@example.com')).toBeTruthy()
+    expect(document.activeElement).toBe(passwordField)
+    expect(signInWithPassword).not.toHaveBeenCalled()
+
+    fireEvent.change(passwordField, { target: { value: 'password-sicura' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Accedi' }))
+    await waitFor(() => expect(signInWithPassword).toHaveBeenCalledWith({ email: 'simone@example.com', password: 'password-sicura' }))
+  })
+
+  it('permette di tornare alla modifica dell’email', () => {
+    render(<CloudLogin />)
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'simone@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica email' }))
+
+    expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('simone@example.com')
+    expect(screen.queryByLabelText('Password')).toBeNull()
+  })
+
   it('espone tablist, tab e pannello associato con lo stato selezionato', () => {
     render(<CloudLogin />)
     const loginTab = screen.getByRole('tab', { name: 'Accedi' })

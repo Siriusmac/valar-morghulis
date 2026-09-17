@@ -1,15 +1,17 @@
-import { ArrowDownLeft, ArrowRight, CalendarDays, Check, Clock3, Landmark, PenLine, ReceiptText, Scale, Trash2, UserRound, WalletCards, X } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowDownLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3, HandCoins, Landmark, PenLine, ReceiptText, Scale, ShoppingBag, Trash2, UserRound, WalletCards, X } from 'lucide-react'
+import { useState, type CSSProperties } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, categoryBudgetForMonth, categorySpentForMonth, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
 import { addMonthsISO, formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
-import type { AppData, Category, User, PageId, Reimbursement } from '../types'
+import type { AppData, Category, CommissionedPurchase, Contact, User, PageId, Reimbursement } from '../types'
 
 interface Props {
   data: AppData
   user: User
   members: User[]
+  contacts?: Contact[]
+  purchases?: CommissionedPurchase[]
   onNavigate: (page: PageId) => void
   onReimburse: () => void
   onUpdateCategory?: (category: Category) => void
@@ -26,7 +28,7 @@ function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name
 }
 
-export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpdateCategory, onRespondReimbursement, workspace }: Props) {
+export function Dashboard({ data, user, members, contacts = [], purchases = [], onNavigate, onReimburse, onUpdateCategory, workspace }: Props) {
   const todayMonth = todayISO().slice(0, 7)
   const [monthlyChartView, setMonthlyChartView] = useState<'daily' | 'members'>('daily')
   const [selectedMonth, setSelectedMonth] = useState(() => todayMonth)
@@ -52,10 +54,14 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
   const memberExpenseTotals = sharedExpensesByMember(data, members.map((member) => member.id), currentMonth)
   const memberExpenseMaximum = Math.max(...memberExpenseTotals.map((item) => item.total), 0)
   const membersMonthlyTotal = memberExpenseTotals.reduce((total, item) => total + item.total, 0)
-  const reimbursementUpdates = data.reimbursements.filter((item) =>
-    item.settlementMethod !== 'purchase'
-      && (item.status === 'pending' || item.status === 'rejected')
-      && (item.fromId === user.id || item.toId === user.id))
+  const reimbursementUpdates = data.reimbursements.filter((item) => item.settlementMethod !== 'purchase'
+    && item.status === 'pending'
+    && item.authorId !== user.id
+    && (item.fromId === user.id || item.toId === user.id))
+  const purchaseUpdates = purchases.filter((purchase) => purchase.status === 'pending' && purchase.recipientId === user.id)
+  const purchaseReimbursementUpdates = purchases.filter((purchase) => purchase.status === 'confirmed'
+    && purchase.payerId === user.id
+    && purchase.reimbursementStatus === 'pending')
   const budgetAlerts = data.categories.flatMap((category) => {
     const budget = categoryBudgetForMonth(category, currentMonth)
     if (category.movementType !== 'expense' || budget <= 0 || (workspace?.personalMode && category.scope === 'family')) return []
@@ -63,11 +69,12 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
     if (spent < budget * .9) return []
     return [{ category, budget, spent, exceeded: spent > budget, excess: Math.max(0, Math.round((spent - budget) * 100) / 100) }]
   })
+  const notificationCount = reimbursementUpdates.length + purchaseUpdates.length + purchaseReimbursementUpdates.length + budgetAlerts.length
   const nextBudgetMonth = addMonthsISO(`${currentMonth}-01`, 1).slice(0, 7)
 
   return (
     <div className="page dashboard-page">
-      <div className={`page-heading${budgetAlerts.length ? ' page-heading--with-budget-alerts' : ''}`}>
+      <div className={`page-heading${notificationCount ? ' page-heading--with-notifications' : ''}`}>
         <div><h1>Ciao, {firstName(user.name)}</h1><p>{workspace?.personalMode ? 'Qui trovi la tua contabilità personale.' : 'Qui trovi il punto della situazione familiare.'}</p></div>
         <div className="dashboard-heading-actions">
           {workspace && workspace.families.length ? <label className="dashboard-family-selector">
@@ -81,10 +88,36 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
         </div>
       </div>
 
-      {budgetAlerts.length ? <section className="budget-alerts" aria-label="Avvisi budget">{budgetAlerts.map(({ category, budget, spent, exceeded, excess }) => {
-        const alreadyCarried = (category.budgetCarryovers?.[nextBudgetMonth] ?? 0) === excess && excess > 0
-        return <article className={`budget-alert ${exceeded ? 'budget-alert--exceeded' : ''}`} key={category.id}><span><strong>{exceeded ? `Budget superato per ${category.name}` : `Stai per raggiungere il budget per ${category.name}`}</strong><small>{formatMoney(spent)} spesi su {formatMoney(budget)}{category.scope === 'family' ? ' · budget familiare' : ''}</small></span>{exceeded && onUpdateCategory ? <button type="button" className="button button--ghost button--small" disabled={alreadyCarried} onClick={() => onUpdateCategory({ ...category, budgetCarryovers: { ...(category.budgetCarryovers ?? {}), [nextBudgetMonth]: excess } })}>{alreadyCarried ? 'Eccedenza già scalata' : `Scala ${formatMoney(excess)} dal mese successivo`}</button> : null}</article>
-      })}</section> : null}
+      {notificationCount ? <section className="dashboard-notifications" aria-label="Notifiche">
+        <div className="dashboard-notifications__heading"><span><Bell /></span><div><h2>Notifiche</h2><p>Richieste da confermare e avvisi sui budget</p></div><strong>{notificationCount}</strong></div>
+        <div className="dashboard-notifications__grid">
+          {purchaseUpdates.map((purchase) => {
+            const payer = [...members, ...contacts].find((item) => item.id === purchase.payerId)
+            return <button type="button" className="dashboard-notification dashboard-notification--action" key={`purchase-${purchase.id}`} onClick={() => onNavigate('reimbursements')}>
+              <span className="dashboard-notification__icon"><ShoppingBag /></span><span><strong>Acquisto ricevuto da confermare</strong><small>{purchase.description} · {formatMoney(purchase.amount)}{payer ? ` · da ${payer.name}` : ''}</small></span><ChevronRight />
+            </button>
+          })}
+          {reimbursementUpdates.map((reimbursement) => {
+            const author = members.find((member) => member.id === reimbursement.authorId)
+            return <button type="button" className="dashboard-notification dashboard-notification--action" key={`reimbursement-${reimbursement.id}`} onClick={() => onNavigate('reimbursements')}>
+              <span className="dashboard-notification__icon"><HandCoins /></span><span><strong>Rimborso da confermare</strong><small>{formatMoney(reimbursement.amount)}{author ? ` · da ${author.name}` : ''}</small></span><ChevronRight />
+            </button>
+          })}
+          {purchaseReimbursementUpdates.map((purchase) => {
+            const recipient = [...members, ...contacts].find((item) => item.id === purchase.recipientId)
+            return <button type="button" className="dashboard-notification dashboard-notification--action" key={`purchase-reimbursement-${purchase.id}`} onClick={() => onNavigate('reimbursements')}>
+              <span className="dashboard-notification__icon"><HandCoins /></span><span><strong>Rimborso ricevuto da confermare</strong><small>{formatMoney(purchase.amount)}{recipient ? ` · da ${recipient.name}` : ''}</small></span><ChevronRight />
+            </button>
+          })}
+          {budgetAlerts.map(({ category, budget, spent, exceeded, excess }) => {
+            const percentage = budget > 0 ? Math.round((spent / budget) * 100) : 0
+            const alreadyCarried = (category.budgetCarryovers?.[nextBudgetMonth] ?? 0) === excess && excess > 0
+            return <article className={`dashboard-notification dashboard-notification--budget ${exceeded ? 'dashboard-notification--exceeded' : ''}`} key={`budget-${category.id}`}>
+              <BudgetAlertDonut categoryName={category.name} percentage={percentage} /><span><strong>{exceeded ? `Budget superato per ${category.name}` : `Stai per raggiungere il budget per ${category.name}`}</strong><small>{formatMoney(spent)} su {formatMoney(budget)}{category.scope === 'family' ? ' · familiare' : ''}</small></span>{exceeded && onUpdateCategory ? <button type="button" className="text-button" disabled={alreadyCarried} onClick={() => onUpdateCategory({ ...category, budgetCarryovers: { ...(category.budgetCarryovers ?? {}), [nextBudgetMonth]: excess } })}>{alreadyCarried ? 'Già scalata' : 'Scala eccedenza'}</button> : null}
+            </article>
+          })}
+        </div>
+      </section> : null}
 
       {workspace?.personalMode ? <section className="personal-workspace-card">
         <span><UserRound /></span><div><h2>Contabilità personale</h2><p>I movimenti di questa vista sono privati. Seleziona una famiglia qui sopra quando vuoi consultare saldi e spese condivise.</p></div>
@@ -162,20 +195,6 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
         </div>
       </section> : null}
 
-      {!workspace?.personalMode && reimbursementUpdates.length ? <section className="dashboard-section">
-        <div className="section-title-row"><div><h2>Rimborsi da verificare</h2><p>Un rimborso modifica i saldi soltanto dopo la conferma della controparte</p></div></div>
-        <div className="reimbursement-review-list">
-          {reimbursementUpdates.map((reimbursement) => <ReimbursementReview
-            key={reimbursement.id}
-            reimbursement={reimbursement}
-            data={data}
-            user={user}
-            members={members}
-            onRespond={onRespondReimbursement}
-          />)}
-        </div>
-      </section> : null}
-
       <section className="dashboard-section">
         <div className="section-title-row"><div><h2>I tuoi conti</h2><p>Il saldo include tutti i movimenti</p></div><button className="text-button" onClick={() => onNavigate('accounts')}>Gestisci <ArrowRight /></button></div>
         <div className="account-rail">
@@ -190,6 +209,20 @@ export function Dashboard({ data, user, members, onNavigate, onReimburse, onUpda
       </section>
     </div>
   )
+}
+
+function BudgetAlertDonut({ categoryName, percentage }: { categoryName: string; percentage: number }) {
+  const visualPercentage = Math.min(Math.max(percentage, 0), 100)
+  return <span
+    className={`budget-alert-donut ${percentage > 100 ? 'budget-alert-donut--exceeded' : ''}`}
+    role="meter"
+    aria-label={`Budget ${categoryName}`}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={visualPercentage}
+    aria-valuetext={`${percentage}% utilizzato`}
+    style={{ '--budget-percentage': `${visualPercentage * 3.6}deg` } as CSSProperties}
+  ><strong>{percentage}%</strong></span>
 }
 
 export function ReimbursementReview({ reimbursement, data, user, members, onRespond, onRequestChange, onRespondChange, onWithdrawChange }: {

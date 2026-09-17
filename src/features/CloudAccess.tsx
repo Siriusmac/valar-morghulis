@@ -129,6 +129,7 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
 export function CloudLogin() {
   const supabase = getSupabase()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [loginStep, setLoginStep] = useState<'email' | 'password'>('email')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -143,14 +144,19 @@ export function CloudLogin() {
     // Il browser Tesla non sempre ridimensiona la viewport quando apre la tastiera.
     // Ripetiamo lo scorrimento dopo l'animazione della tastiera senza dipendere
     // dai suoi pulsanti precedente/successivo, che non emettono sempre eventi web.
-    for (const delay of [0, 250, 600]) window.setTimeout(() => element.scrollIntoView({ block: 'center', behavior: delay ? 'smooth' : 'auto' }), delay)
+    for (const delay of [0, 250, 600]) window.setTimeout(() => element.scrollIntoView?.({ block: 'center', behavior: delay ? 'smooth' : 'auto' }), delay)
   }
 
   const selectMode = (nextMode: 'login' | 'signup') => {
     setMode(nextMode)
+    setLoginStep('email')
     setError('')
     setMessage('')
   }
+
+  useEffect(() => {
+    if (mode === 'login' && loginStep === 'password') passwordInputRef.current?.focus()
+  }, [loginStep, mode])
 
   const navigateTabs = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -164,6 +170,12 @@ export function CloudLogin() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (mode === 'login' && loginStep === 'email') {
+      setError('')
+      setMessage('')
+      setLoginStep('password')
+      return
+    }
     setBusy(true); setError(''); setMessage('')
     if (mode === 'signup') {
       const fullName = `${firstName.trim()} ${lastName.trim()}`
@@ -208,13 +220,19 @@ export function CloudLogin() {
           <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
           <label>Cognome<input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" maxLength={60} required /></label>
         </> : null}
-        <label>Email<input ref={emailInputRef} type="email" value={email} onChange={(event) => setEmail(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === 'ArrowDown') { event.preventDefault(); passwordInputRef.current?.focus(); if (passwordInputRef.current) revealFocusedField(passwordInputRef.current) } }} autoComplete="email" enterKeyHint="next" required /></label>
-        <label>Password<input ref={passwordInputRef} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={(event) => { if (event.key === 'ArrowUp') { event.preventDefault(); emailInputRef.current?.focus() } }} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} enterKeyHint="go" minLength={8} required /></label>
+        {mode === 'login' && loginStep === 'password' ? <>
+          <div className="auth-login-identity"><span>Account</span><strong>{email.trim()}</strong><button type="button" className="text-button" onClick={() => { setLoginStep('email'); setPassword(''); setError(''); setMessage('') }}>Modifica email</button></div>
+          <label>Password<input ref={passwordInputRef} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} autoComplete="current-password" enterKeyHint="go" minLength={8} required /></label>
+        </> : <>
+          {mode === 'signup' ? null : <small className="auth-step-label">Passaggio 1 di 2</small>}
+          <label>Email<input ref={emailInputRef} type="email" value={email} onChange={(event) => setEmail(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={mode === 'signup' ? (event) => { if (event.key === 'Enter' || event.key === 'ArrowDown') { event.preventDefault(); passwordInputRef.current?.focus(); if (passwordInputRef.current) revealFocusedField(passwordInputRef.current) } } : undefined} autoComplete="email" enterKeyHint="next" required /></label>
+          {mode === 'signup' ? <label>Password<input ref={passwordInputRef} type="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={(event) => revealFocusedField(event.currentTarget)} onKeyDown={(event) => { if (event.key === 'ArrowUp') { event.preventDefault(); emailInputRef.current?.focus() } }} autoComplete="new-password" enterKeyHint="go" minLength={8} required /></label> : null}
+        </>}
         {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
         {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
-        <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
+        <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' || loginStep === 'email' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
       </form>
-      {mode === 'login' ? <button type="button" className="text-button auth-recovery" onClick={resetPassword}>Password dimenticata?</button> : null}
+      {mode === 'login' && loginStep === 'password' ? <button type="button" className="text-button auth-recovery" onClick={resetPassword}>Password dimenticata?</button> : null}
       </div>
       <small className="privacy-note"><LockKeyhole /> I dati personali sono protetti e non sono visibili agli altri utenti. Gli accessi tecnici eccezionali sono limitati a sicurezza e assistenza.</small>
     </div>
