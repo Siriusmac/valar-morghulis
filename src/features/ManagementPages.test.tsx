@@ -41,6 +41,17 @@ describe('Directory ordering', () => {
   })
 })
 
+describe('TagsPage', () => {
+  it('mostra i comandi dei riepiloghi prima dell’elenco dei tag', () => {
+    render(<TagsPage data={defaultData} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
+
+    const toolbar = screen.getByRole('heading', { name: 'Righe di riepilogo' }).closest('.tag-report-toolbar')!
+    const tagList = document.querySelector('.directory-grid')!
+
+    expect(toolbar.compareDocumentPosition(tagList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe('CategoriesPage', () => {
   it('include le commissioni dei giro fondi nel dettaglio della categoria', () => {
     const data = structuredClone(defaultData)
