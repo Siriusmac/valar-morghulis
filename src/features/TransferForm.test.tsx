@@ -49,6 +49,36 @@ describe('TransferForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 100, feeAmount: 1.75 }))
   })
 
+  it('mantiene disponibili le commissioni anche per carte e PayPal', () => {
+    const data = structuredClone(defaultData)
+    const onSubmit = vi.fn()
+    render(<TransferForm data={data} user={users[0]} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Dal conto'), { target: { value: 'simone-card' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('Spese bancarie'), { target: { value: '1,25' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma giro fondi' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ fromAccountId: 'simone-card', amount: 100, feeAmount: 1.25 }))
+
+    cleanup()
+    render(<TransferForm data={data} user={users[0]} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Dal conto'), { target: { value: 'simone-paypal' } })
+    expect(screen.getByLabelText('Spese bancarie')).toBeTruthy()
+  })
+
+  it('nasconde le commissioni soltanto per Contanti e Wellfare', () => {
+    const data = structuredClone(defaultData)
+    data.accounts.push({ id: 'simone-welfare', ownerId: users[0].id, name: 'Buoni pasto', institution: 'Azienda', type: 'welfare', scope: 'personal', openingBalance: 100 })
+    render(<TransferForm data={data} user={users[0]} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Dal conto'), { target: { value: 'simone-cash' } })
+    expect(screen.queryByLabelText('Spese bancarie')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Dal conto'), { target: { value: 'simone-welfare' } })
+    expect(screen.queryByLabelText('Spese bancarie')).toBeNull()
+  })
+
   it('richiede l’istituto mancante prima di salvare da un giro fondi bancario', async () => {
     const data = structuredClone(defaultData)
     const account = data.accounts.find((item) => item.id === 'simone-bank')!
