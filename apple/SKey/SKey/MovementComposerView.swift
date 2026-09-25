@@ -259,9 +259,13 @@ struct MovementComposerView: View {
                     }
                     .onChange(of: accountID) { _, _ in
                         usesSecondaryFunds = false; secondaryAmountText = ""
-                        secondaryAccountID = selectedAccount?.kind == .welfare
-                            ? options.accounts.first(where: { $0.familyID == nil && $0.kind != .welfare })?.id ?? ""
-                            : options.accounts.first(where: { $0.familyID == nil && $0.kind == .welfare })?.id ?? ""
+                        if selectedAccount?.kind == .welfare {
+                            secondaryAccountID = options.accounts.first(where: { $0.familyID == nil && $0.kind != .welfare })?.id ?? ""
+                        } else if selectedAccount?.kind == .paypal {
+                            secondaryAccountID = options.accounts.first(where: { $0.familyID == nil && $0.id != accountID })?.id ?? ""
+                        } else {
+                            secondaryAccountID = options.accounts.first(where: { $0.familyID == nil && $0.kind == .welfare })?.id ?? ""
+                        }
                         if selectedAccount?.kind != .bank { bankFeesEnabled = false; bankFeeAmountText = "" }
                         if selectedAccount?.kind == .cash || selectedAccount?.kind == .welfare { installmentsEnabled = false }
                         if type == .income { isShared = selectedAccount?.familyID != nil }
@@ -272,16 +276,18 @@ struct MovementComposerView: View {
                 if type == .expense, let account = selectedAccount,
                    (account.kind == .welfare
                     ? options.accounts.contains { $0.familyID == nil && $0.kind != .welfare }
+                    : account.kind == .paypal
+                        ? options.accounts.contains { $0.familyID == nil && $0.id != account.id }
                     : options.accounts.contains { $0.familyID == nil && $0.kind == .welfare }) {
-                    Toggle(account.kind == .welfare ? "Completa con altri fondi" : "Utilizza Wellfare", isOn: $usesSecondaryFunds)
+                    Toggle(account.kind == .welfare ? "Completa con altri fondi" : account.kind == .paypal ? "Utilizza conto collegato" : "Utilizza Wellfare", isOn: $usesSecondaryFunds)
                     if usesSecondaryFunds {
-                        Picker(account.kind == .welfare ? "Altro conto" : "Conto Wellfare", selection: $secondaryAccountID) {
+                        Picker(account.kind == .welfare ? "Altro conto" : account.kind == .paypal ? "Conto collegato" : "Conto Wellfare", selection: $secondaryAccountID) {
                             ForEach(options.accounts.filter { candidate in
                                 candidate.familyID == nil && candidate.id != account.id
-                                    && (account.kind == .welfare ? candidate.kind != .welfare : candidate.kind == .welfare)
+                                    && (account.kind == .welfare ? candidate.kind != .welfare : account.kind == .paypal || candidate.kind == .welfare)
                             }) { candidate in Text(candidate.name).tag(candidate.id) }
                         }
-                        TextField(account.kind == .welfare ? "Importo con altri fondi" : "Importo Wellfare", text: $secondaryAmountText)
+                        TextField(account.kind == .welfare ? "Importo con altri fondi" : account.kind == .paypal ? "Importo dal conto collegato" : "Importo Wellfare", text: $secondaryAmountText)
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif

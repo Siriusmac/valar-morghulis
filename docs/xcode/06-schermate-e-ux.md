@@ -25,9 +25,10 @@ Form progressivo:
 1. In creazione la prima schermata contiene soltanto quattro grandi tasti in una singola colonna, invariata su ogni layout, con spiegazione breve: Spesa, Entrata, Giro fondi e Paga alla romana. Dopo la scelta i tasti scompaiono e compare il modulo relativo. La web app usa una transizione animata; il client Apple cambia schermata senza animazioni dedicate. In modifica il tipo non è selezionabile e non compare il comando incoerente “Entrata”.
 2. Importo.
 3. Conto di origine/destinazione. Un conto Wellfare può completare con un altro
-   conto e viceversa; un conto bancario può aggiungere commissioni con tipo di
-   operazione e importo. “Pagamento a rate” compare solo per conti compatibili e
-   senza pagamento misto.
+   conto e viceversa; PayPal può usare una quota da un secondo conto personale,
+   escludendo il conto PayPal selezionato dalle alternative. Un conto bancario
+   può aggiungere commissioni con tipo di operazione e importo. “Pagamento a
+   rate” compare solo per conti compatibili e senza pagamento misto.
 4. Beneficiario o mittente, data, descrizione e commenti.
 5. Per le spese: acquisto unico o multiplo.
 6. “Tipo di acquisto” distingue “Acquisto unico” e “Acquisto multiplo”. Nel primo e in ogni riga del secondo, “Tipo di spesa” sceglie fra “Spesa personale”, “Spesa condivisa”, “Acquisto per conto di un’altra persona” e “Rimborso tramite acquisto”. La scelta della famiglia compare solo per “Spesa condivisa” e non contiene l’opzione personale.

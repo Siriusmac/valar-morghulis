@@ -139,10 +139,20 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     ? defaultAccountId
     : type === 'income' && !initial ? personalAccounts[0]?.id : availableAccounts[0]?.id
   const initialPrimaryAccountId = initial?.welfarePrimary ? initial.welfareAccountId : initial?.accountId
-  const [accountId, setAccountId] = useState(initialPrimaryAccountId ?? defaultAccount ?? '')
   const welfareAccounts = useMemo(() => personalAccounts.filter((item) => item.type === 'welfare'), [personalAccounts])
+  const initialSelectedAccountId = initialPrimaryAccountId ?? defaultAccount ?? ''
+  const initialSelectedAccount = data.accounts.find((item) => item.id === initialSelectedAccountId)
+  const [accountId, setAccountId] = useState(initialSelectedAccountId)
   const [useWelfare, setUseWelfare] = useState(Boolean(initial?.welfareAccountId && initial.welfareAmount))
-  const [welfareAccountId, setWelfareAccountId] = useState(initial?.welfarePrimary ? initial.accountId : initial?.welfareAccountId ?? welfareAccounts[0]?.id ?? '')
+  const [welfareAccountId, setWelfareAccountId] = useState(initial?.welfarePrimary
+    ? initial.accountId
+    : initial?.welfareAccountId
+      ?? (initialSelectedAccount?.type === 'paypal'
+        ? personalAccounts.find((item) => item.id !== initialSelectedAccountId)?.id
+        : initialSelectedAccount?.type === 'welfare'
+          ? personalAccounts.find((item) => item.type !== 'welfare')?.id
+          : welfareAccounts[0]?.id)
+      ?? '')
   const [welfareAmount, setWelfareAmount] = useState(initial?.welfarePrimary
     ? Math.max(0, initial.amount - (initial.welfareAmount ?? 0)).toString()
     : initial?.welfareAmount?.toString() ?? '')
@@ -205,6 +215,10 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
   const numericAmount = Number(amount.replace(',', '.')) || 0
   const enteredSecondaryAmount = Math.round((Number(welfareAmount.replace(',', '.')) || 0) * 100) / 100
   const welfareIsPrimary = selectedAccount?.type === 'welfare'
+  const paypalIsPrimary = selectedAccount?.type === 'paypal'
+  const secondaryFundingAccounts = personalAccounts.filter((item) => item.id !== accountId && (
+    welfareIsPrimary ? item.type !== 'welfare' : paypalIsPrimary ? true : item.type === 'welfare'
+  ))
   const numericWelfareAmount = useWelfare && type === 'expense'
     ? welfareIsPrimary ? Math.max(0, Math.round((numericAmount - enteredSecondaryAmount) * 100) / 100) : enteredSecondaryAmount
     : 0
@@ -409,6 +423,7 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
     setUseWelfare(false)
     setWelfareAmount('')
     if (nextAccount?.type === 'welfare') setWelfareAccountId(personalAccounts.find((item) => item.type !== 'welfare')?.id ?? '')
+    else if (nextAccount?.type === 'paypal') setWelfareAccountId(personalAccounts.find((item) => item.id !== nextAccountId)?.id ?? '')
     else setWelfareAccountId(welfareAccounts.find((item) => item.id !== nextAccountId)?.id ?? '')
     if (nextAccount?.type !== 'bank') { setBankFeesEnabled(false); setBankFeeAmount('') }
     if (!initialPlan && (nextAccount?.type === 'cash' || nextAccount?.type === 'welfare')) setInstallmentsEnabled(false)
@@ -711,9 +726,9 @@ export function MovementForm({ data, user, memberCount = 2, familyName = 'Famigl
       {submitted && (!numericAmount || numericAmount <= 0) ? <small>Inserisci un importo valido.</small> : null}
     </div>
     {isDebtCompensationMovement ? <label>Origine contabile<output>{debtCompensationAccountLabel}</output></label> : <label>{type === 'expense' ? 'Conto di addebito' : 'Conto di destinazione'}{displayedAccounts.length === 1 ? <output>{displayedAccounts[0].name}{displayedAccounts[0].scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</output> : <select value={accountId} onChange={(event) => selectAccount(event.target.value)}>{displayedAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.scope === 'family' ? ' · famiglia' : ` · ${user.name}`}</option>)}</select>}</label>}
-    {type === 'expense' && ((selectedAccount?.type === 'welfare' && personalAccounts.some((item) => item.type !== 'welfare')) || (selectedAccount?.type !== 'welfare' && welfareAccounts.length)) ? <section className={`welfare-box ${useWelfare ? 'welfare-box--active' : ''}`}>
-      <label className="welfare-toggle"><input type="checkbox" checked={useWelfare} onChange={(event) => { setUseWelfare(event.target.checked); if (event.target.checked && !initialPlan) setInstallmentsEnabled(false) }} /><span><strong>{welfareIsPrimary ? 'Completa con altri fondi' : 'Utilizza Wellfare'}</strong><small>{welfareIsPrimary ? 'Paga la parte restante con un altro conto.' : 'Paga una parte con una tessera o un buono aziendale.'}</small></span></label>
-      {useWelfare ? <div className="welfare-fields"><label>{welfareIsPrimary ? 'Altro conto' : 'Conto Wellfare'}<select value={welfareAccountId} onChange={(event) => setWelfareAccountId(event.target.value)}>{personalAccounts.filter((item) => welfareIsPrimary ? item.type !== 'welfare' && item.id !== accountId : item.type === 'welfare' && item.id !== accountId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{welfareIsPrimary ? 'Importo con altri fondi' : 'Importo Wellfare'}<div className="money-input"><span>€</span><input aria-label={welfareIsPrimary ? 'Importo con altri fondi' : 'Importo Wellfare'} inputMode="decimal" value={welfareAmount} onChange={(event) => setWelfareAmount(event.target.value)} placeholder="0,00" /></div><small>{welfareIsPrimary ? `€ ${numericWelfareAmount.toFixed(2).replace('.', ',')} saranno scalati dal conto Wellfare.` : `Il residuo di € ${primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato sul conto principale.`}</small></label>{submitted && welfareInvalid ? <small className="field-error">Scegli due conti diversi e inserisci una quota valida, inferiore al totale.</small> : null}</div> : null}
+    {type === 'expense' && secondaryFundingAccounts.length ? <section className={`welfare-box ${useWelfare ? 'welfare-box--active' : ''}`}>
+      <label className="welfare-toggle"><input type="checkbox" checked={useWelfare} onChange={(event) => { setUseWelfare(event.target.checked); if (event.target.checked && !initialPlan) setInstallmentsEnabled(false) }} /><span><strong>{welfareIsPrimary ? 'Completa con altri fondi' : paypalIsPrimary ? 'Utilizza conto collegato' : 'Utilizza Wellfare'}</strong><small>{welfareIsPrimary ? 'Paga la parte restante con un altro conto.' : paypalIsPrimary ? 'Paga una parte dell’importo con un altro conto personale.' : 'Paga una parte con una tessera o un buono aziendale.'}</small></span></label>
+      {useWelfare ? <div className="welfare-fields"><label>{welfareIsPrimary ? 'Altro conto' : paypalIsPrimary ? 'Conto collegato' : 'Conto Wellfare'}<select value={welfareAccountId} onChange={(event) => setWelfareAccountId(event.target.value)}>{secondaryFundingAccounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{welfareIsPrimary ? 'Importo con altri fondi' : paypalIsPrimary ? 'Importo dal conto collegato' : 'Importo Wellfare'}<div className="money-input"><span>€</span><input aria-label={welfareIsPrimary ? 'Importo con altri fondi' : paypalIsPrimary ? 'Importo dal conto collegato' : 'Importo Wellfare'} inputMode="decimal" value={welfareAmount} onChange={(event) => setWelfareAmount(event.target.value)} placeholder="0,00" /></div><small>{welfareIsPrimary ? `€ ${numericWelfareAmount.toFixed(2).replace('.', ',')} saranno scalati dal conto Wellfare.` : paypalIsPrimary ? `Il residuo di € ${primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato a ${selectedAccount.name}.` : `Il residuo di € ${primaryChargeTotal.toFixed(2).replace('.', ',')} sarà addebitato sul conto principale.`}</small></label>{submitted && welfareInvalid ? <small className="field-error">Scegli due conti diversi e inserisci una quota valida, inferiore al totale.</small> : null}</div> : null}
     </section> : null}
     {type === 'expense' && selectedAccount?.type === 'bank' ? <section className={`welfare-box ${bankFeesEnabled ? 'welfare-box--active' : ''}`}>
       <label className="welfare-toggle"><input type="checkbox" checked={bankFeesEnabled} onChange={(event) => setBankFeesEnabled(event.target.checked)} /><span><strong>Commissioni bancarie</strong><small>Registra separatamente il costo dell’operazione.</small></span></label>

@@ -104,6 +104,20 @@ struct SKeyTests {
     }
 
     @Test
+    func chargesPayPalAndItsLinkedAccountSeparately() throws {
+        let movementData = Data(
+            #"{"id":"mixed-paypal","type":"expense","authorId":"user","memberId":"user","amount":100,"date":"2026-09-25","description":"Pagamento PayPal","categoryId":"shopping","accountId":"paypal","welfareAccountId":"card","welfareAmount":40,"shared":false,"createdAt":"2026-09-25T10:00:00Z"}"#.utf8
+        )
+        let movement = try JSONDecoder().decode(LedgerMovement.self, from: movementData)
+        let paypal = AccountSummary(id: "paypal", familyID: nil, name: "PayPal", institution: "PayPal", kind: .paypal, openingBalance: 100, openingBalanceDate: nil)
+        let card = AccountSummary(id: "card", familyID: nil, name: "Carta", institution: "Banca", kind: .credit, openingBalance: 100, openingBalanceDate: nil)
+        let snapshot = ledgerSnapshot(accounts: [paypal, card], movements: [movement])
+
+        #expect(LedgerCalculations.accountBalance(paypal, in: snapshot) == Money(cents: 4_000))
+        #expect(LedgerCalculations.accountBalance(card, in: snapshot) == Money(cents: 6_000))
+    }
+
+    @Test
     func decodesSharedAccountDatabaseColumns() throws {
         let data = Data(
             #"{"id":"33333333-3333-3333-3333-333333333333","family_id":"11111111-1111-1111-1111-111111111111","name":"Conto di famiglia","institution":"Cointestato","account_type":"bank","opening_balance":1250,"opening_balance_date":"2026-08-01"}"#

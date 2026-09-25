@@ -171,6 +171,7 @@ export function GuidePage() {
           <ul>
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
             <li>Il conto <strong>Wellfare</strong> raccoglie tessere e buoni aziendali: in una spesa puoi usarne una quota e addebitare automaticamente il residuo sul conto principale.</li>
+            <li>Quando paghi con <strong>PayPal</strong> puoi attivare <strong>Utilizza conto collegato</strong>, scegliere un secondo conto personale e indicare la quota prelevata da quel conto; il residuo resta addebitato a PayPal.</li>
             <li>Per un conto familiare scegli esplicitamente la famiglia proprietaria.</li>
             <li>Per un conto personale scegli separatamente le famiglie alle quali rendere visibile soltanto il nome come destinazione di rimborso; saldo, istituto e movimenti restano privati.</li>
             <li>L’icona di visibilità identifica i conti pubblicati ad almeno una famiglia.</li>
@@ -194,7 +195,7 @@ export function GuidePage() {
           </p>
           <ul>
             <li>Sono disponibili piani in 3 o 5 rate e un intermediario personalizzabile.</li>
-            <li>Il pagamento a rate non viene proposto quando il conto principale è Contanti o Wellfare, né quando una quota della spesa usa un conto Wellfare.</li>
+            <li>Il pagamento a rate non viene proposto quando il conto principale è Contanti o Wellfare, né quando la spesa usa due conti, incluso un pagamento PayPal con conto collegato.</li>
             <li>Le scadenze future diventano automaticamente movimenti alla data prevista.</li>
             <li>Gli arrotondamenti vengono distribuiti senza perdere centesimi.</li>
             <li>Categorie, tag e destinazioni di un acquisto multiplo vengono preservati in ogni rata.</li>

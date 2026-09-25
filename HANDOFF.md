@@ -1,6 +1,23 @@
 # Handoff — sKey
 
-Aggiornato il 10 settembre 2026.
+Aggiornato il 25 settembre 2026.
+
+## Pagamenti PayPal con conto collegato — lavoro locale del 25 settembre
+
+Quando il conto di addebito è PayPal, web e client Apple mostrano l'opzione
+“Utilizza conto collegato”. L'utente sceglie un secondo conto personale e la
+quota prelevata da quel conto; la parte restante continua a essere addebitata a
+PayPal. Il conto PayPal selezionato è escluso dalle alternative e il pagamento
+a rate non viene proposto durante l'uso di due conti.
+
+La persistenza riusa i campi compatibili `welfareAccountId` e `welfareAmount`
+di AppData v3: `accountId` resta il conto PayPal, mentre il primo campo identifica
+il secondo conto. Non è necessaria una migration del database.
+
+Verifica locale: 263 test web, lint e build Vite riusciti; controllo reale della
+webapp desktop riuscito senza errori console, con residuo PayPal e lista del
+secondo conto verificati; build iOS Simulator non firmata e 32 test unitari
+Apple riusciti. Modifiche non ancora committate, pubblicate o distribuite.
 
 ## Istituto bancario e dettaglio commissioni — rilascio del 10 settembre
 

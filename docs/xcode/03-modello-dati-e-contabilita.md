@@ -53,9 +53,11 @@
     un'allocazione commissionata uguale per ogni contatto. Gli eventuali centesimi
     residui vanno all'ultima quota. La compensazione familiare è ammessa soltanto
     se `availableCredit` copre l'intera quota.
-15. Una spesa mista persiste sempre `accountId` per il conto non Wellfare,
-    `welfareAccountId` per il Wellfare e `welfareAmount` per la relativa quota;
-    `welfarePrimary` conserva quale conto era stato scelto per primo nell'editor.
+15. Una spesa mista persiste il conto principale in `accountId` e il secondo
+    conto in `welfareAccountId`, campo storico mantenuto per compatibilità. Nei
+    pagamenti Wellfare `welfareAmount` è la quota Wellfare e `welfarePrimary`
+    conserva quale conto era stato scelto per primo; nei pagamenti PayPal è la
+    quota prelevata dal conto collegato e `welfarePrimary` resta assente.
 16. `amount` resta il costo netto dei beni. `bankFeeAmount` viene addebitato in
     aggiunta sul conto bancario e crea/riusa `bankFeeCategoryId` con nome
     “Commissioni <Istituto>”; la relativa allocazione non è condivisa.

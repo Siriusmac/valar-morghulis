@@ -25,6 +25,7 @@ describe('GuidePage', () => {
     expect(screen.getByText(/Esistono molte app per gestire le finanze personali/)).toBeTruthy()
     expect(screen.getAllByText(/rimborso.*tramite acquisto/i).length).toBeGreaterThan(0)
     expect(screen.getByText((_, element) => element?.tagName === 'LI' && Boolean(element.textContent?.includes('Il conto Wellfare raccoglie tessere e buoni aziendali')))).toBeTruthy()
+    expect(screen.getByText((_, element) => element?.tagName === 'LI' && Boolean(element.textContent?.includes('Utilizza conto collegato')))).toBeTruthy()
     expect(screen.getByText((_, element) => element?.tagName === 'LI' && Boolean(element.textContent?.includes('dalla pagina Budget puoi fissare')))).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Account, famiglie e privacy' })).toBeTruthy()
     expect(screen.getByText(/Prima di eliminare definitivamente l’account/)).toBeTruthy()

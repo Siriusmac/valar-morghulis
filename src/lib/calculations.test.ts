@@ -393,6 +393,16 @@ describe('accountBalance', () => {
     expect(accountBalance(data, 'simone-welfare')).toBe(90)
   })
 
+  it('addebita una spesa PayPal tra PayPal e il conto collegato', () => {
+    const data = cleanData()
+    const paypalBase = data.accounts.find((item) => item.id === 'simone-paypal')!.openingBalance
+    const cardBase = data.accounts.find((item) => item.id === 'simone-card')!.openingBalance
+    data.movements = [{ ...expense('mixed-paypal', 'simone', 100, 'simone-paypal'), welfareAccountId: 'simone-card', welfareAmount: 40, shared: false }]
+
+    expect(accountBalance(data, 'simone-paypal')).toBe(paypalBase - 60)
+    expect(accountBalance(data, 'simone-card')).toBe(cardBase - 40)
+  })
+
   it('includes income, expenses, transfers and reimbursements', () => {
     const data = cleanData()
     const base = data.accounts.find((item) => item.id === 'simone-bank')!.openingBalance

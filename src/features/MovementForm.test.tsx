@@ -90,6 +90,28 @@ describe('MovementForm', () => {
     expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
   })
 
+  it('permette di completare un pagamento PayPal con un altro conto personale', () => {
+    const data = structuredClone(defaultData)
+    const onSave = vi.fn()
+    render(<MovementForm data={data} user={users[0]} defaultAccountId="simone-paypal" onSave={onSave} onCancel={vi.fn()} />)
+    chooseExpense()
+
+    fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Alimentari' } })
+    fireEvent.change(screen.getByLabelText('Beneficiario'), { target: { value: 'Lidl' } })
+    fireEvent.change(screen.getByLabelText('Importo'), { target: { value: '100' } })
+    fireEvent.click(screen.getByLabelText(/Utilizza conto collegato/))
+    const linkedAccount = screen.getByText('Conto collegato', { selector: 'label' }).querySelector('select') as HTMLSelectElement
+    expect([...linkedAccount.options].map((option) => option.value)).not.toContain('simone-paypal')
+    fireEvent.change(linkedAccount, { target: { value: 'simone-card' } })
+    fireEvent.change(screen.getByLabelText('Importo dal conto collegato'), { target: { value: '40' } })
+    expect(screen.getByText(/Il residuo di € 60,00 sarà addebitato a PayPal/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Salva movimento' }))
+
+    expect(onSave.mock.calls[0][0]).toMatchObject({ amount: 100, accountId: 'simone-paypal', welfareAccountId: 'simone-card', welfareAmount: 40 })
+    expect(onSave.mock.calls[0][0].welfarePrimary).toBeUndefined()
+    expect(screen.queryByRole('button', { name: /Pagamento a rate/ })).toBeNull()
+  })
+
   it('separa le commissioni bancarie dal costo del bene', () => {
     const onSave = vi.fn()
     render(<MovementForm data={structuredClone(defaultData)} user={users[0]} defaultAccountId="simone-bank" onSave={onSave} onCancel={vi.fn()} />)

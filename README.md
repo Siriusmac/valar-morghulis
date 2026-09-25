@@ -30,7 +30,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - conto personale predefinito configurabile nel profilo e preselezionato nei nuovi movimenti;
 - eliminazione di un conto con scelta esplicita fra storico conservato, movimenti eliminati o movimenti ricondotti a un conto compatibile; i conti familiari richiedono un amministratore e le operazioni reciproche devono essere rettificate prima di poterle eliminare o riassegnare;
 - giro fondi modificabili ed eliminabili dallo storico e dai dettagli dei conti, con data sempre visibile e spese bancarie opzionali sottratte dal solo conto di origine e classificate automaticamente in “Commissioni &lt;Istituto&gt;”;
-- PayPal come conto personale;
+- PayPal come conto personale, con pagamento misto facoltativo: una quota può essere prelevata da un secondo conto personale collegato e il residuo resta addebitato a PayPal;
 - conto personale “Wellfare” per tessere e buoni aziendali; una spesa può usare una quota Wellfare e addebitare il residuo sul conto principale oppure partire dal Wellfare e completare con un altro conto, mantenendo importo e statistiche unitari;
 - commissioni bancarie opzionali sulle spese da conto bancario, con scelta fra Bonifico, Bollettino, CBILL, F24 e PagoPA: il conto sostiene importo netto e commissione, mentre le categorie mantengono separati beni e costo bancario; se manca l'istituto, prima del salvataggio viene richiesto in una finestra che ne spiega l'uso e aggiorna il conto;
 - budget mensile configurabile dal menu di ogni categoria di spesa, personale o familiare; la bacheca avvisa dal 90% e, in caso di superamento, consente di riportare l’eccedenza sul budget del mese successivo;
