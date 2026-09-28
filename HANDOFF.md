@@ -36,7 +36,7 @@ comparsa di risultati e “Crea report” dopo “Cerca”, totale, lista, apert
 menu azioni, dialogo con le due modalità di eliminazione e apertura del modulo di
 modifica, senza errori console né overflow orizzontale. La versione iniziale di
 Ricerca e report è stata pubblicata con il commit `3bdbac8`; le estensioni
-descritte qui sono ancora locali, non commesse né pubblicate.
+descritte qui sono state pubblicate con il commit `5d5a969` su Cloudflare Pages.
 
 ## Pagamenti PayPal con conto collegato — pubblicato il 25 settembre
 
