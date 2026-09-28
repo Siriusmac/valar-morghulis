@@ -1,5 +1,5 @@
 export type UserId = string
-export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'reimbursements' | 'accounts' | 'budgets' | 'categories' | 'beneficiaries' | 'tags' | 'contacts' | 'guide' | 'account'
+export type PageId = 'dashboard' | 'movements' | 'scheduled' | 'reimbursements' | 'accounts' | 'budgets' | 'categories' | 'beneficiaries' | 'tags' | 'search-reports' | 'contacts' | 'guide' | 'account'
 export type MovementType = 'expense' | 'income'
 export type Scope = 'family' | 'personal'
 export type BankingOperationType = 'bank_transfer' | 'postal_order' | 'cbill' | 'f24' | 'pagopa'
@@ -271,6 +271,26 @@ export interface ReimbursementAccountReference {
   name: string
 }
 
+export interface SearchReportFilters {
+  query: string
+  dateFrom: string
+  dateTo: string
+  movementType: MovementType | 'all'
+  counterpartyType?: 'beneficiary' | 'sender'
+  counterpartyId?: string
+  categoryId?: string
+  tagId?: string
+}
+
+export interface SearchReport {
+  id: string
+  ownerId: UserId
+  name: string
+  filters: SearchReportFilters
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AppData {
   version: 3
   defaultMovementAccountIds?: Record<string, string>
@@ -283,6 +303,7 @@ export interface AppData {
   deletedSenderIds?: string[]
   tags: Tag[]
   tagReportIds: string[]
+  searchReports: SearchReport[]
   movements: Movement[]
   scheduledPayments: ScheduledPayment[]
   transfers: Transfer[]

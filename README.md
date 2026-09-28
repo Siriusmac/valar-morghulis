@@ -47,6 +47,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
+- pagina “Ricerca e report” per cercare nello storico tramite descrizione o commenti, combinare intervallo di date, tipo, beneficiario o mittente, categoria e tag, quindi creare un grafico mensile a colonne delle spese; i report salvano nome e filtri e possono essere riaperti e modificati;
 - spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata, anteprima delle scadenze modificabili e pagamenti successivi programmati;
 - modifica di un piano rateale basata sull'importo totale dell'acquisto, con la stessa struttura della creazione e conservazione di categorie, acquisti per conto terzi e date delle rate;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;

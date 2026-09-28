@@ -1,6 +1,6 @@
 import {
   BookOpen, Building2, CalendarClock, CheckCircle2, CloudOff, ContactRound, CreditCard, Gauge, HandCoins, LayoutDashboard,
-  LoaderCircle, LogOut, Menu, Plus, ReceiptText, RefreshCw, Tag, Tags, X,
+  LoaderCircle, LogOut, Menu, Plus, ReceiptText, RefreshCw, SearchCheck, Tag, Tags, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Brand } from './Brand'
@@ -16,6 +16,7 @@ const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'budgets', label: 'Budget', icon: Gauge },
   { id: 'categories', label: 'Categorie', icon: Tags },
   { id: 'tags', label: 'Tag', icon: Tag },
+  { id: 'search-reports', label: 'Ricerca e report', icon: SearchCheck },
   { id: 'beneficiaries', label: 'Beneficiari e mittenti', icon: Building2 },
   { id: 'contacts', label: 'Contatti', icon: ContactRound },
   { id: 'guide', label: 'Guida', icon: BookOpen },

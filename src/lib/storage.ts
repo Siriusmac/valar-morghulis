@@ -80,6 +80,7 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
     deletedSenderIds,
     tags: mergeMissingById(data.tags, base.tags),
     tagReportIds: data.tagReportIds ?? base.tagReportIds,
+    searchReports: data.searchReports ?? base.searchReports,
     movements: data.movements ?? [],
     scheduledPayments: data.scheduledPayments ?? [],
     transfers: data.transfers ?? [],
@@ -104,6 +105,7 @@ export function hasMeaningfulUserData(data: AppData, userId: UserId) {
     || data.beneficiaries.length > 0
     || data.senders.length > 0
     || data.tags.length > 0
+    || data.searchReports.length > 0
     || personalAccounts.some((account) => account.type !== 'cash' || account.openingBalance !== 0)
 }
 
@@ -121,6 +123,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     deletedSenderIds: [...new Set([...(local.deletedSenderIds ?? []), ...(remoteData.deletedSenderIds ?? [])])],
     tags: mergePreferredById(local.tags, remoteData.tags),
     tagReportIds: [...new Set([...local.tagReportIds, ...remoteData.tagReportIds])],
+    searchReports: mergePreferredById(local.searchReports, remoteData.searchReports),
     movements: mergePreferredById(local.movements, remoteData.movements),
     scheduledPayments: mergePreferredById(local.scheduledPayments, remoteData.scheduledPayments),
     transfers: mergePreferredById(local.transfers, remoteData.transfers),
@@ -200,6 +203,7 @@ function migrateLegacy(legacy: LegacyData): AppData {
     senders: legacy.senders ?? base.senders,
     tags: base.tags,
     tagReportIds: base.tagReportIds,
+    searchReports: base.searchReports,
     movements: legacy.expenses?.map(({ payerId, ...item }) => ({ ...item, type: 'expense' as const, memberId: payerId })) ?? base.movements,
     transfers: [],
     scheduledPayments: [],

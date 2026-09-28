@@ -1,6 +1,30 @@
 # Handoff — sKey
 
-Aggiornato il 25 settembre 2026.
+Aggiornato il 28 settembre 2026.
+
+## Ricerca e report web — sviluppo locale del 28 settembre
+
+La nuova voce “Ricerca e report”, collocata sotto “Tag”, cerca i movimenti già
+visibili all'utente usando parole presenti nella descrizione o nei commenti,
+compresi quelli dei parziali. I filtri combinabili coprono intervallo di date,
+spesa/entrata, beneficiario o mittente tramite menu ricercabile, categoria e
+tag. I risultati rispettano la stessa separazione fra dati personali e familiari
+del resto dell'app.
+
+Dai risultati si può generare un grafico a colonne verticali con la spesa di
+ogni mese dell'intervallo. Per categorie, tag o beneficiari applicati a un
+acquisto multiplo, il totale include soltanto le allocazioni corrispondenti e
+non le righe escluse dai report. Il report salvato conserva nome e filtri, non
+una copia dei movimenti: riaprendolo mostra quindi i dati correnti e può essere
+modificato mantenendo la stessa identità. Le definizioni appartengono al solo
+utente e restano nello snapshot privato AppData v3; non serve una migration.
+
+La funzione è stata sviluppata soltanto per la web app. Il client Apple non è
+stato modificato. Verifica locale: 270 test web, lint e build Vite riusciti;
+collaudo nel browser locale riuscito su desktop e a 390 px, inclusi ricerca,
+selezione della controparte da tastiera, grafico, salvataggio, riapertura e
+modifica, senza errori console né overflow orizzontale. Modifiche non commesse
+né pubblicate.
 
 ## Pagamenti PayPal con conto collegato — pubblicato il 25 settembre
 

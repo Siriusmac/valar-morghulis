@@ -51,6 +51,7 @@ export const defaultData: AppData = {
     { id: 'casa-2026', name: 'Casa 2026', scope: 'family', color: '#617c69' },
   ],
   tagReportIds: ['vacanza-parigi', 'casa-2026'],
+  searchReports: [],
   movements: [
     { id: 'seed-1', type: 'expense', authorId: 'simone', memberId: 'simone', amount: 30, date: '2026-07-16', description: 'Spesa settimanale', categoryId: 'alimentari', beneficiaryId: 'lidl', accountId: 'simone-bank', shared: true, createdAt: '2026-07-16T18:30:00.000Z' },
     { id: 'seed-2', type: 'expense', authorId: 'anna', memberId: 'anna', amount: 50, date: '2026-07-17', description: 'Spesa per casa', categoryId: 'alimentari', beneficiaryId: 'eurospar', accountId: 'anna-bank', shared: true, createdAt: '2026-07-17T17:00:00.000Z' },
@@ -84,6 +85,7 @@ export function createStarterData(userId: UserId, sharedAccounts: Account[]): Ap
     senders: [],
     tags: [],
     tagReportIds: [],
+    searchReports: [],
     movements: [],
     scheduledPayments: [],
     transfers: [],
@@ -103,6 +105,7 @@ export function createPersonalStarterData(userId: UserId): AppData {
     senders: [],
     tags: [],
     tagReportIds: [],
+    searchReports: [],
     movements: [],
     scheduledPayments: [],
     transfers: [],

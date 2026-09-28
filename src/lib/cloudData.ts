@@ -220,6 +220,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId, members: Us
       senders: data.senders.filter((item) => item.scope === 'personal' && item.ownerId === userId),
       tags: data.tags.filter((item) => item.scope === 'personal' && item.ownerId === userId),
       tagReportIds: data.tagReportIds.filter((id) => personalTagIds.has(id)),
+      searchReports: data.searchReports.filter((report) => report.ownerId === userId),
       movements: ownMovements.filter((item) => !familyMovementIds.has(item.id)),
       scheduledPayments: ownScheduledPayments.filter((item) => !familyPaymentIds.has(item.id)),
       transfers: data.transfers.filter((item) => item.authorId === userId && !familyAccountIds.has(item.fromAccountId) && !familyAccountIds.has(item.toAccountId)),
@@ -236,6 +237,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId, members: Us
       senders: [],
       tags: [],
       tagReportIds: [],
+      searchReports: [],
       movements: ownMovements.filter((item) => familyMovementIds.has(item.id)),
       // Mantieni la rata completa nella copia privata familiare dell'autore.
       scheduledPayments: ownFamilyPayments,
@@ -269,6 +271,7 @@ export function mergePrivateCloudData(
     senders: mergeById(personal.senders ?? [], family.senders ?? []),
     tags: mergeById(personal.tags ?? [], family.tags ?? []),
     tagReportIds: [...new Set([...(personal.tagReportIds ?? []), ...(family.tagReportIds ?? [])])],
+    searchReports: mergeById(personal.searchReports ?? [], family.searchReports ?? []),
     // Le copie private possono contenere residui di vecchie versioni. Un
     // movimento altrui deve arrivare soltanto dai record condivisi correnti,
     // così una cancellazione dell'autore non viene resuscitata da uno snapshot.

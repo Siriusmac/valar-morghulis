@@ -27,11 +27,13 @@ describe('AppShell sidebar', () => {
     const budgets = within(navigation).getByRole('button', { name: 'Budget' })
     const categories = within(navigation).getByRole('button', { name: 'Categorie' })
     const tags = within(navigation).getByRole('button', { name: 'Tag' })
+    const searchReports = within(navigation).getByRole('button', { name: 'Ricerca e report' })
     const beneficiaries = within(navigation).getByRole('button', { name: 'Beneficiari e mittenti' })
     expect(accounts.compareDocumentPosition(budgets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(budgets.compareDocumentPosition(categories) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(categories.compareDocumentPosition(tags) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(tags.compareDocumentPosition(beneficiaries) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tags.compareDocumentPosition(searchReports) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(searchReports.compareDocumentPosition(beneficiaries) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('mantiene navigabile la sidebar desktop chiusa', () => {

@@ -34,6 +34,7 @@ const BudgetPage = lazy(() => import('./features/BudgetPage').then((module) => (
 const BeneficiariesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.BeneficiariesPage })))
 const CategoriesPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.CategoriesPage })))
 const TagsPage = lazy(() => import('./features/ManagementPages').then((module) => ({ default: module.TagsPage })))
+const SearchReportsPage = lazy(() => import('./features/SearchReportsPage').then((module) => ({ default: module.SearchReportsPage })))
 const ScheduledPaymentsPage = lazy(() => import('./features/ScheduledPaymentsPage').then((module) => ({ default: module.ScheduledPaymentsPage })))
 const TransferForm = lazy(() => import('./features/TransferForm').then((module) => ({ default: module.TransferForm })))
 const AccountSettings = lazy(() => import('./features/AccountSettings').then((module) => ({ default: module.AccountSettings })))
@@ -106,7 +107,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [userId, setUserId] = useState<UserId | null>(initialUserId)
   const [page, setPage] = useState<PageId>(() => {
     const requested = new URLSearchParams(window.location.search).get('page')
-    return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'budgets', 'categories', 'beneficiaries', 'tags', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
+    return ['dashboard', 'movements', 'scheduled', 'reimbursements', 'accounts', 'budgets', 'categories', 'beneficiaries', 'tags', 'search-reports', 'contacts', 'guide', 'account'].includes(requested ?? '') ? requested as PageId : 'dashboard'
   })
   const [modal, setModal] = useState<ModalState>(null)
   const [bankInstitutionRequest, setBankInstitutionRequest] = useState<BankInstitutionRequest | null>(null)
@@ -767,6 +768,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       setToast('Mittente aggiornato in tutti i movimenti')
     }} onDeleteSender={(id, replacementId) => deleteDirectory('sender', id, replacementId)} />
     : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onUpdate={(tag) => setData((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? tag : item) }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
+    : page === 'search-reports' ? <SearchReportsPage data={data} user={user} onSaveReport={(report) => setData((current) => ({ ...current, searchReports: current.searchReports.some((item) => item.id === report.id) ? current.searchReports.map((item) => item.id === report.id ? report : item) : [...current.searchReports, report] }))} />
     : page === 'contacts' && cloud ? <ContactsPage data={data} user={user} contacts={contacts} invitations={contactData.invitations} purchases={contactData.purchases} onInvite={sendContactInvite} onWithdrawInvitation={withdrawContactInvite} onRemove={deleteContact} onRespond={respondToPurchase} onShowMovements={showMovements} />
     : page === 'guide' ? <GuidePage />
     : <AccountSettings user={user} cloud={cloud} data={data} personalOnly={Boolean(cloud?.personalMode)} defaultMovementAccountId={defaultMovementAccountId} onDefaultMovementAccountChange={setDefaultMovementAccount} />
