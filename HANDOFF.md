@@ -2,6 +2,21 @@
 
 Aggiornato il 28 settembre 2026.
 
+## Navigazione e report web — sviluppo locale del 28 settembre
+
+La voce “Spese ed Entrate” del menu web è stata rinominata “Movimenti”, senza
+modificare il titolo o il contenuto della pagina. In “Ricerca e report”, creando
+un report i risultati generici della ricerca vengono nascosti e resta visibile
+soltanto il dettaglio del report. Avviando una nuova ricerca, il report aperto o
+appena creato si contrae in un riepilogo con nome, numero di movimenti e totale;
+i nuovi risultati occupano lo spazio principale e il report può essere riaperto
+con “Espandi report”. I filtri del report e quelli della nuova ricerca sono
+separati, quindi la ricerca successiva non modifica involontariamente il report.
+
+Verifica locale: 274 test web, lint e build Vite riusciti. Il browser locale ha
+confermato il flusso completo a desktop e a 390 px, la nuova etichetta nel menu,
+l'assenza di overflow orizzontale e di errori o avvisi in console.
+
 ## Nome progetto Cloudflare Pages — 28 settembre
 
 Il progetto Cloudflare Pages esistente è stato rinominato da

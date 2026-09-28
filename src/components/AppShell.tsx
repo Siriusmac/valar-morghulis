@@ -9,7 +9,7 @@ import type { PageId, User } from '../types'
 
 const items: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Bacheca', icon: LayoutDashboard },
-  { id: 'movements', label: 'Spese ed Entrate', icon: ReceiptText },
+  { id: 'movements', label: 'Movimenti', icon: ReceiptText },
   { id: 'scheduled', label: 'Pagamenti programmati', icon: CalendarClock },
   { id: 'reimbursements', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'accounts', label: 'Conti', icon: CreditCard },

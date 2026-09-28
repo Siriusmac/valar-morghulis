@@ -23,6 +23,8 @@ describe('AppShell sidebar', () => {
     expect(sidebar.hasAttribute('inert')).toBe(false)
     expect(sidebar.hasAttribute('aria-hidden')).toBe(false)
     const navigation = screen.getByRole('navigation', { name: 'Navigazione principale' })
+    expect(within(navigation).getByRole('button', { name: 'Movimenti' })).toBeTruthy()
+    expect(within(navigation).queryByRole('button', { name: 'Spese ed Entrate' })).toBeNull()
     const accounts = within(navigation).getByRole('button', { name: 'Conti' })
     const budgets = within(navigation).getByRole('button', { name: 'Budget' })
     const categories = within(navigation).getByRole('button', { name: 'Categorie' })

@@ -1,4 +1,4 @@
-import { BarChart3, Bookmark, Check, Edit3, Search, Trash2, X } from 'lucide-react'
+import { BarChart3, Bookmark, Check, ChevronDown, ChevronUp, Edit3, Search, Trash2, X } from 'lucide-react'
 import { useDeferredValue, useId, useMemo, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { MovementList } from '../components/MovementList'
@@ -37,16 +37,19 @@ function blankFilters(data: AppData, user: User): SearchReportFilters {
 export function SearchReportsPage({ data, user, onSaveReport, onDeleteReport, onEditMovement, onDeleteMovement }: Props) {
   const [filters, setFilters] = useState<SearchReportFilters>(() => blankFilters(data, user))
   const [searchedFilters, setSearchedFilters] = useState<SearchReportFilters>()
-  const [showReport, setShowReport] = useState(false)
+  const [reportFilters, setReportFilters] = useState<SearchReportFilters>()
+  const [reportExpanded, setReportExpanded] = useState(false)
   const [reportName, setReportName] = useState('')
   const [editingId, setEditingId] = useState<string>()
   const [excludedMovementIds, setExcludedMovementIds] = useState<string[]>([])
   const [movementToDelete, setMovementToDelete] = useState<Movement>()
   const deferredFilters = useDeferredValue(searchedFilters)
+  const deferredReportFilters = useDeferredValue(reportFilters)
   const results = useMemo(() => deferredFilters ? searchMovements(data, user.id, deferredFilters) : [], [data, user.id, deferredFilters])
-  const reportResults = useMemo(() => results.filter((movement) => !excludedMovementIds.includes(movement.id)), [results, excludedMovementIds])
-  const monthly = useMemo(() => deferredFilters ? monthlyExpenseReport(data, reportResults, deferredFilters) : [], [data, reportResults, deferredFilters])
-  const movementTotal = deferredFilters ? reportResults.reduce((sum, movement) => sum + searchReportMovementAmount(movement, deferredFilters), 0) : 0
+  const reportMatches = useMemo(() => deferredReportFilters ? searchMovements(data, user.id, deferredReportFilters) : [], [data, user.id, deferredReportFilters])
+  const reportResults = useMemo(() => reportMatches.filter((movement) => !excludedMovementIds.includes(movement.id)), [reportMatches, excludedMovementIds])
+  const monthly = useMemo(() => deferredReportFilters ? monthlyExpenseReport(data, reportResults, deferredReportFilters) : [], [data, reportResults, deferredReportFilters])
+  const movementTotal = deferredReportFilters ? reportResults.reduce((sum, movement) => sum + searchReportMovementAmount(movement, deferredReportFilters), 0) : 0
   const chartTotal = monthly.reduce((sum, item) => sum + item.total, 0)
   const maxMonthly = Math.max(...monthly.map((item) => item.total), 0)
   const savedReports = data.searchReports
@@ -65,51 +68,56 @@ export function SearchReportsPage({ data, user, onSaveReport, onDeleteReport, on
   const reset = () => {
     setFilters(blankFilters(data, user))
     setSearchedFilters(undefined)
-    setShowReport(false)
+    setReportFilters(undefined)
+    setReportExpanded(false)
     setReportName('')
     setEditingId(undefined)
     setExcludedMovementIds([])
   }
   const startReport = () => {
     if (!searchedFilters) return
-    setShowReport(true)
+    setReportFilters(searchedFilters)
+    setReportExpanded(true)
     setEditingId(undefined)
     setExcludedMovementIds([])
     setReportName(searchedFilters.query.trim() ? `Report · ${searchedFilters.query.trim()}` : 'Nuovo report')
   }
   const editReport = (report: SearchReport) => {
     setFilters(report.filters)
-    setSearchedFilters(report.filters)
+    setSearchedFilters(undefined)
+    setReportFilters(report.filters)
     setReportName(report.name)
     setEditingId(report.id)
     setExcludedMovementIds(report.excludedMovementIds ?? [])
-    setShowReport(true)
+    setReportExpanded(true)
   }
   const saveReport = () => {
     const name = reportName.trim()
-    if (!name || !searchedFilters || searchedFilters.dateFrom > searchedFilters.dateTo) return
+    if (!name || !reportFilters || reportFilters.dateFrom > reportFilters.dateTo) return
     const previous = editingId ? data.searchReports.find((report) => report.id === editingId) : undefined
     const now = new Date().toISOString()
     onSaveReport({
       id: previous?.id ?? makeId('search-report'),
       ownerId: user.id,
       name,
-      filters: searchedFilters,
+      filters: reportFilters,
       excludedMovementIds,
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     })
     setEditingId(undefined)
-    setShowReport(false)
+    setReportFilters(undefined)
+    setReportExpanded(false)
     setReportName('')
     setExcludedMovementIds([])
   }
   const search = () => {
     if (filters.dateFrom > filters.dateTo) return
     setSearchedFilters({ ...filters })
-    if (!editingId) {
+    if (reportFilters) {
+      setReportExpanded(false)
+    } else {
       setExcludedMovementIds([])
-      setShowReport(false)
       setReportName('')
     }
   }
@@ -127,7 +135,7 @@ export function SearchReportsPage({ data, user, onSaveReport, onDeleteReport, on
       if (previous) onSaveReport({
         ...previous,
         name: reportName.trim() || previous.name,
-        filters: searchedFilters ?? previous.filters,
+        filters: reportFilters ?? previous.filters,
         excludedMovementIds: nextExcludedIds,
         updatedAt: new Date().toISOString(),
       })
@@ -158,19 +166,21 @@ export function SearchReportsPage({ data, user, onSaveReport, onDeleteReport, on
       <div className="search-report-filter-actions"><button type="submit" className="button button--primary" disabled={filters.dateFrom > filters.dateTo}><Search />Cerca</button></div>
     </form>
 
-    {deferredFilters ? <section className="search-report-results">
-      <div className="section-title-row"><div><h2>Risultati</h2><p>{results.length} {results.length === 1 ? 'movimento trovato' : 'movimenti trovati'}</p></div><button type="button" className="button button--primary" onClick={startReport}><BarChart3 />Crea report</button></div>
-      <MovementList data={data} movements={results} user={user} />
+    {deferredReportFilters ? <section className={`search-report-preview${reportExpanded ? '' : ' search-report-preview--collapsed'}`} aria-labelledby="search-report-preview-title">
+      <div className="section-title-row"><div><h2 id="search-report-preview-title">{reportExpanded ? editingId ? 'Modifica report' : 'Nuovo report' : reportName || 'Report'}</h2><p>{reportExpanded ? <>Spesa mensile relativa ai movimenti filtrati · totale grafico {formatMoney(chartTotal)}</> : <>{reportResults.length} {reportResults.length === 1 ? 'movimento' : 'movimenti'} · totale {formatMoney(movementTotal)}</>}</p></div><button type="button" className="button button--secondary search-report-toggle" onClick={() => setReportExpanded((current) => !current)}>{reportExpanded ? <><ChevronUp />Riduci report</> : <><ChevronDown />Espandi report</>}</button></div>
+      {reportExpanded ? <>
+        <MonthlyExpenseColumns monthly={monthly} max={maxMonthly} />
+        <div className="search-report-movements">
+          <div className="movement-detail-summary"><span>Totale movimenti elencati <strong>{formatMoney(movementTotal)}</strong></span><span><strong>{reportResults.length}</strong> {reportResults.length === 1 ? 'movimento' : 'movimenti'}</span></div>
+          <MovementList data={data} movements={reportResults} user={user} compact onEdit={onEditMovement} onRequestDelete={setMovementToDelete} movementAmount={(movement) => searchReportMovementAmount(movement, deferredReportFilters)} />
+        </div>
+        <div className="search-report-save"><label><span>Nome del report</span><input value={reportName} onChange={(event) => setReportName(event.target.value)} placeholder="Es. Spese casa 2026" /></label><button type="button" className="button button--primary" onClick={saveReport} disabled={!reportName.trim()}><Bookmark />{editingId ? 'Salva modifiche' : 'Salva report'}</button></div>
+      </> : null}
     </section> : null}
 
-    {showReport ? <section className="search-report-preview" aria-labelledby="search-report-preview-title">
-      <div className="section-title-row"><div><h2 id="search-report-preview-title">{editingId ? 'Modifica report' : 'Nuovo report'}</h2><p>Spesa mensile relativa ai movimenti filtrati · totale grafico {formatMoney(chartTotal)}</p></div></div>
-      <MonthlyExpenseColumns monthly={monthly} max={maxMonthly} />
-      <div className="search-report-movements">
-        <div className="movement-detail-summary"><span>Totale movimenti elencati <strong>{formatMoney(movementTotal)}</strong></span><span><strong>{reportResults.length}</strong> {reportResults.length === 1 ? 'movimento' : 'movimenti'}</span></div>
-        <MovementList data={data} movements={reportResults} user={user} compact onEdit={onEditMovement} onRequestDelete={setMovementToDelete} movementAmount={(movement) => searchReportMovementAmount(movement, deferredFilters!)} />
-      </div>
-      <div className="search-report-save"><label><span>Nome del report</span><input value={reportName} onChange={(event) => setReportName(event.target.value)} placeholder="Es. Spese casa 2026" /></label><button type="button" className="button button--primary" onClick={saveReport} disabled={!reportName.trim()}><Bookmark />{editingId ? 'Salva modifiche' : 'Salva report'}</button></div>
+    {deferredFilters && !reportExpanded ? <section className="search-report-results">
+      <div className="section-title-row"><div><h2>Risultati</h2><p>{results.length} {results.length === 1 ? 'movimento trovato' : 'movimenti trovati'}</p></div><button type="button" className="button button--primary" onClick={startReport}><BarChart3 />Crea report</button></div>
+      <MovementList data={data} movements={results} user={user} />
     </section> : null}
 
     <section className="saved-search-reports">

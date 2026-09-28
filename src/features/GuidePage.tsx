@@ -129,7 +129,7 @@ export function GuidePage() {
         <section id="analisi" className="guide-chapter">
           <ChapterHeading number="03" title="Consultare e correggere i movimenti" icon={Scale} />
           <p>
-            In <strong>Spese ed Entrate</strong> puoi cambiare mese e passare fra spese,
+            In <strong>Movimenti</strong> puoi cambiare mese e passare fra spese,
             entrate, movimenti condivisi e giro fondi. I grafici mostrano importi e percentuali mensili
             per categoria; ricerca e gruppi per giorno aiutano a trovare rapidamente una voce.
           </p>
