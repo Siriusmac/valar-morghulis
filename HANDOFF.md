@@ -9,22 +9,34 @@ visibili all'utente usando parole presenti nella descrizione o nei commenti,
 compresi quelli dei parziali. I filtri combinabili coprono intervallo di date,
 spesa/entrata, beneficiario o mittente tramite menu ricercabile, categoria e
 tag. I risultati rispettano la stessa separazione fra dati personali e familiari
-del resto dell'app.
+del resto dell'app. All'apertura non viene eseguita alcuna ricerca: i risultati
+restano nascosti mentre si compilano i campi e compaiono soltanto premendo
+“Cerca”; anche “Crea report” è disponibile solo dopo questo passaggio.
 
 Dai risultati si può generare un grafico a colonne verticali con la spesa di
 ogni mese dell'intervallo. Per categorie, tag o beneficiari applicati a un
 acquisto multiplo, il totale include soltanto le allocazioni corrispondenti e
-non le righe escluse dai report. Il report salvato conserva nome e filtri, non
-una copia dei movimenti: riaprendolo mostra quindi i dati correnti e può essere
-modificato mantenendo la stessa identità. Le definizioni appartengono al solo
-utente e restano nello snapshot privato AppData v3; non serve una migration.
+non le righe escluse dai report. Sotto al grafico sono visibili il totale degli
+importi pertinenti, il numero di movimenti e l'elenco completo con i comandi di
+modifica ed eliminazione. L'eliminazione propone due scelte: escludere il
+movimento soltanto dal report, lasciando invariati storico e saldi, oppure
+cancellarlo completamente tramite il flusso contabile già esistente.
+
+Il report salvato conserva nome, filtri e identificativi dei movimenti esclusi,
+non una copia dei movimenti: riaprendolo mostra quindi i dati correnti e può
+essere modificato o eliminato mantenendo la stessa identità finché esiste. Le
+definizioni appartengono al solo utente e restano nello snapshot privato AppData
+v3; il nuovo campo delle esclusioni è opzionale e non richiede una migration.
 
 La funzione è stata sviluppata soltanto per la web app. Il client Apple non è
-stato modificato. Verifica locale: 270 test web, lint e build Vite riusciti;
-collaudo nel browser locale riuscito su desktop e a 390 px, inclusi ricerca,
-selezione della controparte da tastiera, grafico, salvataggio, riapertura e
-modifica, senza errori console né overflow orizzontale. Modifiche non commesse
-né pubblicate.
+stato modificato. Verifica locale dopo l'estensione: 273 test web, lint e build
+Vite riusciti; collaudo nel browser locale riuscito su desktop e a 390 px,
+inclusi stato iniziale privo di risultati, compilazione senza ricerca automatica,
+comparsa di risultati e “Crea report” dopo “Cerca”, totale, lista, apertura del
+menu azioni, dialogo con le due modalità di eliminazione e apertura del modulo di
+modifica, senza errori console né overflow orizzontale. La versione iniziale di
+Ricerca e report è stata pubblicata con il commit `3bdbac8`; le estensioni
+descritte qui sono ancora locali, non commesse né pubblicate.
 
 ## Pagamenti PayPal con conto collegato — pubblicato il 25 settembre
 

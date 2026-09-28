@@ -609,6 +609,7 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .search-report-query { grid-column: span 2; }
 .search-report-counterparty .lookup-field__menu button > span { display: grid; gap: 2px; }
 .search-report-counterparty .lookup-field__menu button small { color: var(--muted); font-size: 9px; font-weight: 500; }
+.search-report-filter-actions { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--line); }
 .search-report-results > .section-title-row { padding-bottom: 14px; border-bottom: 1px solid var(--line); align-items: center; }
 .search-report-results > .movement-list { border-top: 0; }
 .search-report-preview { overflow: hidden; }
@@ -618,13 +619,20 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .search-report-chart__column > span { height: 170px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to bottom, transparent 0, transparent 41px, rgba(222,219,214,.45) 42px); }
 .search-report-chart__column i { width: min(36px, 70%); display: block; border-radius: 4px 4px 0 0; background: var(--accent); transition: height .2s ease; }
 .search-report-chart__column small { align-self: start; color: var(--muted); font-size: 9px; line-height: 1.25; text-transform: capitalize; }
-.search-report-save { display: grid; grid-template-columns: minmax(240px, 1fr) auto; align-items: end; gap: 14px; }
+.search-report-movements { display: grid; gap: 0; }
+.search-report-movements .movement-detail-summary { margin-bottom: 0; }
+.search-report-movements .movement-list { border-top: 0; }
+.search-report-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; }
+.search-report-save label { min-width: 0; }
 .saved-search-report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.saved-search-report-grid article { min-height: 82px; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 13px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.saved-search-report-grid article { min-height: 82px; display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 13px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: white; }
 .saved-search-report-grid article > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
 .saved-search-report-grid article > span svg { width: 19px; }
 .saved-search-report-grid h3 { font: 600 18px/1.2 'Newsreader', Georgia, serif; }
 .saved-search-report-grid p { margin-top: 3px; color: var(--muted); font-size: 10px; text-transform: capitalize; }
+.saved-search-report-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.search-report-delete-choice { display: grid; gap: 10px; }
+.search-report-delete-choice > p { margin-bottom: 4px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .tag-report-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 0 18px; }
 .tag-report-toolbar h2 { font-size: 22px; }
 .tag-report-toolbar p { color: var(--muted); font-size: 11px; margin-top: 3px; }
@@ -1088,11 +1096,12 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .search-report-filters, .search-report-preview { padding: 18px 14px; }
   .search-report-filter-grid { grid-template-columns: 1fr; }
   .search-report-query { grid-column: auto; }
+  .search-report-filter-actions .button { width: 100%; justify-content: center; }
   .search-report-results > .section-title-row { align-items: stretch; }
   .search-report-results > .section-title-row .button { justify-content: center; }
   .search-report-save, .saved-search-report-grid { grid-template-columns: 1fr; }
   .saved-search-report-grid article { grid-template-columns: 42px 1fr; }
-  .saved-search-report-grid article .button { grid-column: 1 / -1; justify-content: center; }
+  .saved-search-report-grid article .button { justify-content: center; }
   .welfare-fields { grid-template-columns: 1fr; }
   .split-selector { grid-template-columns: 1fr; }
   .split-editor__intro { align-items: flex-start; flex-direction: column; }

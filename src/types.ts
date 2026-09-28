@@ -287,6 +287,7 @@ export interface SearchReport {
   ownerId: UserId
   name: string
   filters: SearchReportFilters
+  excludedMovementIds?: string[]
   createdAt: string
   updatedAt: string
 }

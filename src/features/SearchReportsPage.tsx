@@ -1,15 +1,19 @@
-import { BarChart3, Bookmark, Check, Edit3, Search, X } from 'lucide-react'
+import { BarChart3, Bookmark, Check, Edit3, Search, Trash2, X } from 'lucide-react'
 import { useDeferredValue, useId, useMemo, useState } from 'react'
+import { Modal } from '../components/Modal'
 import { MovementList } from '../components/MovementList'
 import { formatMoney, formatMonthYear, makeId, todayISO } from '../lib/format'
 import { visibleMovements } from '../lib/calculations'
-import { monthlyExpenseReport, searchMovements } from '../lib/searchReports'
-import type { AppData, SearchReport, SearchReportFilters, User } from '../types'
+import { monthlyExpenseReport, searchMovements, searchReportMovementAmount } from '../lib/searchReports'
+import type { AppData, Movement, SearchReport, SearchReportFilters, User } from '../types'
 
 interface Props {
   data: AppData
   user: User
   onSaveReport: (report: SearchReport) => void
+  onDeleteReport: (reportId: string) => void
+  onEditMovement: (movement: Movement) => void
+  onDeleteMovement: (movementId: string) => void
 }
 
 interface CounterpartyOption {
@@ -30,15 +34,20 @@ function blankFilters(data: AppData, user: User): SearchReportFilters {
   return { query: '', ...initialDateRange(data, user), movementType: 'all' }
 }
 
-export function SearchReportsPage({ data, user, onSaveReport }: Props) {
+export function SearchReportsPage({ data, user, onSaveReport, onDeleteReport, onEditMovement, onDeleteMovement }: Props) {
   const [filters, setFilters] = useState<SearchReportFilters>(() => blankFilters(data, user))
+  const [searchedFilters, setSearchedFilters] = useState<SearchReportFilters>()
   const [showReport, setShowReport] = useState(false)
   const [reportName, setReportName] = useState('')
   const [editingId, setEditingId] = useState<string>()
-  const deferredFilters = useDeferredValue(filters)
-  const results = useMemo(() => searchMovements(data, user.id, deferredFilters), [data, user.id, deferredFilters])
-  const monthly = useMemo(() => monthlyExpenseReport(data, results, deferredFilters), [data, results, deferredFilters])
-  const reportTotal = monthly.reduce((sum, item) => sum + item.total, 0)
+  const [excludedMovementIds, setExcludedMovementIds] = useState<string[]>([])
+  const [movementToDelete, setMovementToDelete] = useState<Movement>()
+  const deferredFilters = useDeferredValue(searchedFilters)
+  const results = useMemo(() => deferredFilters ? searchMovements(data, user.id, deferredFilters) : [], [data, user.id, deferredFilters])
+  const reportResults = useMemo(() => results.filter((movement) => !excludedMovementIds.includes(movement.id)), [results, excludedMovementIds])
+  const monthly = useMemo(() => deferredFilters ? monthlyExpenseReport(data, reportResults, deferredFilters) : [], [data, reportResults, deferredFilters])
+  const movementTotal = deferredFilters ? reportResults.reduce((sum, movement) => sum + searchReportMovementAmount(movement, deferredFilters), 0) : 0
+  const chartTotal = monthly.reduce((sum, item) => sum + item.total, 0)
   const maxMonthly = Math.max(...monthly.map((item) => item.total), 0)
   const savedReports = data.searchReports
     .filter((report) => report.ownerId === user.id)
@@ -55,43 +64,86 @@ export function SearchReportsPage({ data, user, onSaveReport }: Props) {
   const updateFilters = (patch: Partial<SearchReportFilters>) => setFilters((current) => ({ ...current, ...patch }))
   const reset = () => {
     setFilters(blankFilters(data, user))
+    setSearchedFilters(undefined)
     setShowReport(false)
     setReportName('')
     setEditingId(undefined)
+    setExcludedMovementIds([])
   }
   const startReport = () => {
+    if (!searchedFilters) return
     setShowReport(true)
     setEditingId(undefined)
-    setReportName(filters.query.trim() ? `Report · ${filters.query.trim()}` : 'Nuovo report')
+    setExcludedMovementIds([])
+    setReportName(searchedFilters.query.trim() ? `Report · ${searchedFilters.query.trim()}` : 'Nuovo report')
   }
   const editReport = (report: SearchReport) => {
     setFilters(report.filters)
+    setSearchedFilters(report.filters)
     setReportName(report.name)
     setEditingId(report.id)
+    setExcludedMovementIds(report.excludedMovementIds ?? [])
     setShowReport(true)
   }
   const saveReport = () => {
     const name = reportName.trim()
-    if (!name || filters.dateFrom > filters.dateTo) return
+    if (!name || !searchedFilters || searchedFilters.dateFrom > searchedFilters.dateTo) return
     const previous = editingId ? data.searchReports.find((report) => report.id === editingId) : undefined
     const now = new Date().toISOString()
     onSaveReport({
       id: previous?.id ?? makeId('search-report'),
       ownerId: user.id,
       name,
-      filters,
+      filters: searchedFilters,
+      excludedMovementIds,
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     })
     setEditingId(undefined)
     setShowReport(false)
     setReportName('')
+    setExcludedMovementIds([])
+  }
+  const search = () => {
+    if (filters.dateFrom > filters.dateTo) return
+    setSearchedFilters({ ...filters })
+    if (!editingId) {
+      setExcludedMovementIds([])
+      setShowReport(false)
+      setReportName('')
+    }
+  }
+  const deleteReport = (report: SearchReport) => {
+    if (!confirm(`Eliminare il report “${report.name}”? I movimenti nello storico non verranno cancellati.`)) return
+    onDeleteReport(report.id)
+    if (editingId === report.id) reset()
+  }
+  const removeMovementFromReport = () => {
+    if (!movementToDelete) return
+    const nextExcludedIds = [...new Set([...excludedMovementIds, movementToDelete.id])]
+    setExcludedMovementIds(nextExcludedIds)
+    if (editingId) {
+      const previous = data.searchReports.find((report) => report.id === editingId)
+      if (previous) onSaveReport({
+        ...previous,
+        name: reportName.trim() || previous.name,
+        filters: searchedFilters ?? previous.filters,
+        excludedMovementIds: nextExcludedIds,
+        updatedAt: new Date().toISOString(),
+      })
+    }
+    setMovementToDelete(undefined)
+  }
+  const deleteMovementCompletely = () => {
+    if (!movementToDelete) return
+    onDeleteMovement(movementToDelete.id)
+    setMovementToDelete(undefined)
   }
 
   return <div className="page search-reports-page">
     <div className="page-heading"><div><h1>Ricerca e report</h1><p>Trova i movimenti nello storico e salva un report mensile delle spese.</p></div></div>
 
-    <section className="search-report-filters" aria-labelledby="search-report-filters-title">
+    <form className="search-report-filters" aria-labelledby="search-report-filters-title" onSubmit={(event) => { event.preventDefault(); search() }}>
       <div className="section-title-row"><div><h2 id="search-report-filters-title">Cerca nello storico</h2><p>La parola viene cercata nella descrizione e nei commenti.</p></div><button type="button" className="text-button" onClick={reset}><X />Azzera filtri</button></div>
       <div className="search-report-filter-grid">
         <label className="search-report-query"><span>Parola da cercare</span><span className="search-field"><Search /><input value={filters.query} onChange={(event) => updateFilters({ query: event.target.value })} placeholder="Es. vacanza, bolletta, scuola" /></span></label>
@@ -103,23 +155,36 @@ export function SearchReportsPage({ data, user, onSaveReport }: Props) {
         <label><span>Tag</span><select value={filters.tagId ?? ''} onChange={(event) => updateFilters({ tagId: event.target.value || undefined })}><option value="">Tutti i tag</option>{tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}</select></label>
       </div>
       {filters.dateFrom > filters.dateTo ? <p className="field-error" role="alert">La data iniziale deve precedere la data finale.</p> : null}
-    </section>
+      <div className="search-report-filter-actions"><button type="submit" className="button button--primary" disabled={filters.dateFrom > filters.dateTo}><Search />Cerca</button></div>
+    </form>
 
-    <section className="search-report-results">
-      <div className="section-title-row"><div><h2>Risultati</h2><p>{results.length} {results.length === 1 ? 'movimento trovato' : 'movimenti trovati'}</p></div><button type="button" className="button button--primary" onClick={startReport} disabled={filters.dateFrom > filters.dateTo}><BarChart3 />Crea report</button></div>
+    {deferredFilters ? <section className="search-report-results">
+      <div className="section-title-row"><div><h2>Risultati</h2><p>{results.length} {results.length === 1 ? 'movimento trovato' : 'movimenti trovati'}</p></div><button type="button" className="button button--primary" onClick={startReport}><BarChart3 />Crea report</button></div>
       <MovementList data={data} movements={results} user={user} />
-    </section>
+    </section> : null}
 
     {showReport ? <section className="search-report-preview" aria-labelledby="search-report-preview-title">
-      <div className="section-title-row"><div><h2 id="search-report-preview-title">{editingId ? 'Modifica report' : 'Nuovo report'}</h2><p>Spesa mensile relativa ai movimenti filtrati · totale {formatMoney(reportTotal)}</p></div></div>
+      <div className="section-title-row"><div><h2 id="search-report-preview-title">{editingId ? 'Modifica report' : 'Nuovo report'}</h2><p>Spesa mensile relativa ai movimenti filtrati · totale grafico {formatMoney(chartTotal)}</p></div></div>
       <MonthlyExpenseColumns monthly={monthly} max={maxMonthly} />
+      <div className="search-report-movements">
+        <div className="movement-detail-summary"><span>Totale movimenti elencati <strong>{formatMoney(movementTotal)}</strong></span><span><strong>{reportResults.length}</strong> {reportResults.length === 1 ? 'movimento' : 'movimenti'}</span></div>
+        <MovementList data={data} movements={reportResults} user={user} compact onEdit={onEditMovement} onRequestDelete={setMovementToDelete} movementAmount={(movement) => searchReportMovementAmount(movement, deferredFilters!)} />
+      </div>
       <div className="search-report-save"><label><span>Nome del report</span><input value={reportName} onChange={(event) => setReportName(event.target.value)} placeholder="Es. Spese casa 2026" /></label><button type="button" className="button button--primary" onClick={saveReport} disabled={!reportName.trim()}><Bookmark />{editingId ? 'Salva modifiche' : 'Salva report'}</button></div>
     </section> : null}
 
     <section className="saved-search-reports">
       <div className="section-title-row"><div><h2>Report salvati</h2><p>{savedReports.length ? 'Riapri un report per aggiornare nome o filtri.' : 'Non hai ancora salvato report.'}</p></div></div>
-      {savedReports.length ? <div className="saved-search-report-grid">{savedReports.map((report) => <article key={report.id}><span><Bookmark /></span><div><h3>{report.name}</h3><p>{formatMonthYear(report.filters.dateFrom.slice(0, 7))} – {formatMonthYear(report.filters.dateTo.slice(0, 7))}</p></div><button type="button" className="button button--secondary" onClick={() => editReport(report)}><Edit3 />Modifica</button></article>)}</div> : null}
+      {savedReports.length ? <div className="saved-search-report-grid">{savedReports.map((report) => <article key={report.id}><span><Bookmark /></span><div><h3>{report.name}</h3><p>{formatMonthYear(report.filters.dateFrom.slice(0, 7))} – {formatMonthYear(report.filters.dateTo.slice(0, 7))}</p></div><div className="saved-search-report-actions"><button type="button" className="button button--secondary" onClick={() => editReport(report)}><Edit3 />Modifica</button><button type="button" className="button button--ghost button--danger" onClick={() => deleteReport(report)}><Trash2 />Elimina</button></div></article>)}</div> : null}
     </section>
+    {movementToDelete ? <Modal title={`Elimina “${movementToDelete.description}”`} onClose={() => setMovementToDelete(undefined)} compactChoice>
+      <div className="search-report-delete-choice">
+        <p>Scegli se rimuovere il movimento soltanto da questo report o cancellarlo completamente dallo storico.</p>
+        <button type="button" className="member-removal-choice" onClick={removeMovementFromReport}><strong>Elimina solo dal report</strong><small>Il movimento resta nello storico e continua a essere incluso nei saldi.</small></button>
+        <button type="button" className="member-removal-choice member-removal-choice--danger" onClick={deleteMovementCompletely}><strong>Elimina completamente</strong><small>Il movimento viene cancellato dallo storico e i saldi vengono aggiornati.</small></button>
+        <button type="button" className="button button--ghost" onClick={() => setMovementToDelete(undefined)}>Annulla</button>
+      </div>
+    </Modal> : null}
   </div>
 }
 

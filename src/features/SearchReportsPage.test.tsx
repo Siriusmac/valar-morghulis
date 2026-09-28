@@ -11,15 +11,20 @@ afterEach(cleanup)
 describe('SearchReportsPage', () => {
   it('filters descriptions and saves the report definition', () => {
     const onSaveReport = vi.fn()
-    render(<SearchReportsPage data={structuredClone(defaultData)} user={users[0]} onSaveReport={onSaveReport} />)
+    render(<SearchReportsPage data={structuredClone(defaultData)} user={users[0]} onSaveReport={onSaveReport} onDeleteReport={vi.fn()} onEditMovement={vi.fn()} onDeleteMovement={vi.fn()} />)
 
+    expect(screen.queryByRole('heading', { name: 'Risultati' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Crea report' })).toBeNull()
     fireEvent.change(screen.getByPlaceholderText('Es. vacanza, bolletta, scuola'), { target: { value: 'bolletta' } })
     const counterparty = screen.getByRole('combobox', { name: 'Beneficiario o mittente' })
     fireEvent.change(counterparty, { target: { value: 'Octo' } })
     fireEvent.keyDown(counterparty, { key: 'Enter' })
     expect((screen.getByRole('combobox', { name: 'Beneficiario o mittente' }) as HTMLInputElement).value).toBe('Octopus Energy')
+    expect(screen.queryByRole('heading', { name: 'Risultati' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerca' }))
     expect(screen.getByText('1 movimento trovato')).toBeTruthy()
     expect(screen.getByText('Bolletta elettrica')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Crea report' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Crea report' }))
     const name = screen.getByLabelText('Nome del report')
@@ -45,7 +50,7 @@ describe('SearchReportsPage', () => {
     }
     const data = { ...structuredClone(defaultData), searchReports: [report] }
     const onSaveReport = vi.fn()
-    render(<SearchReportsPage data={data} user={users[0]} onSaveReport={onSaveReport} />)
+    render(<SearchReportsPage data={data} user={users[0]} onSaveReport={onSaveReport} onDeleteReport={vi.fn()} onEditMovement={vi.fn()} onDeleteMovement={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Modifica' }))
     expect((screen.getByPlaceholderText('Es. vacanza, bolletta, scuola') as HTMLInputElement).value).toBe('casa')
@@ -53,5 +58,58 @@ describe('SearchReportsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
 
     expect(onSaveReport.mock.calls[0][0]).toMatchObject({ id: 'report-casa', name: 'Spese casa aggiornate', createdAt: report.createdAt })
+  })
+
+  it('shows the listed movement total and can remove a movement only from a saved report', () => {
+    const report: SearchReport = {
+      id: 'report-bolletta',
+      ownerId: 'simone',
+      name: 'Bolletta',
+      filters: { query: 'bolletta', dateFrom: '2026-07-01', dateTo: '2026-08-31', movementType: 'expense' },
+      createdAt: '2026-08-31T10:00:00.000Z',
+      updatedAt: '2026-08-31T10:00:00.000Z',
+    }
+    const data = { ...structuredClone(defaultData), searchReports: [report] }
+    const onSaveReport = vi.fn()
+    const onDeleteMovement = vi.fn()
+    render(<SearchReportsPage data={data} user={users[0]} onSaveReport={onSaveReport} onDeleteReport={vi.fn()} onEditMovement={vi.fn()} onDeleteMovement={onDeleteMovement} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica' }))
+    expect(screen.getByText('Totale movimenti elencati')).toBeTruthy()
+    expect(screen.getAllByText('Bolletta elettrica')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Azioni per Bolletta elettrica' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Elimina' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Elimina solo dal report/ }))
+
+    expect(onDeleteMovement).not.toHaveBeenCalled()
+    expect(onSaveReport).toHaveBeenCalledOnce()
+    expect(onSaveReport.mock.calls[0][0]).toMatchObject({ id: report.id, excludedMovementIds: ['seed-3'] })
+    expect(screen.getAllByText('Bolletta elettrica')).toHaveLength(1)
+  })
+
+  it('can delete a movement completely or delete the saved report', () => {
+    const report: SearchReport = {
+      id: 'report-bolletta',
+      ownerId: 'simone',
+      name: 'Bolletta',
+      filters: { query: 'bolletta', dateFrom: '2026-07-01', dateTo: '2026-08-31', movementType: 'expense' },
+      createdAt: '2026-08-31T10:00:00.000Z',
+      updatedAt: '2026-08-31T10:00:00.000Z',
+    }
+    const data = { ...structuredClone(defaultData), searchReports: [report] }
+    const onDeleteMovement = vi.fn()
+    const onDeleteReport = vi.fn()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<SearchReportsPage data={data} user={users[0]} onSaveReport={vi.fn()} onDeleteReport={onDeleteReport} onEditMovement={vi.fn()} onDeleteMovement={onDeleteMovement} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Azioni per Bolletta elettrica' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Elimina' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Elimina completamente/ }))
+    expect(onDeleteMovement).toHaveBeenCalledWith('seed-3')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina' }))
+    expect(onDeleteReport).toHaveBeenCalledWith(report.id)
+    vi.restoreAllMocks()
   })
 })

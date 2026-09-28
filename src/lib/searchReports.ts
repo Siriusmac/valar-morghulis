@@ -16,6 +16,11 @@ function allocationMatchesFilters(movement: Movement, filters: SearchReportFilte
   })
 }
 
+export function searchReportMovementAmount(movement: Movement, filters: SearchReportFilters) {
+  return allocationMatchesFilters(movement, filters)
+    .reduce((sum, allocation) => sum + allocation.amount, 0)
+}
+
 export function searchMovements(data: AppData, userId: UserId, filters: SearchReportFilters) {
   const query = normalizeSearch(filters.query)
   return visibleMovements(data, userId)

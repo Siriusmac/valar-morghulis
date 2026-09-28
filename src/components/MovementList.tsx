@@ -11,6 +11,7 @@ interface Props {
   user?: User
   onEdit?: (movement: Movement) => void
   onDelete?: (id: string) => void
+  onRequestDelete?: (movement: Movement) => void
   onEditTransfer?: (transfer: Transfer) => void
   onDeleteTransfer?: (id: string) => void
   compact?: boolean
@@ -18,10 +19,11 @@ interface Props {
   transfers?: Transfer[]
   transferAmount?: (transfer: Transfer) => number
   accountId?: string
+  movementAmount?: (movement: Movement) => number
 }
 
-export function MovementList({ data, movements, user, onEdit, onDelete, onEditTransfer, onDeleteTransfer, compact = false, sharedAmountsOnly = false, transfers = [], transferAmount, accountId }: Props) {
-  const hasActions = Boolean((onEdit && onDelete) || (onEditTransfer && onDeleteTransfer))
+export function MovementList({ data, movements, user, onEdit, onDelete, onRequestDelete, onEditTransfer, onDeleteTransfer, compact = false, sharedAmountsOnly = false, transfers = [], transferAmount, accountId, movementAmount }: Props) {
+  const hasActions = Boolean((onEdit && (onDelete || onRequestDelete)) || (onEditTransfer && onDeleteTransfer))
   const entries = [
     ...movements.map((movement) => ({ kind: 'movement' as const, date: movement.date, movement })),
     ...transfers.map((transfer) => ({ kind: 'transfer' as const, date: transfer.date, transfer })),
@@ -74,7 +76,7 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
         : accountId && movement.accountId === accountId && movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
           ? movement.amount - (movement.welfareAmount ?? 0)
           : movement.amount
-      const displayedAmount = sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : accountAmount
+      const displayedAmount = movementAmount?.(movement) ?? (sharedAmountsOnly && account?.scope !== 'family' ? sharedMovementAmount(movement) : accountAmount)
       return <article className="movement-row" key={movement.id}>
         <span className={`movement-row__icon movement-row__icon--${movement.type}`}>{movement.type === 'income' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
         <div className="movement-row__name"><strong>{movement.description}</strong><small>{counterparty}{tagNames.length ? `${counterparty ? ' · ' : ''}${tagNames.map((name) => `#${name}`).join(' · ')}` : ''}{movement.comments ? `${counterparty || tagNames.length ? ' · ' : ''}${movement.comments}` : ''}</small></div>
@@ -83,7 +85,11 @@ export function MovementList({ data, movements, user, onEdit, onDelete, onEditTr
         <span className={`scope-label ${hasSharedPortion ? 'scope-label--shared' : ''}`}>{hasSharedPortion ? <Share2 /> : <LockKeyhole />}{isMixed ? 'Misto' : hasSharedPortion ? 'Condiviso' : 'Personale'}</span>
         <time>{formatDate(movement.date)}</time>
         <strong className={`movement-row__amount movement-row__amount--${movement.type}`} title={sharedAmountsOnly ? 'Quota condivisa del movimento' : undefined}>{movement.type === 'income' ? '+' : '−'}{formatMoney(displayedAmount)}</strong>
-        {onEdit && onDelete ? <div className="row-actions"><ActionMenu label={`Azioni per ${movement.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEdit(movement) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => canEdit && confirm(movement.installmentPlanId && movement.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare questo movimento?') && onDelete(movement.id) }]} /></div> : null}
+        {onEdit && (onDelete || onRequestDelete) ? <div className="row-actions"><ActionMenu label={`Azioni per ${movement.description}`} items={[{ label: 'Modifica', disabled: !canEdit, onSelect: () => canEdit && onEdit(movement) }, { label: 'Elimina', danger: true, disabled: !canEdit, onSelect: () => {
+          if (!canEdit) return
+          if (onRequestDelete) onRequestDelete(movement)
+          else if (onDelete && confirm(movement.installmentPlanId && movement.installmentNumber === 1 ? 'Eliminare questo acquisto e tutte le rate collegate?' : 'Eliminare questo movimento?')) onDelete(movement.id)
+        } }]} /></div> : null}
       </article>
     })}
   </div>
