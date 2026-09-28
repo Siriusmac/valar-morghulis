@@ -198,7 +198,9 @@ bundle iniziale eccessivo.
 
 Produzione: [www.skeyapp.com](https://www.skeyapp.com/). Il dominio
 personalizzato è attivo sul progetto Cloudflare Pages e in Tophost il CNAME
-`www` punta a `valar-morghulis-web.pages.dev`.
+`www` punta al sottodominio storico `valar-morghulis-web.pages.dev`. Il progetto
+Pages si chiama `skey`, ma Cloudflare non consente di cambiare il sottodominio
+`*.pages.dev` di un progetto esistente.
 `valarmorghulis.it` resta collegato alla stessa applicazione e il middleware
 Pages lo reindirizza permanentemente al nuovo host, conservando percorso e
 parametri. DNS ed email restano presso Tophost.

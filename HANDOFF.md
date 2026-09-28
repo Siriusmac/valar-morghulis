@@ -2,6 +2,16 @@
 
 Aggiornato il 28 settembre 2026.
 
+## Nome progetto Cloudflare Pages — 28 settembre
+
+Il progetto Cloudflare Pages esistente è stato rinominato da
+`valar-morghulis-web` a `skey` e `wrangler.jsonc` è stato allineato. La rinomina
+non cambia il sottodominio assegnato alla creazione: Cloudflare continua a
+servire il progetto su `valar-morghulis-web.pages.dev` e dichiara che un
+`*.pages.dev` diverso richiede la cancellazione e ricreazione del progetto.
+I domini personalizzati `www.skeyapp.com` e `www.valarmorghulis.it` restano
+associati al progetto esistente.
+
 ## Ricerca e report web — sviluppo locale del 28 settembre
 
 La nuova voce “Ricerca e report”, collocata sotto “Tag”, cerca i movimenti già
@@ -698,13 +708,14 @@ Il progetto è configurato per Cloudflare Pages tramite `wrangler.jsonc`.
 `pnpm cloudflare:check` esegue la build e verifica che l'autenticazione Supabase
 sia inclusa e che ogni chunk JavaScript resti entro 500 kB;
 `pnpm cloudflare:deploy` pubblica la SPA nel progetto
-`valar-morghulis-web`. Il file locale ignorato `.env.production.local` deve
+`skey`. Il file locale ignorato `.env.production.local` deve
 contenere `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`: senza questi valori il
 controllo fallisce prima del deploy, impedendo di pubblicare la modalità demo.
 
 Produzione: `https://www.skeyapp.com/`. Il dominio è attivo nei Custom domains
-del progetto Pages esistente e in Tophost il CNAME `www` punta a
-`valar-morghulis-web.pages.dev`. Il segreto Supabase `APP_URL`, il Site URL Auth
+del progetto Pages esistente e in Tophost il CNAME `www` punta al sottodominio
+storico `valar-morghulis-web.pages.dev`, che Cloudflare non consente di rinominare
+in-place. Il segreto Supabase `APP_URL`, il Site URL Auth
 e la relativa allow list usano il nuovo indirizzo; il vecchio dominio resta
 temporaneamente consentito nella allow list durante la transizione.
 Il middleware `functions/_middleware.js` reindirizza permanentemente
