@@ -10,7 +10,7 @@ const chapters = [
   { id: 'analisi', label: 'Consultare e correggere i movimenti', icon: Scale },
   { id: 'condivisione', label: 'Spese condivise e saldi', icon: Users },
   { id: 'conti', label: 'Conti e giro fondi', icon: CreditCard },
-  { id: 'rate-rimborsi', label: 'Rate e pagamenti programmati', icon: CalendarClock },
+  { id: 'rate-rimborsi', label: 'Ricorrenze e rate', icon: CalendarClock },
   { id: 'rimborsi', label: 'Rimborsi e prestiti', icon: HandCoins },
   { id: 'contatti', label: 'Contatti e acquisti per altri', icon: ContactRound },
   { id: 'anagrafiche', label: 'Categorie, beneficiari, mittenti e tag', icon: Tags },
@@ -188,15 +188,18 @@ export function GuidePage() {
         </section>
 
         <section id="rate-rimborsi" className="guide-chapter">
-          <ChapterHeading number="06" title="Rate e pagamenti programmati" icon={CalendarClock} />
+          <ChapterHeading number="06" title="Ricorrenze e rate" icon={CalendarClock} />
           <p>
             Attiva <strong>Pagamento a rate</strong> nel nuovo movimento, indica intermediario e
             numero di rate. La prima rata incide subito sul conto; le altre vengono raccolte
-            per acquisto in <strong>Pagamenti programmati</strong>. Intestazione e riepilogo
+            per acquisto in <strong>Ricorrenze e rate</strong>. Intestazione e riepilogo
             mostrano data di inizio, importo totale dell’acquisto, totale residuo, rate
             pagate e prossime scadenze.
           </p>
           <ul>
+            <li>Da <strong>Ricorrenze e rate</strong> puoi creare anche spese ed entrate ricorrenti, indicando importo orientativo, frequenza, conto, categoria, beneficiario o mittente e prossima scadenza.</li>
+            <li>Tre giorni prima della scadenza compare una notifica in Bacheca. La ricorrenza apre il normale modulo del movimento: puoi correggere importo, data e altri dettagli e soltanto la conferma aggiorna saldi, budget e report.</li>
+            <li>Le ricorrenze possono essere modificate, sospese, riattivate, saltate per una singola scadenza o eliminate; i movimenti già registrati restano invariati.</li>
             <li>Sono disponibili piani in 3 o 5 rate e un intermediario personalizzabile.</li>
             <li>Il pagamento a rate non viene proposto quando il conto principale è Contanti o Wellfare, né quando la spesa usa due conti, incluso un pagamento PayPal con conto collegato.</li>
             <li>Le scadenze future diventano automaticamente movimenti alla data prevista.</li>

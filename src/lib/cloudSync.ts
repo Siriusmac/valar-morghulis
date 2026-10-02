@@ -8,7 +8,7 @@ export interface PendingCloudSave {
   attempts: number
 }
 
-export type CloudSyncBaseline = Pick<AppData, 'movements' | 'scheduledPayments' | 'transfers'>
+export type CloudSyncBaseline = Pick<AppData, 'movements' | 'scheduledPayments' | 'recurringMovements' | 'transfers'>
 
 function cloudSyncBaselineKey(storageKey: string) {
   return `${storageKey}:cloud-sync-baseline`
@@ -20,7 +20,7 @@ export function readCloudSyncBaseline(storageKey: string): CloudSyncBaseline | n
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<CloudSyncBaseline>
     if (!Array.isArray(parsed.movements) || !Array.isArray(parsed.scheduledPayments) || !Array.isArray(parsed.transfers)) return null
-    return parsed as CloudSyncBaseline
+    return { ...parsed, recurringMovements: Array.isArray(parsed.recurringMovements) ? parsed.recurringMovements : [] } as CloudSyncBaseline
   } catch {
     return null
   }
@@ -32,6 +32,7 @@ export function writeCloudSyncBaseline(storageKey: string, data: AppData, userId
     const baseline: CloudSyncBaseline = {
       movements: authored(data.movements),
       scheduledPayments: authored(data.scheduledPayments),
+      recurringMovements: authored(data.recurringMovements),
       transfers: authored(data.transfers),
     }
     localStorage.setItem(cloudSyncBaselineKey(storageKey), JSON.stringify(baseline))

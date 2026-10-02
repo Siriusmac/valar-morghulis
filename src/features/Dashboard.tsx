@@ -4,6 +4,7 @@ import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
 import { accountBalance, accountSpentForMonth, categoryBudgetForMonth, categorySpentForMonth, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
 import { addMonthsISO, formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
+import { recurringIsDueSoon } from '../lib/recurring'
 import type { AppData, Category, CommissionedPurchase, Contact, User, PageId, Reimbursement } from '../types'
 
 interface Props {
@@ -76,7 +77,8 @@ export function Dashboard({ data, user, members, contacts = [], purchases = [], 
     if (spent < limit * .9) return []
     return [{ account, limit, spent, exceeded: spent > limit }]
   })
-  const notificationCount = reimbursementUpdates.length + purchaseUpdates.length + purchaseReimbursementUpdates.length + budgetAlerts.length + accountLimitAlerts.length
+  const recurringAlerts = data.recurringMovements.filter((item) => item.authorId === user.id && recurringIsDueSoon(item, todayISO()))
+  const notificationCount = reimbursementUpdates.length + purchaseUpdates.length + purchaseReimbursementUpdates.length + budgetAlerts.length + accountLimitAlerts.length + recurringAlerts.length
   const nextBudgetMonth = addMonthsISO(`${currentMonth}-01`, 1).slice(0, 7)
 
   return (
@@ -96,8 +98,11 @@ export function Dashboard({ data, user, members, contacts = [], purchases = [], 
       </div>
 
       {notificationCount ? <section className="dashboard-notifications" aria-label="Notifiche">
-        <div className="dashboard-notifications__heading"><span><Bell /></span><div><h2>Notifiche</h2><p>Richieste da confermare e avvisi sui budget</p></div><strong>{notificationCount}</strong></div>
+        <div className="dashboard-notifications__heading"><span><Bell /></span><div><h2>Notifiche</h2><p>Scadenze, richieste da confermare e avvisi sui budget</p></div><strong>{notificationCount}</strong></div>
         <div className="dashboard-notifications__grid">
+          {recurringAlerts.map((item) => <button type="button" className="dashboard-notification dashboard-notification--action" key={`recurring-${item.id}`} onClick={() => onNavigate('scheduled')}>
+            <span className="dashboard-notification__icon"><Clock3 /></span><span><strong>{item.type === 'expense' ? 'Pagamento' : 'Entrata'} {item.nextDate < todayISO() ? 'scaduto' : 'in scadenza'}</strong><small>{item.description} · {formatMoney(item.amount)} · {formatDate(item.nextDate)}{item.amountMode === 'variable' ? ' · importo da verificare' : ''}</small></span><ChevronRight />
+          </button>)}
           {purchaseUpdates.map((purchase) => {
             const payer = [...members, ...contacts].find((item) => item.id === purchase.payerId)
             return <button type="button" className="dashboard-notification dashboard-notification--action" key={`purchase-${purchase.id}`} onClick={() => onNavigate('reimbursements')}>

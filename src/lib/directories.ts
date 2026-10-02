@@ -28,6 +28,10 @@ export function deleteDirectoryData(
           ? { ...split, categoryId: replacementId ?? '' }
           : split),
       })),
+      recurringMovements: data.recurringMovements.map((movement) => ({
+        ...movement,
+        categoryId: movement.categoryId === itemId ? replacementId ?? '' : movement.categoryId,
+      })),
     }
   }
   if (kind === 'sender') {
@@ -36,6 +40,9 @@ export function deleteDirectoryData(
       senders: data.senders.filter((item) => item.id !== itemId),
       deletedSenderIds: [...new Set([...(data.deletedSenderIds ?? []), itemId])],
       movements: data.movements.map((movement) => movement.senderId === itemId
+        ? { ...movement, senderId: replacementId }
+        : movement),
+      recurringMovements: data.recurringMovements.map((movement) => movement.senderId === itemId
         ? { ...movement, senderId: replacementId }
         : movement),
     }
@@ -55,6 +62,9 @@ export function deleteDirectoryData(
       beneficiaryId: payment.beneficiaryId === itemId ? replacementId : payment.beneficiaryId,
       splits: payment.splits?.map((split) => split.beneficiaryId === itemId ? { ...split, beneficiaryId: replacementId } : split),
     })),
+    recurringMovements: data.recurringMovements.map((movement) => movement.beneficiaryId === itemId
+      ? { ...movement, beneficiaryId: replacementId }
+      : movement),
   }
 }
 

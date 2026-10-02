@@ -178,6 +178,9 @@ export function buildCloudPersistence(data: AppData, userId: UserId, members: Us
   const ownScheduledPayments = data.scheduledPayments.filter((item) => item.authorId === userId)
   const ownFamilyPayments = ownScheduledPayments.filter((item) => sanitizedSharedPayment(item) !== null)
   const familyPaymentIds = new Set(ownFamilyPayments.map((item) => item.id))
+  const ownRecurringMovements = data.recurringMovements.filter((item) => item.authorId === userId)
+  const ownFamilyRecurringMovements = ownRecurringMovements.filter((item) => item.shared || familyAccountIds.has(item.accountId))
+  const familyRecurringIds = new Set(ownFamilyRecurringMovements.map((item) => item.id))
   const ownSharedReimbursements = data.reimbursements.filter((item) => item.authorId === userId)
   const ownSharedLoans = data.loans.filter((item) => item.authorId === userId)
   const ownSharedLoanRepayments = data.loanRepayments.filter((item) => item.authorId === userId)
@@ -223,6 +226,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId, members: Us
       searchReports: data.searchReports.filter((report) => report.ownerId === userId),
       movements: ownMovements.filter((item) => !familyMovementIds.has(item.id)),
       scheduledPayments: ownScheduledPayments.filter((item) => !familyPaymentIds.has(item.id)),
+      recurringMovements: ownRecurringMovements.filter((item) => !familyRecurringIds.has(item.id)),
       transfers: data.transfers.filter((item) => item.authorId === userId && !familyAccountIds.has(item.fromAccountId) && !familyAccountIds.has(item.toAccountId)),
       reimbursements: [],
       loans: [],
@@ -241,6 +245,7 @@ export function buildCloudPersistence(data: AppData, userId: UserId, members: Us
       movements: ownMovements.filter((item) => familyMovementIds.has(item.id)),
       // Mantieni la rata completa nella copia privata familiare dell'autore.
       scheduledPayments: ownFamilyPayments,
+      recurringMovements: ownFamilyRecurringMovements,
       transfers: ownSharedTransfers,
       reimbursements: ownSharedReimbursements,
       loans: ownSharedLoans,
@@ -278,6 +283,8 @@ export function mergePrivateCloudData(
     movements: mergeById(family.movements ?? [], personal.movements ?? [])
       .filter((item) => !userId || item.authorId === userId),
     scheduledPayments: mergeById(family.scheduledPayments ?? [], personal.scheduledPayments ?? [])
+      .filter((item) => !userId || item.authorId === userId),
+    recurringMovements: mergeById(family.recurringMovements ?? [], personal.recurringMovements ?? [])
       .filter((item) => !userId || item.authorId === userId),
     transfers: mergeById(family.transfers ?? [], personal.transfers ?? [])
       .filter((item) => !userId || item.authorId === userId),

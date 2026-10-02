@@ -7,6 +7,23 @@ import { todayISO } from '../lib/format'
 
 afterEach(cleanup)
 describe('Dashboard workspace selector', () => {
+  it('shows recurring income and expense notifications three days before', () => {
+    const data = structuredClone(defaultData)
+    data.recurringMovements = [{
+      id: 'salary', authorId: users[0].id, memberId: users[0].id, type: 'income', amount: 1400,
+      amountMode: 'variable', nextDate: todayISO(), frequency: 'monthly', description: 'Stipendio',
+      categoryId: 'stipendio', senderId: 'datore-lavoro', accountId: 'simone-bank', shared: false,
+      status: 'active', createdAt: new Date().toISOString(),
+    }]
+    const onNavigate = vi.fn()
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={onNavigate} onReimburse={vi.fn()} />)
+
+    const alert = screen.getByRole('button', { name: /Entrata in scadenza/ })
+    expect(alert.textContent).toContain('Stipendio')
+    fireEvent.click(alert)
+    expect(onNavigate).toHaveBeenCalledWith('scheduled')
+  })
+
   it('warns when an account reaches its monthly spending limit', () => {
     const data = structuredClone(defaultData)
     const currentMonth = todayISO().slice(0, 7)

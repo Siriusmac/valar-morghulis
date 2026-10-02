@@ -15,11 +15,12 @@ import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directori
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
 import { resolveBankFeeCategory } from './lib/bankFees'
+import { advanceRecurringMovement, recurringMovementDraft } from './lib/recurring'
 import { createCommissionedPurchase, familyContacts, inviteContact, issueCommissionedPurchaseReimbursement, loadContactData, removeContact, respondToCommissionedPurchase, respondToCommissionedPurchaseReimbursement, withdrawContactInvitation, type ContactData } from './lib/contacts'
 import { debtCompensationAccountId, isPurchaseReimbursement, reconcileConfirmedCommissionedIncomes } from './lib/commissioned'
 import { reconcileConfirmedLoanPurchases } from './lib/loans'
 import { cloudAuthEnabled } from './lib/supabase'
-import type { Account, AppData, Beneficiary, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, Movement, MovementType, PageId, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
+import type { Account, AppData, Beneficiary, Category, CommissionedPurchase, Contact, Loan, LoanRepayment, Movement, MovementType, PageId, RecurringMovement, Reimbursement, ReimbursementAccountReference, Sender, Transfer, User, UserId } from './types'
 import type { CommissionedPurchaseDraft } from './features/MovementForm'
 import type { LoanDraft, LoanRepaymentDraft } from './features/ReimbursementsPage'
 import type { ComposerType } from './components/MovementTypeSelector'
@@ -52,7 +53,7 @@ type DetailsModalState = {
 }
 
 type ModalState =
-  | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType; returnTo?: DetailsModalState }
+  | { type: 'movement'; movement?: Movement; initialType?: MovementType; initialComposerType?: ComposerType; recurringId?: string; returnTo?: DetailsModalState }
   | { type: 'reimburse' }
   | { type: 'transfer'; transfer?: Transfer; returnTo?: DetailsModalState }
   | DetailsModalState
@@ -379,7 +380,11 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }
 
   const saveMovement = (movement: Movement, additions: MovementAdditions) => {
-    setData((current) => saveMovementData(current, movement, additions))
+    const recurringId = modal?.type === 'movement' ? modal.recurringId : undefined
+    setData((current) => {
+      const saved = saveMovementData(current, movement, additions)
+      return recurringId ? { ...saved, recurringMovements: saved.recurringMovements.map((item) => item.id === recurringId ? advanceRecurringMovement(item.amountMode === 'variable' ? { ...item, amount: movement.amount } : item) : item) } : saved
+    })
     setModal((current) => current?.type === 'movement' ? current.returnTo ?? null : null)
     setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
   }
@@ -736,7 +741,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     onSwitch: cloud.switchFamily,
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} onEditTransfer={(transfer) => setModal({ type: 'transfer', transfer })} onDeleteTransfer={deleteTransfer} />
-    : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} />
+    : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} personalOnly={Boolean(cloud?.personalMode)} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement}
+      onSaveRecurring={(recurring) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.some((item) => item.id === recurring.id) ? current.recurringMovements.map((item) => item.id === recurring.id ? recurring : item) : [...current.recurringMovements, recurring] }))}
+      onDeleteRecurring={(id) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.filter((item) => item.id !== id) }))}
+      onToggleRecurring={(id) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.map((item) => item.id === id ? { ...item, status: item.status === 'active' ? 'paused' : 'active' } : item) }))}
+      onSkipRecurring={(id) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.map((item) => item.id === id ? advanceRecurringMovement(item) : item) }))}
+      onConfirmRecurring={(recurring: RecurringMovement) => setModal({ type: 'movement', movement: recurringMovementDraft(recurring), recurringId: recurring.id })} />
     : page === 'reimbursements' ? <ReimbursementsPage data={data} user={user} members={appUsers} contacts={contacts} purchases={contactData.purchases} onRespond={cloud ? respondToReimbursement : undefined} onRespondPurchase={cloud ? respondToPurchase : undefined} onIssuePurchaseReimbursement={cloud ? issuePurchaseReimbursement : undefined} onRespondPurchaseReimbursement={cloud ? respondToPurchaseReimbursement : undefined} onRequestChange={cloud ? requestReimbursementChange : undefined} onRespondChange={cloud ? respondToReimbursementChange : undefined} onWithdrawChange={cloud ? withdrawReimbursementChange : undefined} onCreateLoan={!cloud || !cloud.personalMode ? createLoan : undefined} onRespondLoan={!cloud || !cloud.personalMode ? respondToLoan : undefined} onCreateLoanRepayment={!cloud || !cloud.personalMode ? createLoanRepayment : undefined} onRespondLoanRepayment={!cloud || !cloud.personalMode ? respondToLoanRepayment : undefined} />
     : page === 'accounts' ? <AccountsPage {...common} families={cloud?.families ?? []} activeFamilyId={cloud?.personalMode ? undefined : cloud?.familyId} canDeleteFamilyAccounts={!cloud || cloud.role === 'admin'} onDelete={deleteAccount} onAdd={async (account, familyId) => {
       if (cloud && account.scope === 'family') {
@@ -787,10 +797,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
   return <>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} scheduledPaymentsEnabled={data.scheduledPayments.some((payment) => payment.authorId === user.id && payment.status === 'scheduled')} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
-    {modal?.type === 'movement' ? <Modal title={modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
+    {modal?.type === 'movement' ? <Modal title={modal.recurringId ? 'Conferma movimento ricorrente' : modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={modal.recurringId ? undefined : deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
     {modal?.type === 'reimburse' ? <Modal title="Registra rimborso" onClose={() => setModal(null)}><ReimbursementForm data={data} userId={user.id} members={appUsers} accountReferences={cloud?.reimbursementAccountReferences.filter((reference) => reference.familyId === cloud.familyId) ?? []} requireConfirmation={Boolean(cloud)} onSubmit={registerReimbursement} onCancel={() => setModal(null)} /></Modal> : null}
     {modal?.type === 'transfer' ? <Modal title={modal.transfer ? 'Modifica giro fondi' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)}><Suspense fallback={<FeatureLoading compact />}><TransferForm data={data} user={user} memberCount={appUsers.length} initial={modal.transfer} onRequireBankInstitution={requestBankInstitution} onSubmit={saveTransfer} onDelete={modal.transfer ? deleteTransfer : undefined} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} transferAmount={modal.transferAmount} accountId={modal.accountId} compact user={user} onEdit={(movement) => setModal({ type: 'movement', movement, returnTo: modal })} onDelete={deleteMovement} onEditTransfer={modal.accountId || modal.transferFilter ? (transfer) => setModal({ type: 'transfer', transfer, returnTo: modal }) : undefined} onDeleteTransfer={modal.accountId || modal.transferFilter ? deleteTransfer : undefined} /></Suspense></Modal> : null}

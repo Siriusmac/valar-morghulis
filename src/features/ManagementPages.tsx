@@ -188,6 +188,7 @@ export function CategoriesPage({ data, user, personalOnly = false, onAdd, onUpda
   const affectedCount = deletingItem
     ? data.movements.filter((movement) => movementAllocations(movement).some((allocation) => allocation.categoryId === deletingItem.id)).length
       + data.scheduledPayments.filter((payment) => movementAllocations(payment).some((allocation) => allocation.categoryId === deletingItem.id)).length
+      + data.recurringMovements.filter((movement) => movement.categoryId === deletingItem.id).length
     : 0
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -223,7 +224,7 @@ export function CategoriesPage({ data, user, personalOnly = false, onAdd, onUpda
   return <DirectoryPage title="Categorie" subtitle="Categorie distinte per spese ed entrate." addLabel="Nuova categoria" showForm={showForm} setShowForm={setShowForm}>
     {showForm ? <InlineForm title="Nuova categoria" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} autoFocus /></label><label>Tipo<select value={movementType} onChange={(event) => setMovementType(event.target.value as MovementType)}><option value="expense">Spesa</option><option value="income">Entrata</option></select></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
     {deletingItem ? <form className="directory-delete-form" onSubmit={(event) => { event.preventDefault(); const match = replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === replacementQuery.trim().toLocaleLowerCase('it-IT')); const created = replacementQuery.trim() && !match ? { id: makeId('category'), name: replacementQuery.trim(), scope: deletingItem.scope, ownerId: deletingItem.scope === 'personal' ? user.id : undefined, movementType: deletingItem.movementType, color: deletingItem.color } : undefined; if (created) onAdd(created); onDelete(deletingItem.id, (created?.id ?? match?.id ?? replacementId) || undefined); setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>
-      <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa categoria.` : 'Questa categoria non è utilizzata.'}</p></div>
+      <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti, rate o ricorrenze usano questa categoria.` : 'Questa categoria non è utilizzata.'}</p></div>
       {affectedCount ? <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder="Senza categoria" onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /> : null}
       <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId(''); setReplacementQuery('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}
@@ -293,7 +294,9 @@ export function BeneficiariesPage({
     ? section === 'beneficiaries'
       ? data.movements.filter((movement) => movementAllocations(movement).some((allocation) => allocation.beneficiaryId === deletingItem.id)).length
         + data.scheduledPayments.filter((payment) => movementAllocations(payment).some((allocation) => allocation.beneficiaryId === deletingItem.id)).length
+        + data.recurringMovements.filter((movement) => movement.beneficiaryId === deletingItem.id).length
       : data.movements.filter((movement) => movement.senderId === deletingItem.id).length
+        + data.recurringMovements.filter((movement) => movement.senderId === deletingItem.id).length
     : 0
   const confirmDeletion = (event: React.FormEvent) => {
     event.preventDefault()
@@ -327,7 +330,7 @@ export function BeneficiariesPage({
     </div>
     {showForm ? <InlineForm title={`Nuovo ${singular}`} onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input aria-label={`Nome nuovo ${singular}`} value={name} onChange={(e) => setName(e.target.value)} placeholder={section === 'beneficiaries' ? 'Es. Lidl, Amazon' : 'Es. Datore di lavoro, INPS'} autoFocus /></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
     {deletingItem ? <form className="directory-delete-form" onSubmit={confirmDeletion}>
-      <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti o rate usano questa anagrafica.` : 'Questa anagrafica non è utilizzata.'}</p></div>
+      <div><strong>Elimina {deletingItem.name}</strong><p>{affectedCount ? `${affectedCount} movimenti, rate o ricorrenze usano questa anagrafica.` : 'Questa anagrafica non è utilizzata.'}</p></div>
       {affectedCount ? <CreatableLookup label="Attribuisci i movimenti a" value={replacementQuery} options={replacements} placeholder={section === 'beneficiaries' ? 'Nessun beneficiario' : 'Nessun mittente'} onChange={(value) => { setReplacementQuery(value); setReplacementId(replacements.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /> : null}
       <div><button type="button" className="button button--ghost" onClick={() => { setDeletingId(''); setReplacementId('') }}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
     </form> : null}

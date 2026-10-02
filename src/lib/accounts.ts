@@ -25,6 +25,7 @@ export function accountLinkedOperationCount(data: AppData, accountId: string) {
   return [
     ...data.movements,
     ...data.scheduledPayments,
+    ...data.recurringMovements,
     ...data.transfers,
     ...data.reimbursements,
     ...data.loans,
@@ -70,6 +71,9 @@ export function deleteAccountData(
     accounts: current.accounts.filter((account) => account.id !== accountId),
     movements: updateRecords(current.movements),
     scheduledPayments: updateRecords(current.scheduledPayments),
+    recurringMovements: mode === 'reassign'
+      ? current.recurringMovements.map((record) => replaceAccountReference(record, accountId, replacementAccountId!))
+      : current.recurringMovements.filter((record) => !referencesAccount(record, accountId)),
     transfers: updateRecords(current.transfers),
     reimbursements: updateRecords(current.reimbursements),
     loans: updateRecords(current.loans),

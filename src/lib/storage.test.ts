@@ -151,7 +151,7 @@ describe('persistenza dei dati operativi', () => {
     const baseMovement = { ...movement, description: 'Versione sincronizzata' }
     const localMovement = { ...baseMovement, description: 'Modifica dal computer' }
     const remoteMovement = { ...movement, id: 'movement-phone', description: 'Creato dallo smartphone' }
-    const baseline = { movements: [baseMovement], scheduledPayments: [], transfers: [] }
+    const baseline = { movements: [baseMovement], scheduledPayments: [], recurringMovements: [], transfers: [] }
 
     const merged = mergeConcurrentPendingAppData(
       { ...fallback, movements: [baseMovement, remoteMovement] },
@@ -167,7 +167,7 @@ describe('persistenza dei dati operativi', () => {
 
   it('mantiene una cancellazione locale intenzionale durante una modifica concorrente', () => {
     const fallback = createStarterData('user-1', [sharedAccount])
-    const baseline = { movements: [movement], scheduledPayments: [], transfers: [] }
+    const baseline = { movements: [movement], scheduledPayments: [], recurringMovements: [], transfers: [] }
     const merged = mergeConcurrentPendingAppData(
       { ...fallback, movements: [{ ...movement, description: 'Modificato altrove' }] },
       { ...fallback, movements: [] },

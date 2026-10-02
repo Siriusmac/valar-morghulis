@@ -83,6 +83,7 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
     searchReports: data.searchReports ?? base.searchReports,
     movements: data.movements ?? [],
     scheduledPayments: data.scheduledPayments ?? [],
+    recurringMovements: data.recurringMovements ?? [],
     transfers: data.transfers ?? [],
     loans: data.loans ?? [],
     loanRepayments: data.loanRepayments ?? [],
@@ -98,6 +99,7 @@ export function hasMeaningfulUserData(data: AppData, userId: UserId) {
   const personalAccounts = data.accounts.filter((account) => account.scope === 'personal' && account.ownerId === userId)
   return data.movements.length > 0
     || data.scheduledPayments.length > 0
+    || data.recurringMovements.length > 0
     || data.transfers.length > 0
     || data.reimbursements.length > 0
     || data.loans.length > 0
@@ -126,6 +128,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     searchReports: mergePreferredById(local.searchReports, remoteData.searchReports),
     movements: mergePreferredById(local.movements, remoteData.movements),
     scheduledPayments: mergePreferredById(local.scheduledPayments, remoteData.scheduledPayments),
+    recurringMovements: mergePreferredById(local.recurringMovements, remoteData.recurringMovements),
     transfers: mergePreferredById(local.transfers, remoteData.transfers),
     reimbursements: mergePreferredById(remoteData.reimbursements, local.reimbursements),
     loans: mergePreferredById(remoteData.loans, local.loans),
@@ -147,6 +150,7 @@ export function mergePendingAppData(remote: Partial<AppData>, local: AppData, fa
     // continuano invece ad arrivare dal database.
     movements: preserveLocalAuthoredState(local.movements, remoteData.movements),
     scheduledPayments: preserveLocalAuthoredState(local.scheduledPayments, remoteData.scheduledPayments),
+    recurringMovements: preserveLocalAuthoredState(local.recurringMovements, remoteData.recurringMovements),
     transfers: preserveLocalAuthoredState(local.transfers, remoteData.transfers),
   }, fallbackData)
 }
@@ -154,7 +158,7 @@ export function mergePendingAppData(remote: Partial<AppData>, local: AppData, fa
 export function mergeConcurrentPendingAppData(
   remote: Partial<AppData>,
   local: AppData,
-  baseline: Pick<AppData, 'movements' | 'scheduledPayments' | 'transfers'>,
+  baseline: Pick<AppData, 'movements' | 'scheduledPayments' | 'recurringMovements' | 'transfers'>,
   fallbackData: AppData,
   userId: UserId,
 ): AppData {
@@ -181,6 +185,7 @@ export function mergeConcurrentPendingAppData(
     ...merged,
     movements: mergeAuthored(local.movements, remoteData.movements, baseline.movements),
     scheduledPayments: mergeAuthored(local.scheduledPayments, remoteData.scheduledPayments, baseline.scheduledPayments),
+    recurringMovements: mergeAuthored(local.recurringMovements, remoteData.recurringMovements, baseline.recurringMovements),
     transfers: mergeAuthored(local.transfers, remoteData.transfers, baseline.transfers),
   }, fallbackData)
 }
@@ -207,6 +212,7 @@ function migrateLegacy(legacy: LegacyData): AppData {
     movements: legacy.expenses?.map(({ payerId, ...item }) => ({ ...item, type: 'expense' as const, memberId: payerId })) ?? base.movements,
     transfers: [],
     scheduledPayments: [],
+    recurringMovements: [],
     reimbursements: legacy.reimbursements?.map((item) => ({
       ...item,
       fromAccountId: item.fromAccountId ?? fallbackAccount(item.fromId),

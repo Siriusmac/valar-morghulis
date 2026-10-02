@@ -20,6 +20,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - confronto mensile in bacheca degli importi anticipati da ciascun membro per le spese condivise, escludendo i pagamenti effettuati direttamente da un conto condiviso;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
+- movimenti ricorrenti in uscita e in entrata con importo fisso o da verificare, notifica in Bacheca tre giorni prima e conferma modificabile prima della registrazione;
 - dati dei conti (nome, istituto o dettaglio per i contanti, tipo, saldo iniziale e data di riferimento) modificabili; ogni conto mostra saldo globale e saldo netto del mese corrente e può avere un limite mensile di spesa con avviso dal 90%;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; per un rimborso diretto chi invia la richiesta sceglie il proprio conto e chi la riceve può completare il proprio conto prima della conferma;
@@ -267,7 +268,7 @@ azioni contestuali touch o Mac, anagrafiche di categorie, beneficiari, mittenti
 e tag modificabili con accesso ai relativi movimenti, elenco mensile dei
 movimenti, sezione Rimborsi e prestiti “Attesi/Dovuti”, conferma delle richieste, saldi calcolati di conti e famiglia e
 grafici mensili condivisi/per categoria tramite Swift Charts. Le rate future
-sono raggruppate per acquisto in “Pagamenti programmati” e vengono materializzate
+sono raggruppate per acquisto in “Ricorrenze e rate” e vengono materializzate
 alla scadenza.
 I conti possono anche essere eliminati con azioni adattive al dispositivo. Alla
 creazione di un conto familiare si sceglie esplicitamente la famiglia

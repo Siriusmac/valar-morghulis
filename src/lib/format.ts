@@ -30,6 +30,12 @@ export function addMonthsISO(value: string, months: number) {
   return `${targetYear}-${targetMonth}-${targetDay}`
 }
 
+export function addDaysISO(value: string, days: number) {
+  const [year, month, day] = value.split('-').map(Number)
+  const target = new Date(year, month - 1, day + days, 12)
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
+}
+
 export function selectableMonths(dates: string[], selectedMonth: string, currentMonth = todayISO().slice(0, 7)) {
   return [...new Set([
     ...Array.from({ length: 37 }, (_, index) => addMonthsISO(`${currentMonth}-01`, index - 24).slice(0, 7)),

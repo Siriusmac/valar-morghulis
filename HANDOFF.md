@@ -2,6 +2,27 @@
 
 Aggiornato il 2 ottobre 2026.
 
+## Movimenti ricorrenti web — rilascio del 2 ottobre
+
+La voce “Pagamenti programmati” è diventata “Ricorrenze e rate” ed è sempre
+visibile nel menu, anche quando non esistono ancora piani rateali. Da questa
+pagina l'utente può creare spese o entrate ricorrenti con importo normalmente
+fisso oppure da verificare, prossima data, frequenza, conto, categoria,
+beneficiario o mittente, tag, commenti e condivisione.
+
+Tre giorni prima della data prevista la Bacheca mostra una notifica che apre la
+sezione delle ricorrenze. La conferma passa dal normale modulo del movimento,
+quindi importo, data e classificazione restano modificabili; soltanto il
+salvataggio aggiorna conti, budget, limiti e report. Dopo la conferma o il salto
+della singola scadenza, la data successiva viene calcolata dalla regola
+originaria senza slittare sui mesi corti. Le ricorrenze possono inoltre essere
+modificate, sospese, riattivate o eliminate senza toccare i movimenti storici.
+
+Le definizioni restano private all'autore e vengono salvate nello snapshot
+AppData v3 personale o familiare; non richiedono una migration SQL e non vengono
+pubblicate come record visibili agli altri membri. Il client Apple non è stato
+modificato. Verifica locale: 283 test web, lint e build Vite riusciti.
+
 ## Saldo e limite mensile dei conti web — 2 ottobre
 
 La pagina Conti mostra per ogni conto il saldo globale e la variazione netta del
@@ -228,7 +249,7 @@ Funzioni disponibili:
 - righe della pagina Tag aggiungibili e rimovibili, con tag sempre disponibili nel selettore;
 - PayPal come conto personale;
 - rateizzazione in 3 o 5 rate con intermediario statistico e pagina dei pagamenti programmati;
-- piano rateale completo conservato soltanto nei dati privati dell'autore: non viene pubblicato come record familiare e “Pagamenti programmati” mostra sempre l'intera rata, non la quota condivisa;
+- piano rateale completo conservato soltanto nei dati privati dell'autore: non viene pubblicato come record familiare e “Ricorrenze e rate” mostra sempre l'intera rata, non la quota condivisa;
 - rimborsi in attesa di conferma della controparte, esclusi da saldi e conti finché non vengono accettati;
 - pagina “Rimborsi e prestiti” con segmenti “Attesi” e “Dovuti”; include anche gli acquisti ordinari per conto terzi e, sul web, prestiti familiari con conferma iniziale, residuo e restituzioni parziali;
 - migration `20260901100000_family_loans.sql` applicata al progetto Supabase remoto il 1 settembre 2026: aggiunge record autorevoli `loan`/`loan_repayment`, RPC di creazione e risposta reciproca e controllo server del credito familiare; il client Apple decodifica e contabilizza questi record e dispone delle chiamate repository, mentre la relativa UI nativa resta da completare;
@@ -582,7 +603,7 @@ la RPC atomica `set_reimbursement_account_families`: verifica proprietà del
 conto personale e appartenenza a tutte le famiglie richieste, quindi sostituisce
 in un'unica transazione l'intero insieme delle pubblicazioni del conto.
 
-“Pagamenti programmati” raggruppa le rate future per piano di acquisto come la
+“Ricorrenze e rate” raggruppa le rate future per piano di acquisto come la
 web app e mostra totale residuo, conto, rate pagate e singole scadenze.
 
 La migration `20260816120000_contacts_and_commissioned_purchases.sql` introduce

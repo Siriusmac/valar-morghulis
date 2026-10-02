@@ -111,6 +111,22 @@ describe('family cloud persistence', () => {
     expect(payload.ownedKeys.some((item) => item.type === 'scheduled_payment')).toBe(false)
   })
 
+  it('keeps recurring movements private to their author in the correct workspace', () => {
+    const data = structuredClone(defaultData)
+    data.recurringMovements = [{
+      id: 'family-rent', authorId: 'simone', memberId: 'simone', type: 'expense', amount: 800,
+      amountMode: 'variable', nextDate: '2026-10-05', frequency: 'monthly', description: 'Affitto',
+      categoryId: 'mutuo', accountId: 'family-bank', shared: true, status: 'active', createdAt: '2026-10-01T00:00:00Z',
+    }]
+
+    const payload = buildCloudPersistence(data, 'simone')
+    expect(payload.privateData.recurringMovements).toEqual([])
+    expect(payload.familyPrivateData.recurringMovements).toHaveLength(1)
+    expect(payload.sharedRecords.some((item) => item.id === 'family-rent')).toBe(false)
+    const merged = mergePrivateCloudData(payload.privateData, payload.familyPrivateData, 'simone')
+    expect(merged?.recurringMovements).toEqual(payload.familyPrivateData.recurringMovements)
+  })
+
   it('keeps the author full copy when private and shared records have the same id', () => {
     const data = structuredClone(defaultData)
     const payload = buildCloudPersistence(data, 'simone')

@@ -137,6 +137,31 @@ export interface ScheduledPayment extends FamilyMembershipSnapshot {
   commissionedPurchaseId?: string
 }
 
+export type RecurringFrequency = 'weekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'yearly'
+
+export interface RecurringMovement extends FamilyMembershipSnapshot {
+  id: string
+  authorId: UserId
+  memberId: UserId
+  type: MovementType
+  amount: number
+  amountMode: 'fixed' | 'variable'
+  nextDate: string
+  frequency: RecurringFrequency
+  anchorDay?: number
+  description: string
+  categoryId: string
+  beneficiaryId?: string
+  senderId?: string
+  accountId: string
+  tagId?: string
+  tagIds?: string[]
+  comments?: string
+  shared: boolean
+  status: 'active' | 'paused'
+  createdAt: string
+}
+
 export interface Transfer extends FamilyMembershipSnapshot {
   id: string
   authorId: UserId
@@ -308,6 +333,7 @@ export interface AppData {
   searchReports: SearchReport[]
   movements: Movement[]
   scheduledPayments: ScheduledPayment[]
+  recurringMovements: RecurringMovement[]
   transfers: Transfer[]
   reimbursements: Reimbursement[]
   loans: Loan[]

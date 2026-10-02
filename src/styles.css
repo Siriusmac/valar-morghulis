@@ -733,6 +733,30 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .installment-schedule input { width: 100%; }
 
 .scheduled-list { display: grid; gap: 24px; }
+.scheduled-section { display: grid; gap: 18px; margin-bottom: 38px; }
+.scheduled-section + .scheduled-section { padding-top: 34px; border-top: 1px solid var(--line); }
+.recurring-form { margin-bottom: 18px; }
+.recurring-form .inline-form__heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+.recurring-form .inline-form__heading > svg { width: 30px; color: var(--accent); }
+.recurring-form .inline-form__heading > div { display: grid; }
+.recurring-form .inline-form__heading small { color: var(--muted); font-size: 10px; }
+.recurring-form__comments { grid-column: span 2; }
+.recurring-list { display: grid; gap: 10px; }
+.recurring-card { min-height: 92px; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.6); }
+.recurring-card--due { border-color: #dab472; background: #fffaf0; }
+.recurring-card--paused { opacity: .62; }
+.recurring-card__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; }
+.recurring-card__icon svg { width: 20px; }
+.recurring-card__icon--expense { color: var(--accent); background: var(--accent-soft); }
+.recurring-card__icon--income { color: var(--positive); background: var(--positive-soft); }
+.recurring-card__body { display: grid; gap: 2px; }
+.recurring-card__body strong { font: 600 17px/1.2 'Newsreader', Georgia, serif; }
+.recurring-card__body small, .recurring-card__body span { color: var(--muted); font-size: 10px; }
+.recurring-card__amount { display: grid; justify-items: end; min-width: 125px; }
+.recurring-card__amount small { color: var(--muted); font-size: 9px; }
+.recurring-card__amount b { font: 600 18px/1.2 'Newsreader', Georgia, serif; }
+.recurring-card__amount em { color: #8a6119; font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.recurring-card__actions { display: flex; align-items: center; gap: 7px; }
 .scheduled-plan { border: 1px solid var(--line); background: rgba(255,255,255,.55); border-radius: 9px; overflow: hidden; }
 .scheduled-plan > header { min-height: 96px; padding: 20px 24px; display: grid; grid-template-columns: 48px 1fr auto auto; gap: 15px; align-items: center; }
 .scheduled-plan__icon { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #9a6a18; background: #fbf0d7; }
@@ -1136,6 +1160,10 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .report-picker { grid-template-columns: 1fr; }
   .tag-report__actions { flex-wrap: wrap; }
   .scheduled-plan > header { grid-template-columns: 44px 1fr auto; padding: 18px; }
+  .recurring-card { grid-template-columns: 42px minmax(0, 1fr) auto; }
+  .recurring-card__amount { grid-column: 2; justify-items: start; }
+  .recurring-card__actions { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; }
+  .recurring-form__comments { grid-column: 1; }
   .scheduled-plan__total { grid-column: 2; text-align: left; }
   .scheduled-plan__actions { grid-column: 3; grid-row: 1 / span 2; }
   .scheduled-plan__meta { padding: 10px 18px; flex-wrap: wrap; gap: 9px 16px; }

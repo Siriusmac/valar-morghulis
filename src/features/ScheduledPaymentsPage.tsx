@@ -2,16 +2,23 @@ import { CalendarClock, CreditCard, Landmark, Timer } from 'lucide-react'
 import { ActionMenu } from '../components/ActionMenu'
 import { useMemo } from 'react'
 import { formatDate, formatMoney } from '../lib/format'
-import type { AppData, Movement, ScheduledPayment, User } from '../types'
+import { RecurringMovementsSection } from './RecurringMovementsSection'
+import type { AppData, Movement, RecurringMovement, ScheduledPayment, User } from '../types'
 
 interface Props {
   data: AppData
   user: User
   onEdit: (movement: Movement) => void
   onDelete: (movementId: string) => void
+  personalOnly?: boolean
+  onSaveRecurring: (movement: RecurringMovement) => void
+  onDeleteRecurring: (id: string) => void
+  onToggleRecurring: (id: string) => void
+  onSkipRecurring: (id: string) => void
+  onConfirmRecurring: (movement: RecurringMovement) => void
 }
 
-export function ScheduledPaymentsPage({ data, user, onEdit, onDelete }: Props) {
+export function ScheduledPaymentsPage({ data, user, onEdit, onDelete, personalOnly, onSaveRecurring, onDeleteRecurring, onToggleRecurring, onSkipRecurring, onConfirmRecurring }: Props) {
   const groups = useMemo(() => {
     const visible = data.scheduledPayments.filter((item) => item.status === 'scheduled' && item.authorId === user.id)
     const grouped = new Map<string, ScheduledPayment[]>()
@@ -20,8 +27,10 @@ export function ScheduledPaymentsPage({ data, user, onEdit, onDelete }: Props) {
   }, [data.scheduledPayments, user.id])
 
   return <div className="page scheduled-page">
-    <div className="page-heading"><div><h1>Pagamenti programmati</h1><p>Le rate future verranno registrate automaticamente alla scadenza.</p></div></div>
-    {!groups.length ? <div className="empty-state"><CalendarClock /><h3>Nessuna rata in attesa</h3><p>I nuovi acquisti rateizzati compariranno qui.</p></div> : <div className="scheduled-list">{groups.map((payments) => {
+    <div className="page-heading"><div><h1>Ricorrenze e rate</h1><p>Movimenti ricorrenti da confermare e rate automatiche.</p></div></div>
+    <RecurringMovementsSection data={data} user={user} personalOnly={personalOnly} onSave={onSaveRecurring} onDelete={onDeleteRecurring} onToggle={onToggleRecurring} onSkip={onSkipRecurring} onConfirm={onConfirmRecurring} />
+    <section className="scheduled-section"><div className="section-title-row"><div><h2>Rate</h2><p>Le rate future vengono registrate automaticamente alla scadenza.</p></div></div>
+    {!groups.length ? <div className="empty-state empty-state--compact"><CalendarClock /><h3>Nessuna rata in attesa</h3><p>I nuovi acquisti rateizzati compariranno qui.</p></div> : <div className="scheduled-list">{groups.map((payments) => {
       const first = payments[0]
       const account = data.accounts.find((item) => item.id === first.accountId)
       const beneficiary = data.beneficiaries.find((item) => item.id === first.beneficiaryId)
@@ -35,6 +44,6 @@ export function ScheduledPaymentsPage({ data, user, onEdit, onDelete }: Props) {
         <div className="scheduled-plan__meta"><span><Landmark />{account?.name ?? 'Conto eliminato'}</span><span><Timer />{paidCount} di {first.installmentCount} pagate</span><span className={first.shared ? 'scope-label scope-label--shared' : 'scope-label'}>{first.shared ? 'Famiglia' : 'Personale'}</span></div>
         <div className="scheduled-installments">{payments.map((payment) => <article key={payment.id}><span className="scheduled-installments__number">{payment.installmentNumber}</span><div><strong>Rata {payment.installmentNumber} di {payment.installmentCount}</strong><small>Scadenza {formatDate(payment.dueDate)}</small></div><span><CreditCard />{account?.name ?? 'Conto eliminato'}</span><span className="scheduled-installments__amount"><small>Rata completa</small><b>{formatMoney(payment.amount)}</b></span></article>)}</div>
       </section>
-    })}</div>}
+    })}</div>}</section>
   </div>
 }
