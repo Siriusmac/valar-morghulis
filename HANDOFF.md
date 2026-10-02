@@ -1,6 +1,26 @@
 # Handoff — sKey
 
-Aggiornato il 28 settembre 2026.
+Aggiornato il 2 ottobre 2026.
+
+## Saldo e limite mensile dei conti web — 2 ottobre
+
+La pagina Conti mostra per ogni conto il saldo globale e la variazione netta del
+mese corrente. Dalla modifica del conto si può impostare o rimuovere un limite
+mensile di spesa; l'avanzamento è visibile nell'elenco e dal 90% compare una
+notifica in Bacheca, con evidenza distinta in caso di superamento. Il conteggio
+considera le spese effettivamente addebitate al conto, comprese commissioni e
+quote Wellfare, ma non tratta i giro fondi come spesa.
+
+La data dei movimenti resta visibile anche quando la finestra viene ridotta e
+nelle liste mobili, mantenendo affiancati i comandi disponibili. La Guida web e
+il riepilogo delle funzioni nel README sono stati aggiornati. Le modifiche alla
+sicurezza discusse in parallelo sono state escluse dal rilascio e restano in
+stand-by.
+
+La migration `20261002120000_account_monthly_spending_limit.sql` è stata
+applicata al progetto Supabase di produzione il 2 ottobre 2026; il successivo
+`db lint --linked --schema public` non ha rilevato errori. Verifica locale: 278
+test web, lint, build Vite e `cloudflare:check` riusciti.
 
 ## Navigazione e report web — sviluppo locale del 28 settembre
 

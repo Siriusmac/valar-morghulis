@@ -170,6 +170,9 @@ export function GuidePage() {
           </p>
           <ul>
             <li>Imposta il saldo iniziale e la sua data di riferimento quando crei o aggiorni un conto.</li>
+            <li>Ogni conto mostra il <strong>saldo globale</strong> e il <strong>saldo del mese corrente</strong>, cioè la variazione netta prodotta nel mese da movimenti, giro fondi, rimborsi e prestiti confermati.</li>
+            <li>Da <strong>Modifica conto e limite</strong> puoi impostare un limite mensile di spesa oppure lasciare il campo vuoto per non applicarlo. I giro fondi non vengono conteggiati come spesa.</li>
+            <li>La pagina mostra quanto hai già speso rispetto al limite; dal 90% compare anche un avviso in Bacheca e il superamento viene evidenziato.</li>
             <li>Il conto <strong>Wellfare</strong> raccoglie tessere e buoni aziendali: in una spesa puoi usarne una quota e addebitare automaticamente il residuo sul conto principale.</li>
             <li>Quando paghi con <strong>PayPal</strong> puoi attivare <strong>Utilizza conto collegato</strong>, scegliere un secondo conto personale e indicare la quota prelevata da quel conto; il residuo resta addebitato a PayPal.</li>
             <li>Per un conto familiare scegli esplicitamente la famiglia proprietaria.</li>

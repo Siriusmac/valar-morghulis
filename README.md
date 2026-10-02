@@ -20,7 +20,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - confronto mensile in bacheca degli importi anticipati da ciascun membro per le spese condivise, escludendo i pagamenti effettuati direttamente da un conto condiviso;
 - saldo automatico proporzionale al numero di membri e conti condivisi esclusi dal debito/credito;
 - movimenti, rimborsi e operazioni familiari sincronizzati in tempo reale tra tutti i membri, mantenendo privati i dati personali;
-- dati dei conti (nome, istituto o dettaglio per i contanti, tipo, saldo iniziale e data di riferimento) modificabili;
+- dati dei conti (nome, istituto o dettaglio per i contanti, tipo, saldo iniziale e data di riferimento) modificabili; ogni conto mostra saldo globale e saldo netto del mese corrente e può avere un limite mensile di spesa con avviso dal 90%;
 - movimenti antecedenti al saldo iniziale mantenibili solo nelle statistiche;
 - rimborsi sottoposti alla conferma della controparte: soltanto dopo l’accettazione aggiornano saldo familiare e conti; per un rimborso diretto chi invia la richiesta sceglie il proprio conto e chi la riceve può completare il proprio conto prima della conferma;
 - rimborsi già confermati modificabili o annullabili con una richiesta di rettifica: il valore originale resta efficace finché l'altra parte non approva, mentre richieste rifiutate o ritirate e annullamenti approvati restano nello storico;
@@ -127,8 +127,9 @@ e conti condivisi. Per configurare un nuovo ambiente:
    `supabase/migrations/20260904120000_platform_admin_console.sql` e
    `supabase/migrations/20260905130000_resilient_app_data_sync.sql` e
    `supabase/migrations/20260905150000_commissioned_reimbursement_confirmation.sql`,
-   `supabase/migrations/20260905220000_inactivity_notices.sql` e
-   `supabase/migrations/20260907120000_family_admission_approval.sql`;
+   `supabase/migrations/20260905220000_inactivity_notices.sql`,
+   `supabase/migrations/20260907120000_family_admission_approval.sql` e
+   `supabase/migrations/20261002120000_account_monthly_spending_limit.sql`;
 3. pubblica le funzioni `invite-family-member`, `notify-family-reimbursement`
    e `invite-contact`; `send-inactivity-notices` va pubblicata senza verifica
    JWT soltanto insieme alle protezioni descritte nella documentazione;

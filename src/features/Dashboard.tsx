@@ -1,7 +1,7 @@
 import { ArrowDownLeft, ArrowRight, Bell, CalendarDays, Check, ChevronRight, Clock3, HandCoins, Landmark, PenLine, ReceiptText, Scale, ShoppingBag, Trash2, UserRound, WalletCards, X } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
 import { PERSONAL_WORKSPACE_ID, type FamilyOption } from './CloudAccess'
-import { accountBalance, categoryBudgetForMonth, categorySpentForMonth, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
+import { accountBalance, accountSpentForMonth, categoryBudgetForMonth, categorySpentForMonth, movementHasSharedPortion, sharedBalance, sharedExpensesByMember, sharedMovementAmount } from '../lib/calculations'
 import { addMonthsISO, formatDate, formatMoney, formatMonthYear, selectableMonths, todayISO } from '../lib/format'
 import { functionErrorMessage } from '../lib/functionErrors'
 import type { AppData, Category, CommissionedPurchase, Contact, User, PageId, Reimbursement } from '../types'
@@ -69,7 +69,14 @@ export function Dashboard({ data, user, members, contacts = [], purchases = [], 
     if (spent < budget * .9) return []
     return [{ category, budget, spent, exceeded: spent > budget, excess: Math.max(0, Math.round((spent - budget) * 100) / 100) }]
   })
-  const notificationCount = reimbursementUpdates.length + purchaseUpdates.length + purchaseReimbursementUpdates.length + budgetAlerts.length
+  const accountLimitAlerts = ownAccounts.flatMap((account) => {
+    const limit = account.monthlySpendingLimit ?? 0
+    if (limit <= 0) return []
+    const spent = accountSpentForMonth(data, account.id, todayMonth)
+    if (spent < limit * .9) return []
+    return [{ account, limit, spent, exceeded: spent > limit }]
+  })
+  const notificationCount = reimbursementUpdates.length + purchaseUpdates.length + purchaseReimbursementUpdates.length + budgetAlerts.length + accountLimitAlerts.length
   const nextBudgetMonth = addMonthsISO(`${currentMonth}-01`, 1).slice(0, 7)
 
   return (
@@ -115,6 +122,12 @@ export function Dashboard({ data, user, members, contacts = [], purchases = [], 
             return <article className={`dashboard-notification dashboard-notification--budget ${exceeded ? 'dashboard-notification--exceeded' : ''}`} key={`budget-${category.id}`}>
               <BudgetAlertDonut categoryName={category.name} percentage={percentage} /><span><strong>{exceeded ? `Budget superato per ${category.name}` : `Stai per raggiungere il budget per ${category.name}`}</strong><small>{formatMoney(spent)} su {formatMoney(budget)}{category.scope === 'family' ? ' · familiare' : ''}</small></span>{exceeded && onUpdateCategory ? <button type="button" className="text-button" disabled={alreadyCarried} onClick={() => onUpdateCategory({ ...category, budgetCarryovers: { ...(category.budgetCarryovers ?? {}), [nextBudgetMonth]: excess } })}>{alreadyCarried ? 'Già scalata' : 'Scala eccedenza'}</button> : null}
             </article>
+          })}
+          {accountLimitAlerts.map(({ account, limit, spent, exceeded }) => {
+            const percentage = Math.round((spent / limit) * 100)
+            return <button type="button" className={`dashboard-notification dashboard-notification--budget ${exceeded ? 'dashboard-notification--exceeded' : ''}`} key={`account-limit-${account.id}`} onClick={() => onNavigate('accounts')}>
+              <BudgetAlertDonut categoryName={`Limite ${account.name}`} percentage={percentage} /><span><strong>{exceeded ? `Limite superato per ${account.name}` : `Stai per raggiungere il limite di ${account.name}`}</strong><small>{formatMoney(spent)} su {formatMoney(limit)} · spese del mese</small></span><ChevronRight />
+            </button>
           })}
         </div>
       </section> : null}

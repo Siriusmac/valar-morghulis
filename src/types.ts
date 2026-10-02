@@ -27,6 +27,7 @@ export interface Account {
   scope: Scope
   openingBalance: number
   openingBalanceDate?: string
+  monthlySpendingLimit?: number
 }
 
 export interface Category {

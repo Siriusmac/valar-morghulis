@@ -7,6 +7,20 @@ import { todayISO } from '../lib/format'
 
 afterEach(cleanup)
 describe('Dashboard workspace selector', () => {
+  it('warns when an account reaches its monthly spending limit', () => {
+    const data = structuredClone(defaultData)
+    const currentMonth = todayISO().slice(0, 7)
+    const account = data.accounts.find((item) => item.id === 'simone-bank')!
+    account.monthlySpendingLimit = 100
+    data.movements = [{ ...data.movements[0], amount: 95, date: `${currentMonth}-02`, shared: false, memberId: users[0].id, authorId: users[0].id }]
+    const onNavigate = vi.fn()
+
+    render(<Dashboard data={data} user={users[0]} members={users} onNavigate={onNavigate} onReimburse={vi.fn()} />)
+
+    expect(screen.getByText('Stai per raggiungere il limite di Conto corrente')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Stai per raggiungere il limite di Conto corrente/ }))
+    expect(onNavigate).toHaveBeenCalledWith('accounts')
+  })
   it('avvisa al 90% del budget e permette di scalare lo sforamento dal mese seguente', () => {
     const data = structuredClone(defaultData)
     const currentMonth = todayISO().slice(0, 7)

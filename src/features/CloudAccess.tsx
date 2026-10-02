@@ -314,7 +314,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
 
     const [membershipsResult, accountsResult, invitationsResult] = await Promise.all([
       supabase.from('family_members').select('user_id, role').eq('family_id', activeFamilyId),
-      supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date').eq('family_id', activeFamilyId).eq('scope', 'family'),
+      supabase.from('accounts').select('id, name, institution, account_type, opening_balance, opening_balance_date, monthly_spending_limit').eq('family_id', activeFamilyId).eq('scope', 'family'),
       membership.role === 'admin'
         ? supabase.from('family_invitations').select('id, email, created_at, expires_at, accepted_at, declined_at, requested_at').eq('family_id', activeFamilyId)
         : Promise.resolve({ data: [], error: null }),
@@ -354,6 +354,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         scope: 'family' as const,
         openingBalance: Number(account.opening_balance),
         openingBalanceDate: account.opening_balance_date,
+        monthlySpendingLimit: account.monthly_spending_limit === null ? undefined : Number(account.monthly_spending_limit),
       })),
       reimbursementAccountReferences: reimbursementAccountsResult.data.map((account) => ({
         familyId: account.family_id,
@@ -681,6 +682,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         scope: 'family',
         opening_balance: account.openingBalance,
         opening_balance_date: account.openingBalanceDate,
+        monthly_spending_limit: account.monthlySpendingLimit ?? null,
         created_by: snapshot.profile.id,
       })
       if (insertError) throw insertError
@@ -696,6 +698,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           account_type: account.type,
           opening_balance: account.openingBalance,
           opening_balance_date: account.openingBalanceDate,
+          monthly_spending_limit: account.monthlySpendingLimit ?? null,
         })
         .eq('id', account.id)
         .eq('family_id', activeFamilyId)

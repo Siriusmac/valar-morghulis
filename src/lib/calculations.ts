@@ -252,6 +252,62 @@ export function accountBalance(data: AppData, accountId: string) {
   return Math.round(balance * 100) / 100
 }
 
+/** Variazione netta del conto in un mese, senza includere il saldo iniziale. */
+export function accountMonthlyBalance(data: AppData, accountId: string, month: string) {
+  let balance = 0
+  for (const movement of data.movements) {
+    if (movement.affectsAccountBalance === false || !movement.date.startsWith(month)) continue
+    if (movement.accountId === accountId) {
+      const welfarePortion = movement.type === 'expense' && movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
+        ? movement.welfareAmount ?? 0
+        : 0
+      balance += movement.type === 'income' ? movement.amount : -(movement.amount - welfarePortion + (movement.bankFeeAmount ?? 0))
+    }
+    if (movement.type === 'expense' && movement.welfareAccountId === accountId && movement.welfareAccountId !== movement.accountId) {
+      balance -= movement.welfareAmount ?? 0
+    }
+  }
+  for (const transfer of data.transfers) {
+    if (!transfer.date.startsWith(month)) continue
+    if (transfer.fromAccountId === accountId) balance -= transfer.amount + (transfer.feeAmount ?? 0)
+    if (transfer.toAccountId === accountId) balance += transfer.amount
+  }
+  for (const reimbursement of data.reimbursements) {
+    if (!reimbursement.date.startsWith(month) || !reimbursementIsConfirmed(reimbursement) || reimbursement.settlementMethod === 'purchase') continue
+    if (reimbursement.fromAccountId === accountId) balance -= reimbursement.amount
+    if (reimbursement.toAccountId === accountId) balance += reimbursement.amount
+  }
+  for (const loan of data.loans) {
+    if (!loan.date.startsWith(month) || loan.status !== 'confirmed') continue
+    if (loan.lenderAccountId === accountId) balance -= loan.amount
+    if (loan.borrowerAccountId === accountId) balance += loan.amount
+  }
+  for (const repayment of data.loanRepayments) {
+    if (!repayment.date.startsWith(month) || repayment.status !== 'confirmed' || repayment.method !== 'money') continue
+    if (repayment.fromAccountId === accountId) balance -= repayment.amount
+    if (repayment.toAccountId === accountId) balance += repayment.amount
+  }
+  return roundMoney(balance)
+}
+
+/** Spese effettivamente addebitate al conto nel mese; i trasferimenti non sono spesa. */
+export function accountSpentForMonth(data: AppData, accountId: string, month: string) {
+  const spent = data.movements.reduce((sum, movement) => {
+    if (movement.type !== 'expense' || movement.affectsAccountBalance === false || !movement.date.startsWith(month)) return sum
+    if (movement.accountId === accountId) {
+      const welfarePortion = movement.welfareAccountId && movement.welfareAccountId !== movement.accountId
+        ? movement.welfareAmount ?? 0
+        : 0
+      return sum + movement.amount - welfarePortion + (movement.bankFeeAmount ?? 0)
+    }
+    if (movement.welfareAccountId === accountId && movement.welfareAccountId !== movement.accountId) {
+      return sum + (movement.welfareAmount ?? 0)
+    }
+    return sum
+  }, 0)
+  return roundMoney(spent)
+}
+
 export function categorySpentForMonth(data: AppData, categoryId: string, month: string, userId: UserId) {
   const category = data.categories.find((item) => item.id === categoryId)
   if (!category || category.movementType !== 'expense') return 0

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultData } from './seed'
-import { accountBalance, categoryBudgetForMonth, categorySpentForMonth, loanAvailableToRepay, loanOutstanding, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
+import { accountBalance, accountMonthlyBalance, accountSpentForMonth, categoryBudgetForMonth, categorySpentForMonth, loanAvailableToRepay, loanOutstanding, movementAllocations, reimbursementPlan, sharedBalance, sharedExpensesByMember, totalsByCategory } from './calculations'
 import { addMonthsISO, splitAllocationsAcrossInstallments, splitAmount } from './format'
 import { materializeDuePayments } from './scheduled'
 import type { AppData, Movement } from '../types'
@@ -548,5 +548,31 @@ describe('category budgets', () => {
     category.monthlyBudget = 100
 
     expect(categorySpentForMonth(data, 'alimentari', '2026-09', 'simone')).toBe(35)
+  })
+})
+
+describe('account monthly summary and spending limit', () => {
+  it('calculates the monthly net balance from every account flow', () => {
+    const data = cleanData()
+    data.movements = [
+      { ...expense('expense', 'simone', 80, 'simone-bank'), date: '2026-10-02', shared: false, bankFeeAmount: 2 },
+      { ...expense('income', 'simone', 200, 'simone-bank'), date: '2026-10-03', type: 'income', categoryId: 'stipendio', shared: false },
+    ]
+    data.transfers = [{ id: 'transfer', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-cash', amount: 25, feeAmount: 1, date: '2026-10-04', description: 'Prelievo' }]
+    data.reimbursements = [{ id: 'reimbursement', fromId: 'anna', toId: 'simone', amount: 15, date: '2026-10-05', authorId: 'anna', toAccountId: 'simone-bank', status: 'confirmed' }]
+
+    expect(accountMonthlyBalance(data, 'simone-bank', '2026-10')).toBe(107)
+  })
+
+  it('counts mixed payments and fees as spending but excludes transfers', () => {
+    const data = cleanData()
+    data.movements = [{
+      ...expense('mixed', 'simone', 100, 'simone-bank'), date: '2026-10-02', shared: false,
+      welfareAccountId: 'simone-cash', welfareAmount: 30, bankFeeAmount: 2,
+    }]
+    data.transfers = [{ id: 'transfer', authorId: 'simone', fromAccountId: 'simone-bank', toAccountId: 'simone-card', amount: 300, feeAmount: 1, date: '2026-10-04', description: 'Giro fondi' }]
+
+    expect(accountSpentForMonth(data, 'simone-bank', '2026-10')).toBe(72)
+    expect(accountSpentForMonth(data, 'simone-cash', '2026-10')).toBe(30)
   })
 })

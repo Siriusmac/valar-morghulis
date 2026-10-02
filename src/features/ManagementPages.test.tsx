@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MovementList } from '../components/MovementList'
 import { defaultData, users } from '../lib/seed'
+import { todayISO } from '../lib/format'
 import type { Account, Beneficiary, Sender } from '../types'
 import { AccountsPage, BeneficiariesPage, CategoriesPage, TagsPage } from './ManagementPages'
 
@@ -218,6 +219,24 @@ describe('AccountsPage', () => {
     { id: 'family-one', name: 'Famiglia Uno' },
     { id: 'family-two', name: 'Famiglia Due' },
   ]
+
+  it('shows the current-month balance and saves a monthly spending limit', () => {
+    const data = structuredClone(defaultData)
+    const currentMonth = todayISO().slice(0, 7)
+    data.movements = [{ ...data.movements[0], date: `${currentMonth}-02`, amount: 90, shared: false }]
+    const onUpdate = vi.fn()
+    render(<AccountsPage data={data} user={users[0]} families={families} activeFamilyId="family-one" onAdd={vi.fn()} onUpdate={onUpdate} onDelete={vi.fn()} onShowMovements={vi.fn()} />)
+
+    const accountRow = screen.getByText('Conto corrente').closest('article')!
+    expect(within(accountRow).getByText('Saldo del mese')).toBeTruthy()
+    expect(within(accountRow).getByText(/-90,00/)).toBeTruthy()
+    fireEvent.click(within(accountRow).getByRole('button', { name: 'Azioni per Conto corrente' }))
+    fireEvent.click(within(accountRow).getByRole('menuitem', { name: 'Modifica conto e limite' }))
+    fireEvent.change(screen.getByLabelText('Limite di spesa mensile'), { target: { value: '500,00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salva modifiche' }))
+
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: 'simone-bank', monthlySpendingLimit: 500 }))
+  })
 
   it('richiede lo storico completo del conto, inclusi i giri fondi', () => {
     const onShowMovements = vi.fn()
