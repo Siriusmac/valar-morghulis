@@ -23,13 +23,21 @@ export function GuidePage() {
       <header className="page-heading guide-heading">
         <div>
           <h1>Guida</h1>
-          <p>Finanze personali, conti condivisi e rapporti tra persone in un unico sistema coerente.</p>
+          <p>sKey è l’app che mette insieme finanze personali, conti condivisi, scadenze e rapporti economici tra persone in un unico sistema coerente.</p>
         </div>
         <span className="guide-heading__icon" aria-hidden="true"><BookOpen /></span>
       </header>
 
       <section className="guide-intro" aria-labelledby="guide-intro-title">
         <h2 id="guide-intro-title">Perché sKey è diversa</h2>
+        <p>
+          Il nome sKey, letto in italiano, suona come <strong>SCHEI</strong>, il termine veneto
+          per dire “soldi”, nasce dall’esigenza di non dover usare — e far usare a chi
+          collabora con noi — app diverse per funzioni diverse. Il cuore rimane la
+          rendicontazione personale: esistono migliaia di app dedicate, ma nessuna
+          racchiude tutti i casi d’uso. Spesso si finisce quindi per ricorrere ad accrocchi
+          per registrare movimenti particolari, falsando rendiconti e statistiche.
+        </p>
         <p>
           Esistono molte app per gestire le finanze personali e molte altre per dividere
           un conto tra più persone. sKey riunisce entrambe le esigenze in un
@@ -42,6 +50,42 @@ export function GuidePage() {
           e contatti dispongono di regole trasparenti e coerenti per capire chi ha pagato,
           per chi lo ha fatto e come il debito è stato compensato. L’app registra gli
           accordi e aggiorna i saldi, ma non accede ai conti bancari e non trasferisce denaro.
+        </p>
+        <p>
+          sKey considera inoltre i casi d’uso che, nelle app tradizionali, costringono
+          spesso a stratagemmi macchinosi: pagamenti a rate come Klarna o PayPal,
+          movimenti ricorrenti, spese bancarie nelle operazioni di giro fondi e pagamenti misti con le
+          tessere Wellfare.
+        </p>
+        <p>
+          Un solo movimento — nella realtà, un unico scontrino o una sola fattura — può
+          comprendere tutti questi casi in una registrazione. Il pagamento può avvenire
+          in un’unica soluzione, con più fonti oppure a rate; l’acquisto può essere
+          suddiviso in parte personale, parte condivisa e parte effettuata per un’altra
+          persona, con il relativo percorso di rimborso. L’acquisto stesso, o una sua
+          parte, può anche compensare un debito verso un altro familiare.
+        </p>
+        <p>
+          sKey permette inoltre di pianificare pagamenti ed entrate ricorrenti e di
+          confermarli prima di ogni scadenza, fissare budget mensili per categoria,
+          impostare limiti di spesa mensile sui conti e generare report dettagliati con
+          grafici.
+        </p>
+        <p>
+          Sono previste due forme di relazione tra gli utenti dell’app: i contatti
+          semplici, i cosiddetti “amici”, per acquisti su richiesta, rimborsi e prestiti;
+          e i “familiari”, con i quali viene condivisa la parte di contabilità relativa
+          alle spese comuni. In questo contesto “familiare” non indica necessariamente
+          una parentela: può trattarsi, per esempio, anche di coinquilini.
+        </p>
+        <p>
+          Tutti i movimenti che coinvolgono altre persone sono pensati per mantenere
+          coerenti categorie e report. Se, per esempio, in una spesa al supermercato di
+          100 € ci sono 10 € di prodotti acquistati per un amico, la mia rendicontazione
+          considera 90 € di spesa alimentare. Quando l’amico conferma e classifica la
+          propria quota, i 10 € vengono registrati nella sua contabilità con la categoria
+          corretta. Addebito, debito e rimborso restano comunque tracciati separatamente,
+          senza creare incoerenze nel saldo del conto o nelle statistiche.
         </p>
       </section>
 

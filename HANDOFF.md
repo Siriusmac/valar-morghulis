@@ -1,6 +1,18 @@
 # Handoff — sKey
 
-Aggiornato il 2 ottobre 2026.
+Aggiornato il 3 ottobre 2026.
+
+## Introduzione della Guida web — rilascio del 3 ottobre
+
+La prima parte della Guida presenta ora sKey come sistema unico per finanze
+personali, conti condivisi, scadenze e rapporti economici fra persone. Spiega
+l'origine del nome “SCHEI”, i casi d'uso coperti e la distinzione fra contatti e
+familiari, chiarendo con un esempio come acquisti per altri, classificazione e
+rimborso restino coerenti con conti, categorie e statistiche.
+
+Il testo mantiene “Wellfare” come denominazione usata nell'interfaccia. Verifica
+locale: 283 test web, lint e build Vite riusciti; controllo browser desktop e a
+390 px senza overflow orizzontale né errori o avvisi in console.
 
 ## Movimenti ricorrenti web — rilascio del 2 ottobre
 

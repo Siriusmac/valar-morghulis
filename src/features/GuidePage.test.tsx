@@ -12,6 +12,8 @@ describe('GuidePage', () => {
 
     expect(screen.getByRole('heading', { name: 'Guida', level: 1 })).toBeTruthy()
     expect(screen.getByRole('navigation', { name: 'Indice della guida' })).toBeTruthy()
+    expect(screen.getByText(/sKey è l’app che mette insieme finanze personali, conti condivisi, scadenze/)).toBeTruthy()
+    expect(screen.getByText((_, element) => element?.tagName === 'P' && Boolean(element.textContent?.includes('suona come SCHEI')))).toBeTruthy()
 
     const chapterLinks = screen.getAllByRole('link')
     expect(chapterLinks).toHaveLength(10)
@@ -23,6 +25,7 @@ describe('GuidePage', () => {
     expect(screen.getByRole('heading', { name: 'Contatti e acquisti per altri' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Categorie, beneficiari, mittenti e tag' })).toBeTruthy()
     expect(screen.getByText(/Esistono molte app per gestire le finanze personali/)).toBeTruthy()
+    expect(screen.getByText(/senza creare incoerenze nel saldo del conto o nelle statistiche/)).toBeTruthy()
     expect(screen.getAllByText(/rimborso.*tramite acquisto/i).length).toBeGreaterThan(0)
     expect(screen.getByText((_, element) => element?.tagName === 'LI' && Boolean(element.textContent?.includes('Il conto Wellfare raccoglie tessere e buoni aziendali')))).toBeTruthy()
     expect(screen.getByText((_, element) => element?.tagName === 'LI' && Boolean(element.textContent?.includes('Utilizza conto collegato')))).toBeTruthy()
