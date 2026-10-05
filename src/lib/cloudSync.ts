@@ -6,6 +6,7 @@ export interface PendingCloudSave {
   mutationId: string
   createdAt: string
   attempts: number
+  snapshot?: AppData
 }
 
 export type CloudSyncBaseline = Pick<AppData, 'movements' | 'scheduledPayments' | 'recurringMovements' | 'transfers'>
@@ -60,7 +61,8 @@ export function readPendingCloudSave(storageKey: string): PendingCloudSave | nul
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<PendingCloudSave>
     if (!parsed.mutationId || !parsed.createdAt || typeof parsed.attempts !== 'number') return null
-    return { mutationId: parsed.mutationId, createdAt: parsed.createdAt, attempts: parsed.attempts }
+    return { mutationId: parsed.mutationId, createdAt: parsed.createdAt, attempts: parsed.attempts,
+      ...(parsed.snapshot?.version === 3 ? { snapshot: parsed.snapshot } : {}) }
   } catch {
     return null
   }
@@ -89,6 +91,16 @@ export function clearCloudSavePending(storageKey: string, mutationId: string) {
   if (!current || current.mutationId !== mutationId) return false
   localStorage.removeItem(pendingCloudSaveKey(storageKey))
   return true
+}
+
+/** A retry must send exactly the payload attached to its idempotency key. */
+export function bindCloudSaveSnapshot(storageKey: string, mutationId: string, data: AppData) {
+  const current = readPendingCloudSave(storageKey)
+  if (!current || current.mutationId !== mutationId) return null
+  if (current.snapshot) return current
+  const bound = { ...current, snapshot: data }
+  localStorage.setItem(pendingCloudSaveKey(storageKey), JSON.stringify(bound))
+  return bound
 }
 
 export function cloudSaveRetryDelay(attempts: number) {

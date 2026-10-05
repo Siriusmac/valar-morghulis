@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict,
+  bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict,
   markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline,
 } from './cloudSync'
 import { createStarterData } from './seed'
@@ -28,6 +28,21 @@ describe('persistent cloud sync state', () => {
     expect(cloudSaveRetryDelay(1)).toBe(1_000)
     expect(cloudSaveRetryDelay(2)).toBe(2_000)
     expect(cloudSaveRetryDelay(20)).toBe(30_000)
+  })
+
+  it('retries the identical persisted payload after a lost server response', () => {
+    const first = createStarterData('user-1', [])
+    markCloudSavePending('workspace', 'same-request')
+    bindCloudSaveSnapshot('workspace', 'same-request', first)
+    recordCloudSaveFailure('workspace', 'same-request')
+    const changed = { ...first, tags: [{ id: 'new-tag', name: 'New', scope: 'personal' as const, color: '#123456' }] }
+    expect(bindCloudSaveSnapshot('workspace', 'same-request', changed)?.snapshot).toEqual(first)
+    expect(readPendingCloudSave('workspace')?.snapshot).toEqual(first)
+
+    markCloudSavePending('workspace', 'new-request')
+    expect(bindCloudSaveSnapshot('workspace', 'same-request', first)).toBeNull()
+    expect(clearCloudSavePending('workspace', 'same-request')).toBe(false)
+    expect(bindCloudSaveSnapshot('workspace', 'new-request', changed)?.snapshot).toEqual(changed)
   })
 
   it('conserva una base sincronizzata separata per risolvere i conflitti tra dispositivi', () => {

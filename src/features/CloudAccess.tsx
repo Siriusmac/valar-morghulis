@@ -623,7 +623,8 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
       if (activeFamilyId) {
         const pendingAuthoredReimbursements = appData.reimbursements.filter((reimbursement) =>
           reimbursement.authorId === snapshot.profile.id && reimbursement.status === 'pending')
-        await Promise.allSettled(pendingAuthoredReimbursements.map((reimbursement) =>
+        // Notifications must not hold the confirmed financial save open.
+        void Promise.allSettled(pendingAuthoredReimbursements.map((reimbursement) =>
           supabase.functions.invoke('notify-family-reimbursement', {
             body: { familyId: activeFamilyId, reimbursementId: reimbursement.id },
           })))

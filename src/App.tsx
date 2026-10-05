@@ -10,7 +10,7 @@ import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergeConcurrentPendingAppData, mergePendingAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
-import { clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
+import { bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
@@ -123,7 +123,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const flushCloudSave = useRef<() => Promise<void>>(async () => undefined)
   const refreshRemoteData = useRef<() => Promise<void>>(async () => undefined)
   const remoteRefreshPending = useRef(false)
-  const skipNextCloudSave = useRef(false)
+  const skipNextCloudSave = useRef<AppData | null>(null)
   const sharedRefreshTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -151,13 +151,14 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
             ? mergeConcurrentPendingAppData(remote, local, baseline, fallback(), cloud.user.id)
             : mergePendingAppData(remote, local, fallback(), cloud.user.id)
           saveData(resolved, storageKey)
-          skipNextCloudSave.current = true
+          markCloudSavePending(storageKey)
+          skipNextCloudSave.current = resolved
           setData(resolved)
           void flushCloudSave.current()
           return
         }
         writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
-        skipNextCloudSave.current = true
+        skipNextCloudSave.current = remote
         setData(remote)
       } finally {
         cloudRefreshRunning.current = false
@@ -180,10 +181,17 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       let retryImmediately = false
       let refreshAfterSave = false
       try {
-        const dataToSave = loadData(storageKey, fallback())
+        const bound = bindCloudSaveSnapshot(storageKey, pending.mutationId, loadData(storageKey, fallback()))
+        if (!bound?.snapshot) { retryImmediately = true; return }
+        const dataToSave = bound.snapshot
         await runCloudWrite(() => cloud.saveAppData(dataToSave, pending.mutationId))
         writeCloudSyncBaseline(storageKey, dataToSave, cloud.user.id)
-        const cleared = clearCloudSavePending(storageKey, pending.mutationId)
+        const latest = loadData(storageKey, fallback())
+        const sameSnapshot = JSON.stringify(latest) === JSON.stringify(dataToSave)
+        if (!sameSnapshot && readPendingCloudSave(storageKey)?.mutationId === pending.mutationId) {
+          markCloudSavePending(storageKey)
+        }
+        const cleared = sameSnapshot && clearCloudSavePending(storageKey, pending.mutationId)
         if (cleared) {
           setCloudSyncStatus('synced')
           refreshAfterSave = remoteRefreshPending.current
@@ -195,8 +203,9 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       } catch (reason) {
         if (isCloudRevisionConflict(reason)) {
           try {
-            const localData = loadData(storageKey, fallback())
             const remoteData = await cloud.loadAppData()
+            // New movements may have been saved while the remote read was in flight.
+            const localData = loadData(storageKey, fallback())
             const baseline = readCloudSyncBaseline(storageKey)
             const resolved = remoteData
               ? baseline
@@ -204,7 +213,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
                 : mergePendingAppData(remoteData, localData, fallback(), cloud.user.id)
               : localData
             saveData(resolved, storageKey)
-            skipNextCloudSave.current = true
+            skipNextCloudSave.current = resolved
             setData(resolved)
             markCloudSavePending(storageKey)
             setCloudSyncStatus('pending')
@@ -234,35 +243,36 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     let cancelled = false
     const sync = async () => {
       const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
+      const remoteData = await runCloudWrite(() => cloud.loadAppData())
+      if (cancelled) return
       const localData = loadData(storageKey, fallback)
       const pending = readPendingCloudSave(storageKey)
-      const remoteData = await cloud.loadAppData()
+      const baseline = readCloudSyncBaseline(storageKey)
       const importKey = cloudImportKey(cloud.familyId, cloud.user.id)
       const shouldImportLocal = !localStorage.getItem(importKey) && hasMeaningfulUserData(localData, cloud.user.id)
       const resolved = remoteData
         ? (pending
-            ? mergePendingAppData(remoteData, localData, fallback, cloud.user.id)
+            ? baseline
+              ? mergeConcurrentPendingAppData(remoteData, localData, baseline, fallback, cloud.user.id)
+              : mergePendingAppData(remoteData, localData, fallback, cloud.user.id)
             : shouldImportLocal ? mergeAppData(remoteData, localData, fallback) : hydrateData(remoteData, fallback))
         : localData
 
-      const saveRequest = pending ?? ((!remoteData || shouldImportLocal) ? markCloudSavePending(storageKey) : null)
-      if (saveRequest) {
-        setCloudSyncStatus('syncing')
-        await runCloudWrite(() => cloud.saveAppData(resolved, saveRequest.mutationId))
-        clearCloudSavePending(storageKey, saveRequest.mutationId)
-      }
-      if (cancelled) return
+      // A merged snapshot is a new mutation, never a retry with a changed payload.
+      const needsSave = Boolean(pending || !remoteData || shouldImportLocal)
       saveData(resolved, storageKey)
-      writeCloudSyncBaseline(storageKey, resolved, cloud.user.id)
+      if (needsSave) markCloudSavePending(storageKey)
+      // Only acknowledged remote data is a baseline; local additions are still pending.
+      writeCloudSyncBaseline(storageKey, remoteData ? hydrateData(remoteData, fallback) : fallback, cloud.user.id)
       localStorage.setItem(importKey, '1')
-      skipNextCloudSave.current = true
+      skipNextCloudSave.current = resolved
       setData(resolved)
       setCloudDataReady(true)
-      setCloudSyncStatus('synced')
+      setCloudSyncStatus(needsSave ? 'pending' : 'synced')
+      if (needsSave) void flushCloudSave.current()
     }
     void sync().catch(() => {
       if (cancelled) return
-      skipNextCloudSave.current = true
       setCloudDataReady(true)
       setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'error')
       setToast('Cloud non raggiungibile: i dati restano salvati su questo dispositivo')
@@ -273,10 +283,11 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     if (storageKey) saveData(data, storageKey)
     else saveData(data)
     if (!cloud || !cloudDataReady || !storageKey) return
-    if (skipNextCloudSave.current) {
-      skipNextCloudSave.current = false
+    if (skipNextCloudSave.current === data) {
+      skipNextCloudSave.current = null
       return
     }
+    skipNextCloudSave.current = null
     markCloudSavePending(storageKey)
     setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'pending')
     const timer = window.setTimeout(() => { void flushCloudSave.current() }, 0)
@@ -290,11 +301,19 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     const handleOffline = () => { if (readPendingCloudSave(storageKey)) setCloudSyncStatus('offline') }
     const handleVisibility = () => { if (document.visibilityState === 'visible') synchronize() }
+    // Personal snapshots have no Realtime feed. Refresh while the app is visible,
+    // and on restoration from the browser's back/forward cache.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine !== false) synchronize()
+    }, 30_000)
+    window.addEventListener('pageshow', synchronize)
     window.addEventListener('online', synchronize)
     window.addEventListener('focus', synchronize)
     window.addEventListener('offline', handleOffline)
     document.addEventListener('visibilitychange', handleVisibility)
     return () => {
+      window.clearInterval(poll)
+      window.removeEventListener('pageshow', synchronize)
       window.removeEventListener('online', synchronize)
       window.removeEventListener('focus', synchronize)
       window.removeEventListener('offline', handleOffline)
@@ -386,7 +405,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       return recurringId ? { ...saved, recurringMovements: saved.recurringMovements.map((item) => item.id === recurringId ? advanceRecurringMovement(item.amountMode === 'variable' ? { ...item, amount: movement.amount } : item) : item) } : saved
     })
     setModal((current) => current?.type === 'movement' ? current.returnTo ?? null : null)
-    setToast(`${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
+    setToast(cloud ? 'Movimento salvato sul dispositivo, sincronizzazione in corso' : `${movement.type === 'income' ? 'Entrata' : 'Spesa'} ${movement.shared ? 'condivisa ' : ''}salvata`)
   }
   const deleteMovement = (id: string) => {
     setData((current) => deleteMovementData(current, id))
