@@ -1059,7 +1059,7 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .expense-row__amount { font-size: 16px; }
   .account-rail { grid-template-columns: 1fr; }
   .account-rail article { min-height: 70px; }
-  .fab { display: grid; place-items: center; position: fixed; z-index: 22; right: 20px; bottom: 82px; width: 54px; height: 54px; border: 0; border-radius: 50%; background: var(--accent); color: white; box-shadow: 0 8px 24px rgba(198,78,47,.35); }
+  .fab { display: grid; place-items: center; position: fixed; z-index: 22; left: 50%; transform: translateX(-50%); bottom: 82px; width: 54px; height: 54px; border: 0; border-radius: 50%; background: var(--accent); color: white; box-shadow: 0 8px 24px rgba(198,78,47,.35); }
   .bottom-nav { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; top: auto; height: calc(68px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); background: rgba(255,255,255,.96); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); backdrop-filter: blur(10px); transform: translateZ(0); }
   .bottom-nav__item { border: 0; background: transparent; color: #77808d; display: grid; place-items: center; align-content: center; gap: 2px; font-size: 8px; }
   .bottom-nav__item svg { width: 19px; }
