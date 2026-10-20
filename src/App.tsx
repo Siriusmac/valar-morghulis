@@ -10,6 +10,7 @@ import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergeConcurrentPendingAppData, mergePendingAppData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
+import { changeInstallmentAccount } from './lib/scheduled'
 import { bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
@@ -761,6 +762,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   } : undefined} />
     : page === 'movements' ? <MovementsPage data={data} user={user} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement} onEditTransfer={(transfer) => setModal({ type: 'transfer', transfer })} onDeleteTransfer={deleteTransfer} />
     : page === 'scheduled' ? <ScheduledPaymentsPage data={data} user={user} personalOnly={Boolean(cloud?.personalMode)} onEdit={(movement) => setModal({ type: 'movement', movement })} onDelete={deleteMovement}
+      onChangeInstallmentAccount={(paymentId, accountId) => setData((current) => changeInstallmentAccount(current, paymentId, accountId, user.id))}
       onSaveRecurring={(recurring) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.some((item) => item.id === recurring.id) ? current.recurringMovements.map((item) => item.id === recurring.id ? recurring : item) : [...current.recurringMovements, recurring] }))}
       onDeleteRecurring={(id) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.filter((item) => item.id !== id) }))}
       onToggleRecurring={(id) => setData((current) => ({ ...current, recurringMovements: current.recurringMovements.map((item) => item.id === id ? { ...item, status: item.status === 'active' ? 'paused' : 'active' } : item) }))}

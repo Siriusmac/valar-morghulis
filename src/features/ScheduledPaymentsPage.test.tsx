@@ -8,6 +8,38 @@ import { ScheduledPaymentsPage } from './ScheduledPaymentsPage'
 afterEach(cleanup)
 
 describe('ScheduledPaymentsPage', () => {
+  it('changes the account of one installment and displays the actual account on each row', () => {
+    const data = structuredClone(defaultData)
+    data.scheduledPayments[1].accountId = 'simone-paypal'
+    const onChangeInstallmentAccount = vi.fn()
+    render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onChangeInstallmentAccount={onChangeInstallmentAccount} onSaveRecurring={vi.fn()} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={vi.fn()} />)
+    expect(screen.getByText('Conti diversi per le rate')).toBeTruthy()
+    expect(screen.getByText('Carta di credito')).toBeTruthy()
+    expect(screen.getByText('PayPal')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Azioni rata 2 di Accessori casa' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cambia conto' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Salva conto' }).hasAttribute('disabled')).toBe(true)
+    const select = within(dialog).getByLabelText('Conto di addebito')
+    expect(within(select).queryByRole('option', { name: /Banca personale/ })).toBeNull()
+    expect(within(select).queryByRole('option', { name: /Conto di famiglia/ })).toBeNull()
+    fireEvent.change(select, { target: { value: 'simone-bank' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salva conto' }))
+    expect(onChangeInstallmentAccount).toHaveBeenCalledExactlyOnceWith('seed-payment-2', 'simone-bank')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('cancels an account change without saving', () => {
+    const onChangeInstallmentAccount = vi.fn()
+    render(<ScheduledPaymentsPage data={structuredClone(defaultData)} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onChangeInstallmentAccount={onChangeInstallmentAccount} onSaveRecurring={vi.fn()} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Azioni rata 3 di Accessori casa' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cambia conto' }))
+    fireEvent.change(screen.getByLabelText('Conto di addebito'), { target: { value: 'simone-bank' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla' }))
+    expect(onChangeInstallmentAccount).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('creates an editable recurring expense and confirms it when due', () => {
     const data = structuredClone(defaultData)
     data.recurringMovements = [{
@@ -17,7 +49,7 @@ describe('ScheduledPaymentsPage', () => {
     }]
     const onConfirmRecurring = vi.fn()
     const onSaveRecurring = vi.fn()
-    render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onSaveRecurring={onSaveRecurring} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={onConfirmRecurring} />)
+    render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={vi.fn()} onDelete={vi.fn()} onChangeInstallmentAccount={vi.fn()} onSaveRecurring={onSaveRecurring} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={onConfirmRecurring} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Conferma' }))
     expect(onConfirmRecurring).toHaveBeenCalledWith(expect.objectContaining({ id: 'rent' }))
@@ -36,7 +68,7 @@ describe('ScheduledPaymentsPage', () => {
     const onDelete = vi.fn()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-    render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={onEdit} onDelete={onDelete} onSaveRecurring={vi.fn()} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={vi.fn()} />)
+    render(<ScheduledPaymentsPage data={data} user={users[0]} onEdit={onEdit} onDelete={onDelete} onChangeInstallmentAccount={vi.fn()} onSaveRecurring={vi.fn()} onDeleteRecurring={vi.fn()} onToggleRecurring={vi.fn()} onSkipRecurring={vi.fn()} onConfirmRecurring={vi.fn()} />)
 
     expect(screen.getByText(/iniziato il 12 lug 2026/)).toBeTruthy()
     expect(screen.getByText('Importo totale')).toBeTruthy()

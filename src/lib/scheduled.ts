@@ -1,4 +1,18 @@
-import type { AppData, Movement } from '../types'
+import type { AppData, Movement, ScheduledPayment } from '../types'
+
+export function installmentAccounts(data: AppData, payment: ScheduledPayment, userId: string) {
+  const scope = data.accounts.find((account) => account.id === payment.accountId)?.scope ?? 'personal'
+  return data.accounts.filter((account) => account.scope === scope && account.type !== 'welfare'
+    && (account.scope === 'family' || account.ownerId === userId))
+}
+
+export function changeInstallmentAccount(data: AppData, paymentId: string, accountId: string, userId: string): AppData {
+  const payment = data.scheduledPayments.find((item) => item.id === paymentId)
+  if (!payment || payment.status !== 'scheduled' || payment.authorId !== userId
+    || payment.accountId === accountId || !installmentAccounts(data, payment, userId).some((account) => account.id === accountId)) return data
+  return { ...data, scheduledPayments: data.scheduledPayments.map((item) => item.id === paymentId
+    ? { ...item, accountId, accountOverridden: true } : item) }
+}
 
 export function materializeDuePayments(data: AppData, today: string): AppData {
   const existingIds = new Set(data.movements.map((item) => item.id))

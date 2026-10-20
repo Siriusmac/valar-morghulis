@@ -251,6 +251,7 @@ export function GuidePage() {
             <li>Categorie, tag e destinazioni di un acquisto multiplo vengono preservati in ogni rata.</li>
             <li>Un piano si modifica con la stessa scheda usata per crearlo, mantenendo parziali, acquisti per altre persone e condivisioni originali.</li>
             <li>Puoi modificare le date delle rate successive oppure eliminare il piano dall’intestazione del pagamento programmato.</li>
+            <li>Dal menu della singola rata futura scegli <strong>Cambia conto</strong> per modificare solo il suo conto di addebito. Le altre rate e i movimenti già registrati restano invariati; il conto scelto viene mantenuto anche modificando il piano. Sono disponibili conti dello stesso ambito, personale o familiare, esclusi quelli Wellfare. Il cambio è una registrazione contabile: aggiorna il metodo di pagamento anche presso l’intermediario, se necessario.</li>
           </ul>
         </section>
 

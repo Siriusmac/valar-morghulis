@@ -51,6 +51,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 - pagina “Ricerca e report” per impostare descrizione o commenti, intervallo di date, tipo, beneficiario o mittente, categoria e tag e avviare esplicitamente la ricerca; risultati e comando di creazione compaiono soltanto dopo “Cerca”, quindi il report mensile mostra totale ed elenco dei movimenti, consente di modificarli o eliminarli soltanto dal report oppure dall’intero storico, e può essere salvato, riaperto, modificato o eliminato;
 - spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata, anteprima delle scadenze modificabili e pagamenti successivi programmati;
 - modifica di un piano rateale basata sull'importo totale dell'acquisto, con la stessa struttura della creazione e conservazione di categorie, acquisti per conto terzi e date delle rate;
+- conto di addebito modificabile per ogni singola rata futura dal menu “Cambia conto”, conservando gli altri pagamenti e la scelta individuale nelle successive modifiche del piano;
 - saldo familiare calcolato subito sull'intero acquisto condiviso, senza duplicarlo nelle rate future;
 - piano rateale privato e visibile soltanto all'autore, sempre calcolato sul totale dello scontrino anche quando contiene quote personali, condivise o acquistate per altri;
 - sezione “Rimborsi e prestiti” con viste “Attesi” e “Dovuti” separate;

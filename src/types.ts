@@ -123,6 +123,7 @@ export interface ScheduledPayment extends FamilyMembershipSnapshot {
   categoryId: string
   beneficiaryId?: string
   accountId: string
+  accountOverridden?: boolean
   tagId?: string
   tagIds?: string[]
   comments?: string

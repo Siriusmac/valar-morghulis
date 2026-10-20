@@ -22,7 +22,12 @@ export function saveMovementData(current: AppData, movement: Movement, additions
     ? replacesInstallmentPlan
       ? [
           ...current.scheduledPayments.filter((payment) => payment.planId !== previous!.installmentPlanId || payment.status === 'paid'),
-          ...additions.scheduledPayments.filter((payment) => payment.status === 'scheduled'),
+          ...additions.scheduledPayments.filter((payment) => payment.status === 'scheduled').map((payment) => {
+            const previousPayment = current.scheduledPayments.find((item) => item.planId === previous!.installmentPlanId
+              && item.authorId === movement.authorId && item.installmentNumber === payment.installmentNumber && item.status === 'scheduled')
+            return previousPayment?.accountOverridden
+              ? { ...payment, accountId: previousPayment.accountId, accountOverridden: true } : payment
+          }),
         ]
       : [...current.scheduledPayments, ...additions.scheduledPayments]
     : current.scheduledPayments
@@ -36,7 +41,7 @@ export function saveMovementData(current: AppData, movement: Movement, additions
           description,
           categoryId: movement.categoryId,
           beneficiaryId: movement.beneficiaryId,
-          accountId: movement.accountId,
+          accountId: payment.accountOverridden ? payment.accountId : movement.accountId,
           tagId: movement.tagId,
           tagIds: movement.tagIds,
           comments: movement.comments,
