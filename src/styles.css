@@ -1398,3 +1398,21 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .purchase-review__controls { grid-template-columns: 1fr; }
   .purchase-review__controls .button { width: 100%; }
 }
+
+.security-methods p, .security-methods li { font-size: 12px; line-height: 1.6; }
+.security-methods h3 { margin-top: 20px; margin-bottom: 8px; }
+.security-methods ol { padding-left: 20px; }
+.security-authenticator-apps a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
+.security-authenticator-apps li { margin-block: 8px; overflow-wrap: anywhere; }
+.security-method-form, .security-challenge form { display: grid; gap: 14px; margin-top: 18px; }
+.security-method-form label, .security-challenge label { display: grid; gap: 7px; font-size: 12px; }
+.security-method-form input, .security-challenge input, .security-challenge select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 16px; }
+.security-qr { display: block; max-width: 100%; width: 220px; height: auto; background: white; }
+.security-secret { display: block; padding: 12px; overflow-wrap: anywhere; user-select: all; }
+.security-method-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-block: 12px; }
+.security-challenge { max-width: min(440px, 100%); text-align: left; }
+.security-challenge > p { margin-block: 14px; font-size: 12px; line-height: 1.6; }
+.auth-passkey-feedback.form-message { margin-block: 12px !important; font-size: 13px !important; border: 1px solid #d59d96; }
+.auth-passkey-feedback p { margin-block: 8px; font-size: inherit; }
+.auth-passkey-feedback .text-button { color: inherit; text-decoration: underline; min-height: 44px; text-align: left; }
+.auth-passkey-feedback:focus { outline: 2px solid #8f3129; outline-offset: 3px; }

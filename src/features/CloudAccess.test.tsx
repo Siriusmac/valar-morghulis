@@ -6,10 +6,11 @@ import { afterEach, vi } from 'vitest'
 import { CloudLogin, ContactInvitationDecision, InvitationDecision, InvitationPasswordSetup } from './CloudAccess'
 import { functionErrorMessage, invitationInvokeError } from '../lib/functionErrors'
 
-const { resetPasswordForEmail, rpc, signInWithPassword, signUp, updateUser } = vi.hoisted(() => ({
-  resetPasswordForEmail: vi.fn(), rpc: vi.fn(), signInWithPassword: vi.fn(), signUp: vi.fn(), updateUser: vi.fn(),
+const { resetPasswordForEmail, rpc, signInWithPassword, signInWithPasskey, signUp, updateUser, securityFlags } = vi.hoisted(() => ({
+  resetPasswordForEmail: vi.fn(), rpc: vi.fn(), signInWithPassword: vi.fn(), signInWithPasskey: vi.fn(), signUp: vi.fn(), updateUser: vi.fn(), securityFlags: { passkeys: false },
 }))
-vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { resetPasswordForEmail, signInWithPassword, signUp, updateUser } }) }))
+vi.mock('../lib/supabase', () => ({ getSupabase: () => ({ rpc, auth: { resetPasswordForEmail, signInWithPassword, signInWithPasskey, signUp, updateUser } }) }))
+vi.mock('../lib/authSecurity', async (importOriginal) => ({ ...await importOriginal<typeof import('../lib/authSecurity')>(), get passkeysEnabled() { return securityFlags.passkeys } }))
 
 afterEach(() => {
   cleanup()
@@ -18,6 +19,8 @@ afterEach(() => {
   signInWithPassword.mockReset()
   signUp.mockReset()
   updateUser.mockReset()
+  signInWithPasskey.mockReset()
+  securityFlags.passkeys = false
 })
 
 describe('invitationInvokeError', () => {
@@ -113,6 +116,46 @@ describe('InvitationPasswordSetup', () => {
 })
 
 describe('CloudLogin tabs', () => {
+  it('focuses a prominent passkey error and offers the email fallback without submitting it', async () => {
+    securityFlags.passkeys = true
+    signInWithPasskey.mockResolvedValue({ error: new Error('cancelled') })
+    render(<CloudLogin />)
+    fireEvent.click(screen.getByRole('button', { name: 'Accedi con passkey' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('Passkey: accesso non completato')
+    expect(document.activeElement).toBe(alert)
+    expect(alert.compareDocumentPosition(screen.getByLabelText('Email')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Continua con email e password' }))
+    expect(document.activeElement).toBe(screen.getByLabelText('Email'))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(signInWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('preserves the selected email and returns focus to password after a passkey failure', async () => {
+    securityFlags.passkeys = true
+    signInWithPasskey.mockRejectedValue(new Error('unsupported'))
+    render(<CloudLogin />)
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'collaudo@example.invalid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Accedi con passkey' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Continua con email e password' }))
+    expect(document.activeElement).toBe(screen.getByLabelText('Password'))
+    expect(screen.getByText('collaudo@example.invalid')).toBeTruthy()
+    expect(signInWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('clears the passkey notice when switching to registration', async () => {
+    securityFlags.passkeys = true
+    signInWithPasskey.mockResolvedValue({ error: new Error('cancelled') })
+    render(<CloudLogin />)
+    fireEvent.click(screen.getByRole('button', { name: 'Accedi con passkey' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('tab', { name: 'Registrati' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Accedi con passkey' })).toBeNull()
+  })
+
   it('mostra email e password in due passaggi separati durante l’accesso', async () => {
     signInWithPassword.mockResolvedValue({ error: null })
     render(<CloudLogin />)

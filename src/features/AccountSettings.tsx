@@ -3,6 +3,7 @@ import {
   Trash2, UserRound, UserRoundCog, UsersRound,
 } from 'lucide-react'
 import { useState } from 'react'
+import { SecurityMethods } from './SecurityMethods'
 import { PERSONAL_WORKSPACE_ID, type FamilyMember, type FamilySession } from './CloudAccess'
 import type { PlatformAdminUserOverview } from './CloudAccess'
 import { downloadAccountExport, type ExportFormat } from '../lib/exportData'
@@ -47,6 +48,7 @@ export function AccountSettings({ user, cloud, data, personalOnly = false, defau
         /> : null}
         <FamilySwitcher cloud={cloud} />
         <SecuritySettings cloud={cloud} />
+        <SecurityMethods api={cloud.security} />
         <AccountDeletion cloud={cloud} />
       </div>
       <div className="settings-column">

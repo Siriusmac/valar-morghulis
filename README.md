@@ -13,6 +13,11 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ## Funzioni della prima versione
 
+Sicurezza web predisposta con autenticatore facoltativo e passkey separate,
+ma nuove attivazioni disabilitate nel rilascio preparatorio. Prerequisiti,
+collaudi e piano di attivazione in
+[Autenticazione facoltativa](docs/autenticazione-facoltativa.md).
+
 - iscrizione e accesso tramite email e password;
 - entrate e spese personali private, oppure condivise con la famiglia;
 - grafici mensili per categoria su spese, entrate e movimenti condivisi;

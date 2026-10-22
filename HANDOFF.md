@@ -1,6 +1,30 @@
 # Handoff — sKey
 
-Aggiornato il 3 ottobre 2026.
+Aggiornato il 22 ottobre 2026.
+
+## Sicurezza web — rilascio preparatorio del 22 ottobre
+
+Commit, push e deploy frontend autorizzati dall’utente. Questa selezione
+introduce gate MFA, impostazioni facoltative, passkey predisposte, istruzioni
+e link ufficiali agli autenticatori. VITE_MFA_ENABLED=false e
+VITE_PASSKEYS_ENABLED=false nel bundle di produzione: nessuna nuova iscrizione
+MFA o passkey viene attivata con questo rilascio. Restano email e password.
+La migration MFA e le guardie Edge sono versionate ma NON applicate/distribuite
+al backend di produzione. La loro attivazione richiede controlli e autorizzazione
+separati. Le credenziali di collaudo non sono credenziali del sito pubblico.
+
+Selezione isolata da 40301548370fbd9910b9851d1310f03c2694caf2: escluse modifiche
+aziendali/fiscali, cancellazione amministrativa utenti, email e inattività.
+Test della selezione: 331 test in 43 file, lint e compilazione; verificare anche
+il gate cloud prima del deploy. Collaudi reali eseguiti solo su skey-test:
+passkey/TOTP, codice errato, fallback, letture dirette AAL1 negate e ciclo
+applicativo con movimento fittizio; limiti dettagliati in
+docs/autenticazione-facoltativa.md. Restano recupero assistito, smartphone/PWA,
+compatibilità Apple nativa e confini Edge/Realtime/Auth diretto.
+
+Non distribuire automaticamente le Edge Function da questo commit senza aver
+prima applicato e verificato l’enforcement: in assenza della RPC la guardia
+nega le richieste. Non rimuovere verifiche MFA per un rollback.
 
 ## Introduzione della Guida web — rilascio del 3 ottobre
 

@@ -10,7 +10,8 @@ let client: SupabaseClient | null = null
 export function getSupabase() {
   if (!cloudAuthEnabled) throw new Error('Supabase non configurato')
   client ??= createClient(supabaseUrl!, supabaseAnonKey!, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+      experimental: { passkey: import.meta.env.VITE_PASSKEYS_ENABLED === 'true' } },
   })
   return client
 }

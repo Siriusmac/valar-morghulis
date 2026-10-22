@@ -1,7 +1,9 @@
 import {
   ArrowRight, Check, Copy, Landmark, LoaderCircle, LockKeyhole, Mail, Plus, UserCheck, UserX, UsersRound,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createAuthSecurityApi, passkeysEnabled, type AuthSecurityApi } from '../lib/authSecurity'
+import { MfaGate } from './MfaGate'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
 import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
@@ -18,6 +20,7 @@ import type { Account, AppData, Loan, LoanRepayment, ReimbursementAccountReferen
 export const PERSONAL_WORKSPACE_ID = 'personal'
 
 export interface FamilySession {
+  security?: AuthSecurityApi
   familyId: string
   familyName: string
   role: 'admin' | 'member'
@@ -103,6 +106,7 @@ export interface CreateFamilyInput {
 
 export function CloudAccess({ children }: { children: (context: FamilySession) => ReactNode }) {
   const supabase = getSupabase()
+  const security = useMemo(() => createAuthSecurityApi(supabase), [supabase])
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -123,7 +127,7 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
 
   if (loading) return <AccessLoading label="Prepariamo il tuo spazio" />
   if (!session) return <CloudLogin />
-  return <FamilyBootstrap session={session}>{children}</FamilyBootstrap>
+  return <MfaGate key={session.user.id} api={security} sessionToken={session.access_token} onLogout={async () => { const { error } = await supabase.auth.signOut(); if (error) throw error }}><FamilyBootstrap session={session}>{children}</FamilyBootstrap></MfaGate>
 }
 
 export function CloudLogin() {
@@ -137,6 +141,8 @@ export function CloudLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [passkeyError, setPasskeyError] = useState('')
+  const passkeyErrorRef = useRef<HTMLDivElement>(null)
   const emailInputRef = useRef<HTMLInputElement>(null)
   const passwordInputRef = useRef<HTMLInputElement>(null)
 
@@ -152,11 +158,15 @@ export function CloudLogin() {
     setLoginStep('email')
     setError('')
     setMessage('')
+    setPasskeyError('')
   }
 
   useEffect(() => {
     if (mode === 'login' && loginStep === 'password') passwordInputRef.current?.focus()
   }, [loginStep, mode])
+  useEffect(() => {
+    if (passkeyError) passkeyErrorRef.current?.focus()
+  }, [passkeyError])
 
   const navigateTabs = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -170,6 +180,7 @@ export function CloudLogin() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+    setPasskeyError('')
     if (mode === 'login' && loginStep === 'email') {
       setError('')
       setMessage('')
@@ -205,6 +216,16 @@ export function CloudLogin() {
     else setMessage('Ti abbiamo inviato le istruzioni per reimpostare la password.')
   }
 
+  const loginWithPasskey = async () => {
+    if (busy) return
+    setBusy(true); setError(''); setMessage(''); setPasskeyError('')
+    try {
+      const result = await supabase.auth.signInWithPasskey()
+      if (result.error) throw result.error
+    } catch { setPasskeyError('Accesso con passkey non completato. La richiesta potrebbe essere stata annullata o il dispositivo non essere compatibile. Puoi riprovare oppure usare email e password.') }
+    finally { setBusy(false) }
+  }
+
   return <AccessLayout>
     <div className="login-card cloud-login-card">
       <span className="eyebrow">{mode === 'signup' ? 'Nuova famiglia' : 'Area riservata'}</span>
@@ -215,6 +236,9 @@ export function CloudLogin() {
         <button id="auth-tab-signup" type="button" role="tab" aria-selected={mode === 'signup'} aria-controls="auth-panel-signup" tabIndex={mode === 'signup' ? 0 : -1} className={mode === 'signup' ? 'active' : ''} onKeyDown={navigateTabs} onClick={() => selectMode('signup')}>Registrati</button>
       </div>
       <div id={`auth-panel-${mode}`} role="tabpanel" aria-labelledby={`auth-tab-${mode}`}>
+      {mode === 'login' && passkeysEnabled ? <><button type="button" className="button button--secondary button--full" disabled={busy} onClick={() => void loginWithPasskey()}>Accedi con passkey</button><p className="privacy-note">Usa Face ID, Touch ID, PIN o il gestore di passkey. In alternativa continua con email e password.</p></> : null}
+      {mode === 'login' && passkeyError ? <div ref={passkeyErrorRef} tabIndex={-1} role="alert" className="form-message form-message--error auth-passkey-feedback"><strong>Passkey: accesso non completato</strong><p>{passkeyError}</p><button type="button" className="text-button" onClick={() => { setPasskeyError(''); (loginStep === 'password' ? passwordInputRef : emailInputRef).current?.focus() }}>Continua con email e password</button></div> : null}
+      {mode === 'signup' ? <p className="privacy-note">Dopo la conferma dell’email potrai gestire i metodi di sicurezza nelle impostazioni. L’autenticatore è facoltativo: ti consigliamo di attivarlo per proteggere meglio l’account.</p> : null}
       <form onSubmit={submit}>
         {mode === 'signup' ? <>
           <label>Nome<input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" maxLength={60} required /></label>
@@ -241,6 +265,7 @@ export function CloudLogin() {
 
 function FamilyBootstrap({ session, children }: { session: Session; children: (context: FamilySession) => ReactNode }) {
   const supabase = getSupabase()
+  const security = useMemo(() => createAuthSecurityApi(supabase), [supabase])
   const searchParams = new URLSearchParams(window.location.search)
   const inviteToken = searchParams.get('invite')
   const contactInviteToken = searchParams.get('contactInvite')
@@ -421,6 +446,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
     personalMode,
     families: snapshot.families,
     user: snapshot.profile,
+    security,
     members: snapshot.members,
     invitations: snapshot.invitations,
     sharedAccounts: snapshot.accounts,

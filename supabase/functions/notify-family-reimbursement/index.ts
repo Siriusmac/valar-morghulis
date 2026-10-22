@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { userPassedOptionalMfa } from '../_shared/optional-mfa.ts'
 import { importPKCS8, SignJWT } from 'npm:jose@5'
 
 const corsHeaders = {
@@ -29,6 +30,7 @@ Deno.serve(async (request) => {
 
   const { data: { user }, error: userError } = await userClient.auth.getUser()
   if (userError || !user) return json({ error: 'authentication_required' }, 401)
+  if (!await userPassedOptionalMfa(userClient)) return json({ error: 'mfa_verification_required' }, 403)
 
   const body = await request.json().catch(() => ({})) as { familyId?: string; reimbursementId?: string }
   if (!body.familyId || !body.reimbursementId) return json({ error: 'invalid_request' }, 400)
