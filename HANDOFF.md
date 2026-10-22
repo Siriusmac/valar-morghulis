@@ -2,6 +2,81 @@
 
 Aggiornato il 22 ottobre 2026.
 
+## Attivazione backend completata — rilascio web del 22 ottobre
+
+Conferma esplicita dell’utente ricevuta dopo il blocco del controllo di
+sicurezza: migrazione 20261021120000 eseguita e registrata in produzione,
+21 policy restrittive su 21 tabelle RLS, hook public.require_optional_mfa,
+permesso anon sulla funzione di stato negato. Transazione con timeout lock 5s
+e statement 60s; nessuna modifica ai movimenti. Smoke SQL con ruolo authenticated
+e claim fittizi AAL1 senza fattori: optional_mfa_satisfied=true e hook invocato
+senza eccezioni, rollback. Non è un login reale né un test completo delle RLS.
+
+Distribuite soltanto invite-contact v7, invite-family-member v9 e
+notify-family-reimbursement v6: tutte ACTIVE e verify_jwt=true. Funzione
+inattività invariata. Hash dei bundle corrispondenti alle versioni collaudate
+in skey-test. Sei smoke HTTP in produzione (JWT assente/invalido, body vuoto):
+tutti HTTP 401; nessun destinatario, invio email o notifica. Flag pubblici di
+build in .env.production entrambi true; nessuna
+chiave aggiunta al Git. Conservato il gate anche per fattori già attivi.
+
+Web-only: avviso prima dell’iscrizione TOTP sui limiti Apple nativi e recupero
+assistito non disponibile, consiglio di riserva. Riserva realmente collaudata
+dall’utente su skey-test senza rimuovere il primo fattore. La compatibilità
+su dispositivi/PWA reali, il recupero, Auth diretto e Realtime non sono certificati.
+332 test, lint/build cloud e QA sintetico 1280/390 px riusciti. Rilascio frontend
+da verificare a deploy concluso; nessun collaudo reale di iscrizione in produzione
+completato automaticamente. Le note di attesa qui sotto sono il registro storico.
+
+## Preflight storico — backup e conferma backend
+
+Aggiornamento successivo: backup manuale riuscito, cifrato e conservato soltanto
+sul Mac dell’utente fuori dal Git. Verifica umana con password privata e
+conferma dello script: decifratura autenticata integrale, pg_restore completo
+verso /dev/null e lettura del catalogo; 69 voci TABLE DATA. Nessuna prova di
+ripristino su database e nessuna esportazione di ruoli cluster, configurazione
+Auth del provider o file Storage. Hash del file cifrato confrontato col
+riepilogo locale, corrispondente. Le note sul backup mancante sotto sono storiche.
+
+Migrazione di sola sicurezza preparata nell’editor SQL di produzione come
+transazione con lock_timeout 5s, statement_timeout 60s e registrazione della
+sola versione 20261021120000. NON eseguita: il controllo di sicurezza ha
+rifiutato il click perché richiede autorizzazione esplicita per l’attivazione
+backend, distinta dal deploy web. Inviata domanda precisa all’utente su
+migrazione, hook/21 policy, tre Edge Function e abilitazione frontend; attendere
+risposta prima di riprovare. Non aggirare il rifiuto usando CLI o API.
+
+L’utente ha autorizzato il rilascio sicurezza solo webapp, rinviando il client
+Apple. Ha confermato separatamente i parametri passkey di produzione: sKey,
+RP ID skeyapp.com, origin https://www.skeyapp.com. Configurazione salvata nel
+progetto jjmrdnhvjircbakpthii; dashboard: “Passkey settings updated successfully”.
+TOTP già abilitato sul provider, massimo 10 fattori; limite AAL1 a 15 minuti
+già attivo, non modificato. Zero utenti con fattori verificati al preflight.
+
+Schema: 21 tabelle public con RLS, nessun hook db_pre_request, funzione
+optional_mfa_satisfied assente. Registro migration più recente:
+20261002120000 account_monthly_spending_limit. Non applicare le altre migration
+locali fuori ambito. Non è stata ancora applicata quella MFA, né distribuite
+le tre Edge Function in produzione. I flag frontend restano entrambi false.
+
+Blocco: dashboard Database Backups conferma Free Plan senza project backups.
+Serve predisporre un backup manuale ripristinabile o una soluzione equivalente
+prima di modificare l’enforcement in produzione. Nessun dato utente esportato,
+nessun cambio piano. Richiesta all’utente per il backup manuale ancora pendente.
+Non presentare il rilascio come completato. Le passkey sono abilitate nel
+provider ma non esposte nella webapp; le credenziali localhost non trasferite.
+
+Modifica locale selettiva: avviso web-only e incompatibilità Apple prima
+dell’iscrizione; testo esplicito sull’assenza del recupero assistito, senza
+promettere sblocchi. 332 test / 43 file, lint, build e cloud check riusciti.
+QA sintetico Chrome/Playwright (Browser plugin non disponibile) a 1280/390 px:
+avvisi visibili, dettagli espandibili, nessun overflow/overlay/errore console.
+Prova umana riserva su skey-test completata: nuovo TOTP 3adcd5 usato al login,
+bacheca verificata, primo fattore 6cdf06 preservato. Nessun segreto acquisito.
+Screenshot temporanei in /tmp/skey-security-qa.bJ7YeR: production-passkeys-configured,
+production-backup-unavailable e web-only-warning-1280/390. Nessun nuovo commit,
+push o deploy effettuato per questa attivazione ancora incompleta.
+
 ## Sicurezza web — rilascio preparatorio del 22 ottobre
 
 Commit, push e deploy frontend autorizzati dall’utente. Questa selezione

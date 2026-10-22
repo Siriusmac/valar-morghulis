@@ -13,9 +13,11 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ## Funzioni della prima versione
 
-Sicurezza web predisposta con autenticatore facoltativo e passkey separate,
-ma nuove attivazioni disabilitate nel rilascio preparatorio. Prerequisiti,
-collaudi e piano di attivazione in
+Sicurezza della webapp con autenticatore facoltativo consigliato e passkey
+sperimentali, mantenendo email e password. Chi attiva l’autenticatore deve
+usare la webapp: il client Apple nativo non gestisce ancora il secondo passaggio.
+Non è disponibile il recupero assistito se si perdono tutti gli autenticatori:
+configurare una riserva su un altro dispositivo sicuro. Limiti e collaudi in
 [Autenticazione facoltativa](docs/autenticazione-facoltativa.md).
 
 - iscrizione e accesso tramite email e password;

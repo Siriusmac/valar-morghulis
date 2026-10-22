@@ -29,6 +29,15 @@ function api(overrides: Partial<AuthSecurityApi> = {}): AuthSecurityApi {
 }
 
 describe('optional authenticator settings', () => {
+  it('warns about native Apple compatibility and unavailable assisted recovery before enrollment', async () => {
+    const security = api()
+    render(<SecurityMethods api={security} />)
+    await screen.findByRole('button', { name: 'Attiva autenticatore' })
+    expect(screen.getByText('Per ora solo webapp.')).toBeTruthy()
+    expect(screen.getByText(/Il client Apple nativo non supporta ancora/)).toBeTruthy()
+    expect(screen.getByText(/Non è ancora disponibile una procedura di recupero assistito/)).toBeTruthy()
+    expect(security.enroll).not.toHaveBeenCalled()
+  })
   it('offers official authenticator downloads without starting enrollment or leaving the page', async () => {
     const security = api()
     render(<SecurityMethods api={security} />)

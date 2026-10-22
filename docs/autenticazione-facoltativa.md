@@ -1,4 +1,35 @@
-# Autenticatore facoltativo e passkey — preparazione locale
+# Autenticatore facoltativo e passkey — webapp
+
+## Attivazione produzione autorizzata — 22 ottobre 2026
+
+L’utente ha autorizzato esplicitamente il backend del progetto principale
+jjmrdnhvjircbakpthii e il rilascio della sola webapp. Migrazione MFA
+20261021120000 applicata atomicamente e registrata: verificate 21 policy
+restrittive su 21 tabelle RLS, hook public.require_optional_mfa e assenza del
+permesso anon sulla funzione di stato. Nessun movimento modificato.
+Tre Edge Function aggiornate dopo la migrazione: invite-contact,
+invite-family-member, notify-family-reimbursement; verifica JWT mantenuta.
+Non sono autorizzati invii di prova a destinatari reali.
+
+Configurazione passkey confermata separatamente: nome sKey, RP ID skeyapp.com,
+unico origin https://www.skeyapp.com. Credenziali localhost non trasferite.
+TOTP provider già abilitato; conservato limite AAL1 a 15 minuti. Il file pubblico
+.env.production abilita i due flag per la build di produzione; in altri progetti
+applicare prima l’enforcement e verificare il provider o sovrascriverli a false.
+
+Avviso prima dell’iscrizione: il client Apple nativo non gestisce ancora TOTP;
+chi lo usa deve attendere l’allineamento o usare il browser/la webapp Home.
+Nessun recupero assistito implementato o garantito se si perdono tutti i fattori.
+Consigliata una riserva verificata su un altro dispositivo sicuro. Non introdurre
+bypass tramite recupero password o semplice richiesta email.
+
+Backup logico cifrato conservato solo sul Mac fuori dal Git: decifratura
+autenticata completa, lettura integrale pg_restore verso /dev/null e catalogo
+verificati dall’utente. Hash cifrato confrontato, 69 voci TABLE DATA. Non è una
+prova di ripristino; non include ruoli cluster, configurazione Auth o file Storage.
+Le sezioni seguenti sono il registro storico di preparazione, non lo stato
+corrente. Restano non certificati recupero, device/PWA fisici, Auth diretto,
+Realtime e transazioni email/push; non dichiarare una verifica completa.
 
 Aggiornamento di rilascio del 22 ottobre: l’utente ha successivamente
 autorizzato commit, push e deploy della preparazione web. Il bundle pubblico

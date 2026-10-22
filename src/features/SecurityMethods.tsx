@@ -68,6 +68,7 @@ export function SecurityMethods({ api }: { api?: AuthSecurityApi }) {
   return <section className="settings-card security-methods">
     <div className="settings-card__heading"><span aria-hidden="true"><ShieldCheck /></span><div><h2>Passkey e autenticatore</h2><p>Metodi aggiuntivi per proteggere il tuo account.</p></div></div>
     <p className="settings-card__note" role="note"><strong>Autenticatore facoltativo.</strong> Ti consigliamo di attivarlo per aumentare la sicurezza: dopo l’accesso dovrai inserire un codice generato dalla tua app di autenticazione. Puoi continuare a usare sKey senza attivarlo.</p>
+    <p className="settings-card__note" role="note"><strong>Per ora solo webapp.</strong> Il client Apple nativo non supporta ancora il secondo passaggio: se attivi l’autenticatore, usa sKey dal browser o dall’icona web aggiunta alla schermata Home. Attendi l’aggiornamento del client nativo se vuoi continuare a utilizzarlo.</p>
     <div className="security-authenticator-apps">
       <h3>Quale app posso usare?</h3>
       <p>Se non hai già un’app di autenticazione, puoi scegliere uno di questi esempi compatibili con i codici TOTP:</p>
@@ -100,7 +101,7 @@ export function SecurityMethods({ api }: { api?: AuthSecurityApi }) {
         <div className="form-actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => void run(async () => { if (pending) await api.removeFactor(pending.id); setPending(undefined); setRemovingId(''); setCode('') })}>Annulla</button><button className="button button--primary" disabled={busy || code.length !== 6}>{pending ? 'Conferma attivazione' : 'Conferma disattivazione'}</button></div>
       </form> : null}
     </>}
-    <p>Se perdi tutti gli autenticatori, il solo recupero della password non disattiva la protezione: dovrai richiedere assistenza e verificare la titolarità dell’account.</p>
+    <p>Se perdi tutti gli autenticatori, il solo recupero della password non disattiva la protezione. Non è ancora disponibile una procedura di recupero assistito e non possiamo garantire il ripristino dell’accesso: configura e verifica un autenticatore di riserva su un altro dispositivo sicuro.</p>
     <details><summary>Come evitare di perdere l’accesso</summary><ul><li>Conserva l’accesso alla tua email e al metodo con password, anche se usi una passkey.</li><li>Se attivi l’autenticatore, configura e verifica una riserva prima di cambiare o dismettere il telefono.</li><li>Una passkey non sostituisce il codice quando l’autenticatore è attivo. Reimpostare la password non rimuove questa protezione.</li><li>Non inviare all’assistenza password, codici, QR code o chiavi dell’autenticatore. Non sono disponibili codici di recupero sKey.</li></ul></details>
     {current?.error ? <><p role="alert" className="form-message form-message--error">{current.error}</p><button className="button button--ghost" disabled={busy} onClick={() => void run(load)}>Riprova caricamento</button></> : null}
     {error ? <p role="alert" className="form-message form-message--error">{error}</p> : null}
