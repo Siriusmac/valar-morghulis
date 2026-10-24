@@ -29,23 +29,32 @@ function api(overrides: Partial<AuthSecurityApi> = {}): AuthSecurityApi {
 }
 
 describe('optional authenticator settings', () => {
-  it('warns about native Apple compatibility and unavailable assisted recovery before enrollment', async () => {
+  it('uses concise requested copy while retaining the warning that password reset does not remove MFA', async () => {
     const security = api()
     render(<SecurityMethods api={security} />)
     await screen.findByRole('button', { name: 'Attiva autenticatore' })
-    expect(screen.getByText('Per ora solo webapp.')).toBeTruthy()
-    expect(screen.getByText(/Il client Apple nativo non supporta ancora/)).toBeTruthy()
-    expect(screen.getByText(/Non è ancora disponibile una procedura di recupero assistito/)).toBeTruthy()
+    expect(screen.queryByText('Per ora solo webapp.')).toBeNull()
+    expect(screen.queryByText(/Non è ancora disponibile una procedura di recupero assistito/)).toBeNull()
+    expect(screen.getByText('Se perdi tutti gli autenticatori, il solo recupero della password non disattiva la protezione.')).toBeTruthy()
     expect(security.enroll).not.toHaveBeenCalled()
+  })
+  it('places the distinction between passkeys and TOTP inside the passkey section', async () => {
+    render(<SecurityMethods api={api({ passkeysEnabled: true })} />)
+    const heading = await screen.findByRole('heading', { name: 'Passkey' })
+    const explanation = screen.getByText(/La passkey usa il sistema del dispositivo/)
+    expect(heading.compareDocumentPosition(explanation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(explanation.compareDocumentPosition(screen.getByRole('button', { name: 'Aggiungi passkey' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByText(/Funzione Supabase sperimentale/)).toBeNull()
   })
   it('offers official authenticator downloads without starting enrollment or leaving the page', async () => {
     const security = api()
     render(<SecurityMethods api={security} />)
     await screen.findByRole('button', { name: 'Attiva autenticatore' })
     const links = [
-      ['Android — Google Play', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2'],
-      ['iPhone e iPad — App Store', 'https://apps.apple.com/it/app/google-authenticator/id388497605'],
-      ['Microsoft Authenticator — Android e iPhone', 'https://www.microsoft.com/it-it/security/mobile-authenticator-app'],
+      ['Scarica Google Authenticator su Google Play', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2'],
+      ['Scarica Google Authenticator su App Store', 'https://apps.apple.com/it/app/google-authenticator/id388497605'],
+      ['Scarica Microsoft Authenticator su Google Play', 'https://play.google.com/store/apps/details?id=com.azure.authenticator'],
+      ['Scarica Microsoft Authenticator su App Store', 'https://apps.apple.com/it/app/microsoft-authenticator/id983156458'],
     ]
     for (const [name, href] of links) {
       const link = screen.getByRole('link', { name })
@@ -53,11 +62,12 @@ describe('optional authenticator settings', () => {
       expect(link.getAttribute('target')).toBe('_blank')
       expect(link.getAttribute('rel')).toContain('noopener')
       expect(link.getAttribute('rel')).toContain('noreferrer')
+      expect(link.querySelector('img')?.getAttribute('src')).toMatch(/^\/store-badges\//)
     }
     expect(security.enroll).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Attiva autenticatore' }))
     await screen.findByText('Configura l’autenticatore')
-    expect(screen.getAllByRole('link')).toHaveLength(3)
+    expect(screen.getAllByRole('link')).toHaveLength(4)
   })
   it('keeps the authenticator available when only the passkey list fails', async () => {
     const security = api({ passkeysEnabled: true, status: vi.fn().mockResolvedValue(elevatedStatus), passkeys: vi.fn().mockRejectedValue(new Error('passkeys unavailable')) })

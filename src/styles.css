@@ -1399,13 +1399,26 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
   .purchase-review__controls .button { width: 100%; }
 }
 
-.security-methods p, .security-methods li { font-size: 12px; line-height: 1.6; }
+.security-methods { font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.6; color: var(--ink); }
+.security-methods p, .security-methods li, .security-methods summary, .security-methods label, .security-method-row { font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; }
+.security-methods p { margin: 0 0 12px; }
+.security-methods .settings-card__heading p { margin: 4px 0 0; }
+.security-methods > .button { margin-block: 6px 18px; }
+.security-methods > details { margin-top: 16px; }
+.security-methods ul { padding-left: 24px; margin-block: 12px; }
 .security-methods h3 { margin-top: 20px; margin-bottom: 8px; }
 .security-methods ol { padding-left: 20px; }
 .security-authenticator-apps a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
 .security-authenticator-apps li { margin-block: 8px; overflow-wrap: anywhere; }
+.security-methods .authenticator-downloads { list-style: none; padding: 0; margin-block: 20px; }
+.authenticator-downloads > li + li { margin-top: 18px; }
+.store-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.store-badges a { display: inline-flex; align-items: center; justify-content: center; padding: 10px; border-radius: 6px; }
+.store-badges img { display: block; width: auto; height: 40px; }
+.store-badges .store-badge--google { height: 52px; }
 .security-method-form, .security-challenge form { display: grid; gap: 14px; margin-top: 18px; }
 .security-method-form label, .security-challenge label { display: grid; gap: 7px; font-size: 12px; }
+.security-methods .security-method-form label { font-size: inherit; }
 .security-method-form input, .security-challenge input, .security-challenge select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 16px; }
 .security-qr { display: block; max-width: 100%; width: 220px; height: auto; background: white; }
 .security-secret { display: block; padding: 12px; overflow-wrap: anywhere; user-select: all; }

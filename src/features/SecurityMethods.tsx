@@ -10,6 +10,10 @@ type Methods = {
   error?: string
 }
 const methodsLoadError = 'Impossibile caricare i metodi di sicurezza. Riprova.'
+const authenticatorDownloads = [
+  { name: 'Google Authenticator', apple: 'https://apps.apple.com/it/app/google-authenticator/id388497605', google: 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2' },
+  { name: 'Microsoft Authenticator', apple: 'https://apps.apple.com/it/app/microsoft-authenticator/id983156458', google: 'https://play.google.com/store/apps/details?id=com.azure.authenticator' },
+]
 async function readMethods(api: AuthSecurityApi): Promise<Methods> {
   const [status, keys] = await Promise.allSettled([api.status(), api.passkeys()])
   if (status.status === 'rejected') throw status.reason
@@ -68,17 +72,20 @@ export function SecurityMethods({ api }: { api?: AuthSecurityApi }) {
   return <section className="settings-card security-methods">
     <div className="settings-card__heading"><span aria-hidden="true"><ShieldCheck /></span><div><h2>Passkey e autenticatore</h2><p>Metodi aggiuntivi per proteggere il tuo account.</p></div></div>
     <p className="settings-card__note" role="note"><strong>Autenticatore facoltativo.</strong> Ti consigliamo di attivarlo per aumentare la sicurezza: dopo l’accesso dovrai inserire un codice generato dalla tua app di autenticazione. Puoi continuare a usare sKey senza attivarlo.</p>
-    <p className="settings-card__note" role="note"><strong>Per ora solo webapp.</strong> Il client Apple nativo non supporta ancora il secondo passaggio: se attivi l’autenticatore, usa sKey dal browser o dall’icona web aggiunta alla schermata Home. Attendi l’aggiornamento del client nativo se vuoi continuare a utilizzarlo.</p>
     <div className="security-authenticator-apps">
       <h3>Quale app posso usare?</h3>
       <p>Se non hai già un’app di autenticazione, puoi scegliere uno di questi esempi compatibili con i codici TOTP:</p>
-      <ul>
-        <li><strong>Google Authenticator</strong>: <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener noreferrer">Android — Google Play</a> oppure <a href="https://apps.apple.com/it/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer">iPhone e iPad — App Store</a>.</li>
-        <li><a href="https://www.microsoft.com/it-it/security/mobile-authenticator-app" target="_blank" rel="noopener noreferrer">Microsoft Authenticator — Android e iPhone</a>.</li>
+      <ul className="authenticator-downloads">
+        {authenticatorDownloads.map((app) => <li key={app.name}>
+          <strong>{app.name}</strong>
+          <div className="store-badges">
+            <a href={app.apple} aria-label={`Scarica ${app.name} su App Store`} target="_blank" rel="noopener noreferrer"><img src="/store-badges/app-store-it.svg" alt="Scarica su App Store" width="120" height="40" /></a>
+            <a href={app.google} aria-label={`Scarica ${app.name} su Google Play`} target="_blank" rel="noopener noreferrer"><img className="store-badge--google" src="/store-badges/google-play-it.png" alt="Disponibile su Google Play" width="134" height="52" /></a>
+          </div>
+        </li>)}
       </ul>
-      <p>Sono link ufficiali e si aprono in una nuova scheda, senza chiudere questa configurazione. Una sola app compatibile è sufficiente: non è necessario installarle entrambe. Dopo l’installazione, torna qui per aggiungere l’account sKey e confermare il codice.</p>
+      <p>Una sola app compatibile è sufficiente: non è necessario installarle entrambe. Dopo l’installazione, torna qui per aggiungere l’account sKey e confermare il codice.</p>
     </div>
-    <p>La passkey usa il sistema del dispositivo, come Face ID, Touch ID o PIN. L’autenticatore genera invece codici temporanei: sono due metodi distinti. Se attivi l’autenticatore, il secondo passaggio viene richiesto anche dopo l’accesso con passkey.</p>
     {!api ? <p>La configurazione dei metodi aggiuntivi sarà disponibile dopo l’attivazione del servizio.</p> : <>
       {loading ? <p role="status">Verifica dei metodi di sicurezza…</p> : null}
       {!pending && !removingId && current?.status ? <>
@@ -88,7 +95,8 @@ export function SecurityMethods({ api }: { api?: AuthSecurityApi }) {
         {factors.map((factor) => <div className="security-method-row" key={factor.id}><span>{factor.name}</span><button className="button button--ghost" disabled={busy} onClick={() => { setRemovingId(factor.id); setCode(''); setError(''); setMessage('') }}>Disattiva {factor.name}</button></div>)}
         {api.enrollmentEnabled ? <button className="button button--secondary" disabled={busy} onClick={() => void run(async () => { setPending(await api.enroll()); setCode('') })}>{factors.length ? 'Aggiungi un altro autenticatore' : 'Attiva autenticatore'}</button> : <p>Attivazione in preparazione: prima è necessario completare la configurazione di sicurezza sul server.</p>}
         {api.passkeysEnabled ? <>
-          <h3>Passkey</h3><p>Accesso rapido senza digitare la password. Funzione Supabase sperimentale: conserva anche il metodo di accesso con password.</p>
+          <h3>Passkey</h3><p>Accesso rapido senza digitare la password. Conserva anche il metodo di accesso con password.</p>
+          <p>La passkey usa il sistema del dispositivo, come Face ID, Touch ID o PIN. L’autenticatore genera invece codici temporanei: sono due metodi distinti. Se attivi l’autenticatore, il secondo passaggio viene richiesto anche dopo l’accesso con passkey.</p>
           {current.passkeysError ? <><p role="alert" className="form-message form-message--error">{current.passkeysError}</p><button className="button button--ghost" disabled={busy} onClick={() => void run(load)}>Riprova caricamento passkey</button></> : <>
             {passkeys.map((key) => <div className="security-method-row" key={key.id}><span>{key.name}</span><button className="button button--ghost" disabled={busy} onClick={() => { if (window.confirm(`Eliminare la passkey “${key.name}”? Potrai ancora accedere con password e, se attivo, autenticatore.`)) void run(async () => { await api.removePasskey(key.id); await load(); setMessage('Passkey eliminata.') }) }}>Elimina passkey {key.name}</button></div>)}
             <button className="button button--secondary" disabled={busy} onClick={() => void run(async () => { await api.registerPasskey(); await load(); setMessage('Passkey aggiunta.') }, 'Procedura passkey non completata o elenco non aggiornato. Riprova e controlla le passkey elencate; puoi continuare a usare gli altri metodi di accesso.')}>Aggiungi passkey</button>
@@ -101,7 +109,7 @@ export function SecurityMethods({ api }: { api?: AuthSecurityApi }) {
         <div className="form-actions"><button className="button button--ghost" type="button" disabled={busy} onClick={() => void run(async () => { if (pending) await api.removeFactor(pending.id); setPending(undefined); setRemovingId(''); setCode('') })}>Annulla</button><button className="button button--primary" disabled={busy || code.length !== 6}>{pending ? 'Conferma attivazione' : 'Conferma disattivazione'}</button></div>
       </form> : null}
     </>}
-    <p>Se perdi tutti gli autenticatori, il solo recupero della password non disattiva la protezione. Non è ancora disponibile una procedura di recupero assistito e non possiamo garantire il ripristino dell’accesso: configura e verifica un autenticatore di riserva su un altro dispositivo sicuro.</p>
+    <p>Se perdi tutti gli autenticatori, il solo recupero della password non disattiva la protezione.</p>
     <details><summary>Come evitare di perdere l’accesso</summary><ul><li>Conserva l’accesso alla tua email e al metodo con password, anche se usi una passkey.</li><li>Se attivi l’autenticatore, configura e verifica una riserva prima di cambiare o dismettere il telefono.</li><li>Una passkey non sostituisce il codice quando l’autenticatore è attivo. Reimpostare la password non rimuove questa protezione.</li><li>Non inviare all’assistenza password, codici, QR code o chiavi dell’autenticatore. Non sono disponibili codici di recupero sKey.</li></ul></details>
     {current?.error ? <><p role="alert" className="form-message form-message--error">{current.error}</p><button className="button button--ghost" disabled={busy} onClick={() => void run(load)}>Riprova caricamento</button></> : null}
     {error ? <p role="alert" className="form-message form-message--error">{error}</p> : null}
