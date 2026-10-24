@@ -2,6 +2,127 @@
 
 Aggiornato il 24 ottobre 2026.
 
+## Recupero password — collaudo completato e rilascio web autorizzato
+
+L’utente ha completato anche il percorso con MFA: codice richiesto prima del
+modulo, cambio password e nuovo accesso con password aggiornata e autenticatore
+riusciti. Confermato anche l’avviso sul link già usato. Credenziali e codici
+sempre inseriti personalmente, mai acquisiti. Autorizzati commit, push e deploy
+della sola webapp. Nessuna migrazione. Verifica email/redirect produzione ancora
+da eseguire. Le note sottostanti documentano le fasi precedenti del collaudo.
+Separata segnalazione da diagnosticare: avviso sessioni invasivo e ciclo dopo
+“Carica dati aggiornati”, anche con una sola sessione. Nessuna correzione della
+sincronizzazione inclusa nel rilascio recupero password.
+
+## Recupero password — link e cambio password confermati dall’utente su skey-test
+
+Test MFA in corso: l’utente ha confermato anche l’avviso sul link già usato,
+poi ha attivato personalmente un autenticatore sul terzo account di prova.
+Verifica UI limitata allo stato: azione “Aggiungi un altro autenticatore”
+presente, QR pendente assente; successivamente testo Protezione attiva e
+fattore bf6e7f visibili. Nessun QR, chiave o codice acquisito. Uscita normale
+dall’account e UNA nuova richiesta di recupero al destinatario già autorizzato;
+servizio risponde con messaggio neutro di richiesta accettata. Non ancora
+confermata ricezione/apertura di questa seconda email. Prossima verifica umana:
+aprire SOLO l’ultimo link sul Mac e fermarsi alla richiesta del codice, prima
+di ogni inserimento e prima della schermata password. Se il modulo password
+si apre subito, interrompere e diagnosticare; non considerare MFA collaudato.
+
+Ulteriori riscontri utente: nuovo accesso con password aggiornata riuscito;
+riapertura del link usato da disconnesso mostra il normale login, non il form.
+Questo non certifica da solo il codice d’errore del provider. Correzione locale
+di UX: cattura otp_expired prima della pulizia del frammento SDK e mostra
+“Collegamento non valido o scaduto”, anche con sessione preesistente senza
+aprire il form password. Messaggio generico valido anche per altri link email
+scaduti, senza stampare parametri di errore o token. Quattro test aggiunti per
+callback nel frammento/query, errore recovery e sessione già presente.
+Prova CUA con codice d’errore sintetico, NON link reale: messaggio e pulsante
+Continua corretti; parametri eliminati e ritorno al login. Evidenza QA
+recovery-invalid-link.png. Nessuna email reinviata o password modificata.
+Da ripetere il vecchio link reale con la correzione; MFA reale resta da provare.
+Verifiche finali della correzione: 354 test/45 file, lint, cloudflare:check e
+diff-check superati. Sistemato nel solo mock di test l’export passkeysEnabled
+necessario a renderizzare il login dopo il pulsante Continua.
+
+Aggiornamento: il 24 ottobre l’utente ha confermato “aperto e reimpostata la
+password, funziona”. Consegna/apertura link e cambio password reale nel solo
+account di prova quindi confermati dall’utente, senza osservare o raccogliere
+credenziali. La descrizione sotto registra i passaggi precedenti. Restano da
+verificare il nuovo login con password appena scelta, il rifiuto del riutilizzo
+del link/scadenza e il recupero con MFA reale attivo. Nessun rilascio del nuovo
+recupero in produzione autorizzato o eseguito.
+
+L’utente ha creato un terzo account di prova con un indirizzo consultabile,
+senza condividere la password. Su conferma specifica, SOLO skey-test ha ora
+Site URL http://localhost:5192 e un unico redirect esatto consentito:
+http://localhost:5192/?recovery=password. Prima: localhost:3000, lista vuota.
+Configurazione verificata salvata nella dashboard. Produzione invariata.
+Uscita dalla vecchia sessione fittizia e richiesta di UNA email di recupero
+dal login localhost:5192 all’indirizzo indicato dall’utente: risposta positiva
+del provider. Nessuna conferma di consegna o cambio password ancora ricevuta.
+La scheda eseguiva una versione precedente (messaggio invio legacy): nessun
+listener locale su 5192. Avviato serve-staging-app.mjs nella sessione 21259,
+configFile/envDir disabilitati e progetto staging verificato nello script.
+La pagina /?recovery=password SENZA token/sessione mostra correttamente
+“Richiedi un nuovo collegamento”; non è stato consumato alcun link email.
+Il link legacy alla radice è supportato dall’evento PASSWORD_RECOVERY nella
+nuova versione. Nessun reinvio richiesto. Prossimo passaggio umano: consultare
+la propria casella/spam sul Mac, aprire il link e riferire se compare il form.
+Non chiedere/copiare link di recupero, token o password; successivo aggiornamento
+della password deve essere eseguito dall’utente. Evidenza configurazione:
+/tmp/skey-security-qa.bJ7YeR/recovery-staging-redirect-ready.png.
+
+## Rilascio selettivo grafica — 24 ottobre 2026
+
+Pubblicato il solo commit 99c8af3 (SecurityMethods, test, CSS grafico e badge
+originali locali). Il recupero password e il suo CSS NON sono stati commessi,
+inviati o distribuiti. Checkout attivo conserva integralmente lo sviluppo locale.
+Build pulita eseguita da /tmp/skey-graphics-release.ygma2e, clone locale del
+commit con dipendenze condivise e solo config pubblica produzione ignorata.
+340 test/43 file, lint e cloudflare:check superati sulla copia di rilascio;
+350 test/45 file superati sul checkout che include il recupero non pubblicato.
+Deploy https://870cf8f8.valar-morghulis-web.pages.dev sul progetto Cloudflare skey,
+dominio www.skeyapp.com, nessun cambio backend/Apple/SMTP. Asset JS/CSS e badge
+confrontati byte per byte tra build pulita, deploy e dominio ufficiale HTTP 200;
+entry index-DDRl0gVu.js, CSS index-C-gdy4cL.css. File PasswordRecovery assente
+nel clone e schermata nuova non presente nel bundle pubblicato.
+Prossimo passo autorizzato: test recupero su skey-test, non produzione. Serve
+un indirizzo consultabile per l’account di prova: collaudo e collaudo2 usano
+example.invalid e non ricevono email. Richiesto all’utente; nessun invio reale
+o cambio credenziali avviato. Ogni inserimento di nuova password resta umano.
+
+## Nuovo sviluppo locale — testi sicurezza e recupero password
+
+Base rilasciata ce1841a/cdb9d91 preservata; nessun nuovo commit/push/deploy per
+questo sviluppo. SecurityMethods segue le annotazioni degli screenshot: rimossi
+avviso Apple e frase sui link ufficiali, spiegazione passkey spostata nella sua
+sezione, testo provider sperimentale e avviso recupero assistito rimossi come
+richiesto. Conservata la distinzione password/MFA e le istruzioni sulla riserva
+nei dettagli. Unico stile CSS per corpo del riquadro, note e riepiloghi; margini
+prima/dopo i pulsanti e prima dei dettagli. Font/titoli gerarchici coerenti.
+
+Prima implementazione recupero web in CloudAccess/PasswordRecovery: evento Auth
+e rotta dedicata, form protetto da MfaGate, conferma e minimo 12 caratteri,
+messaggio invio neutro, errori e collegamento senza sessione. Nessun bypass MFA,
+recupero fattori persi o revoca di sessioni introdotti. Nessuna email inviata
+né credenziale reale modificata. Dettagli e collaudi mancanti in
+docs/recupero-password.md. 350 test/45 file, lint/build cloud e QA sintetico
+1280/390 superati. Il test iniziale ha evidenziato e fatto correggere la gara
+fra getSession iniziale ed evento recovery; corretto anche un tipo del test.
+Nel solo harness grafico aggiunta favicon assente per eliminare un 404.
+Evidenze security-copy-1280/390.png e recovery-form-1280/390.png nella cartella QA.
+
+Aggiornamento successivo: link testuali ai download sostituiti da quattro badge,
+App Store e Google Play per ciascuna app Google/Microsoft Authenticator. Asset
+italiani originali scaricati dai provider in public/store-badges, fonti nel
+relativo SOURCES.md. Immagini locali, proporzioni e margini integri, etichette
+accessibili con nome app/store, nuova scheda con noopener/noreferrer. Microsoft
+ora punta direttamente alle due schede ufficiali verificate. Nessun cambio
+al recupero password in questo passaggio. 350 test, lint/build/diff-check e
+QA Chrome a 1280/390/320 passati, quattro immagini caricate, nessun overflow
+o errore console. Evidenze store-badges-1280/390/320.png nella cartella QA.
+Ancora nessun nuovo commit/push/deploy.
+
 ## Rilascio web protezione dati — 24 ottobre 2026
 
 L’utente ha autorizzato commit/push/deploy web e confermato specificamente la

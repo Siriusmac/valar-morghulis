@@ -116,6 +116,26 @@ describe('InvitationPasswordSetup', () => {
 })
 
 describe('CloudLogin tabs', () => {
+  it('requests a dedicated recovery redirect without revealing whether an account exists', async () => {
+    resetPasswordForEmail.mockResolvedValue({ error: null })
+    render(<CloudLogin />)
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'collaudo@example.invalid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Password dimenticata?' }))
+    await screen.findByRole('status')
+    expect(resetPasswordForEmail).toHaveBeenCalledWith('collaudo@example.invalid', { redirectTo: `${window.location.origin}/?recovery=password` })
+    expect(screen.getByRole('status').textContent).toContain('Se l’indirizzo è associato a un account')
+  })
+  it('handles a failed recovery request without a false success notice', async () => {
+    resetPasswordForEmail.mockRejectedValue(new Error('offline'))
+    render(<CloudLogin />)
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'collaudo@example.invalid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Password dimenticata?' }))
+    await screen.findByRole('alert')
+    expect(screen.queryByRole('status')).toBeNull()
+    expect((screen.getByRole('button', { name: 'Password dimenticata?' }) as HTMLButtonElement).disabled).toBe(false)
+  })
   it('focuses a prominent passkey error and offers the email fallback without submitting it', async () => {
     securityFlags.passkeys = true
     signInWithPasskey.mockResolvedValue({ error: new Error('cancelled') })

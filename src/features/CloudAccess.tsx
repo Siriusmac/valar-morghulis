@@ -4,6 +4,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createAuthSecurityApi, passkeysEnabled, type AuthSecurityApi } from '../lib/authSecurity'
 import { MfaGate } from './MfaGate'
+import { PasswordRecovery } from './PasswordRecovery'
 import { isCloudRevisionConflict } from '../lib/cloudSync'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
@@ -107,18 +108,39 @@ export interface CreateFamilyInput {
 }
 
 export function CloudAccess({ children }: { children: (context: FamilySession) => ReactNode }) {
+  // Capture provider errors before the SDK removes the callback fragment.
+  const [linkError, setLinkError] = useState(() => {
+    const query = new URLSearchParams(window.location.search)
+    const fragment = new URLSearchParams(window.location.hash.slice(1))
+    return [query, fragment].some((params) => params.get('error_code') === 'otp_expired')
+      || ((query.get('recovery') === 'password' || fragment.get('type') === 'recovery') && [query, fragment].some((params) => params.has('error')))
+  })
   const supabase = getSupabase()
   const security = useMemo(() => createAuthSecurityApi(supabase), [supabase])
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recovering, setRecovering] = useState(() => new URLSearchParams(window.location.search).get('recovery') === 'password' || new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery')
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false) })
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    let active = true
+    let receivedAuthEvent = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && !receivedAuthEvent) { setSession(data.session); setLoading(false) }
+    }).catch(() => { if (active && !receivedAuthEvent) setLoading(false) })
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return
+      receivedAuthEvent = true
+      if (event === 'PASSWORD_RECOVERY') {
+        setLinkError(false)
+        setRecovering(true)
+        const url = new URL(window.location.href)
+        url.searchParams.set('recovery', 'password')
+        window.history.replaceState(null, '', url.pathname + url.search)
+      }
       setSession(nextSession)
       setLoading(false)
     })
-    return () => data.subscription.unsubscribe()
+    return () => { active = false; data.subscription.unsubscribe() }
   }, [supabase])
 
   const activityUserId = session?.user.id
@@ -127,9 +149,22 @@ export function CloudAccess({ children }: { children: (context: FamilySession) =
     return observeUserActivity(() => supabase.rpc('record_user_activity'))
   }, [activityUserId, supabase])
 
+  const finishRecovery = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('recovery')
+    for (const key of ['error', 'error_code', 'error_description']) url.searchParams.delete(key)
+    window.history.replaceState(null, '', url.pathname + url.search)
+    setRecovering(false)
+    setLinkError(false)
+  }
+
+  if (linkError) return <AccessLayout compact><div className="onboarding-card password-recovery"><h1>Collegamento non valido o scaduto</h1><p>Questo collegamento potrebbe essere scaduto oppure già utilizzato. Non è stata modificata alcuna password. Puoi accedere normalmente o richiedere un nuovo link con “Password dimenticata?”.</p><button className="button button--primary" onClick={finishRecovery}>Continua</button></div></AccessLayout>
   if (loading) return <AccessLoading label="Prepariamo il tuo spazio" />
+  if (!session && recovering) return <AccessLayout compact><div className="onboarding-card password-recovery"><h1>Richiedi un nuovo collegamento</h1><p>Il link di recupero non ha aperto una sessione valida. Potrebbe essere scaduto o già utilizzato. Torna all’accesso e scegli “Password dimenticata?” per riceverne uno nuovo.</p><button className="button button--primary" onClick={finishRecovery}>Torna all’accesso</button></div></AccessLayout>
   if (!session) return <CloudLogin />
-  return <MfaGate key={session.user.id} api={security} sessionToken={session.access_token} onLogout={async () => { const { error } = await supabase.auth.signOut(); if (error) throw error }}><FamilyBootstrap session={session}>{children}</FamilyBootstrap></MfaGate>
+  return <MfaGate key={session.user.id} api={security} sessionToken={session.access_token} onLogout={async () => { const { error } = await supabase.auth.signOut(); if (error) throw error }}>
+    {recovering ? <AccessLayout compact><PasswordRecovery updatePassword={async (password) => { const { error } = await supabase.auth.updateUser({ password }); if (error) throw error }} onCompleted={finishRecovery} onCancel={finishRecovery} /></AccessLayout> : <FamilyBootstrap session={session}>{children}</FamilyBootstrap>}
+  </MfaGate>
 }
 
 export function CloudLogin() {
@@ -210,12 +245,15 @@ export function CloudLogin() {
   }
 
   const resetPassword = async () => {
+    if (busy) return
     if (!email.trim()) { setError('Inserisci prima il tuo indirizzo email.'); return }
-    setBusy(true); setError('')
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
-    setBusy(false)
-    if (authError) setError(authMessage(authError.message))
-    else setMessage('Ti abbiamo inviato le istruzioni per reimpostare la password.')
+    setBusy(true); setError(''); setMessage('')
+    try {
+      const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/?recovery=password` })
+      if (authError) throw authError
+      setMessage('Se l’indirizzo è associato a un account, riceverai un link per reimpostare la password. Controlla anche la cartella spam. Il link è personale e utilizzabile una sola volta.')
+    } catch { setError('Non è stato possibile richiedere il recupero. Attendi qualche minuto e riprova.') }
+    finally { setBusy(false) }
   }
 
   const loginWithPasskey = async () => {
@@ -258,7 +296,7 @@ export function CloudLogin() {
         {message ? <p className="form-message form-message--success" role="status">{message}</p> : null}
         <button className="button button--primary button--full" disabled={busy}>{busy ? <LoaderCircle className="spin" /> : null}{mode === 'signup' || loginStep === 'email' ? 'Continua' : 'Accedi'} <ArrowRight /></button>
       </form>
-      {mode === 'login' && loginStep === 'password' ? <button type="button" className="text-button auth-recovery" onClick={resetPassword}>Password dimenticata?</button> : null}
+      {mode === 'login' && loginStep === 'password' ? <button type="button" className="text-button auth-recovery" disabled={busy} onClick={resetPassword}>Password dimenticata?</button> : null}
       </div>
       <small className="privacy-note"><LockKeyhole /> I dati personali sono protetti e non sono visibili agli altri utenti. Gli accessi tecnici eccezionali sono limitati a sicurezza e assistenza.</small>
     </div>

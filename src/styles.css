@@ -1405,6 +1405,11 @@ button.sync-indicator { cursor: pointer; font: inherit; font-size: 9px; font-wei
 .security-methods .settings-card__heading p { margin: 4px 0 0; }
 .security-methods > .button { margin-block: 6px 18px; }
 .security-methods > details { margin-top: 16px; }
+.password-recovery p { margin-block: 16px; line-height: 1.6; }
+.password-recovery form { display: grid; gap: 18px; margin-top: 24px; }
+.password-recovery label { display: grid; gap: 8px; }
+.password-recovery input { width: 100%; min-height: 46px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; font-size: 16px; }
+.password-recovery .form-actions { flex-wrap: wrap; }
 .security-methods ul { padding-left: 24px; margin-block: 12px; }
 .security-methods h3 { margin-top: 20px; margin-bottom: 8px; }
 .security-methods ol { padding-left: 20px; }
