@@ -13,6 +13,11 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ## Funzioni della prima versione
 
+Protezione dagli archivi obsoleti, collaudata su skey-test e predisposta per il rilascio web:
+salvataggi versionati obbligatori, isolamento delle schede e revisione esplicita
+dei conflitti con copia locale di recupero. Stato e ordine di rilascio nel
+[passaggio di consegne](HANDOFF.md).
+
 Sicurezza della webapp con autenticatore facoltativo consigliato e passkey
 sperimentali, mantenendo email e password. Chi attiva l’autenticatore deve
 usare la webapp: il client Apple nativo non gestisce ancora il secondo passaggio.

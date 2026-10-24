@@ -8,10 +8,11 @@ import { CloudAccess, type FamilySession } from './features/CloudAccess'
 import { accountBalance, reimbursementPlan, sharedBalance, visibleMovements } from './lib/calculations'
 import { formatDate, formatMoney, makeId, todayISO } from './lib/format'
 import { createPersonalStarterData, createStarterData, users } from './lib/seed'
-import { hasMeaningfulUserData, hydrateData, loadData, mergeAppData, mergeConcurrentPendingAppData, mergePendingAppData, saveData } from './lib/storage'
+import { hasMeaningfulUserData, hydrateData, loadData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { changeInstallmentAccount } from './lib/scheduled'
-import { bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
+import { bindCloudSaveSnapshot, blockCloudSave, clearCloudSavePending, cloudSaveRetryDelay, createCloudWorkspace, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, preserveCloudRecovery, readLatestCloudRecovery, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
+import { SyncProtection } from './components/SyncProtection'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
 import { deleteTransferData, saveTransferData } from './lib/transfers'
@@ -91,10 +92,20 @@ export default function App() {
 
 function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const appUsers = cloud?.members ?? users
-  const storageKey = cloud ? `skey:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
-  if (cloud && storageKey) {
-    migrateBrowserStorageKey(`valar-morghulis:family:${cloud.familyId}:user:${cloud.user.id}:v3`, storageKey)
-  }
+  const baseStorageKey = cloud ? `skey:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
+  const [workspace] = useState(() => {
+    if (!cloud) return undefined
+    const base = `skey:family:${cloud.familyId}:user:${cloud.user.id}:v3`
+    let previous = base
+    try {
+      previous = sessionStorage.getItem(`${base}:workspace`) ?? base
+      migrateBrowserStorageKey(`valar-morghulis:family:${cloud.familyId}:user:${cloud.user.id}:v3`, base)
+      return { key: createCloudWorkspace(base), initialKey: undefined, failed: false }
+    } catch {
+      return { key: `${base}:tab:${crypto.randomUUID()}`, initialKey: previous, failed: true }
+    }
+  })
+  const storageKey = workspace?.key
   const starterData = cloud ? (cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)) : undefined
   const initialUserId = (() => {
     if (cloud) return cloud.user.id
@@ -103,7 +114,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     return (sessionStorage.getItem('skey:user') ?? sessionStorage.getItem('vm:user')) as UserId | null
   })()
   const [data, setData] = useState<AppData>(() => {
-    const loaded = cloud ? loadData(storageKey, starterData!) : loadData()
+    const loaded = cloud ? loadData(workspace?.initialKey ?? storageKey, starterData!) : loadData()
     return initialUserId ? reconcileConfirmedLoanPurchases(loaded, initialUserId, appUsers) : loaded
   })
   const [userId, setUserId] = useState<UserId | null>(initialUserId)
@@ -117,7 +128,28 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const [contactData, setContactData] = useState<ContactData>(emptyContactData)
   const [cloudDataReady, setCloudDataReady] = useState(!cloud)
   const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>(cloud ? 'pending' : 'synced')
-  const [runCloudWrite] = useState(() => createCloudWriteQueue())
+  const [checkingRemote, setCheckingRemote] = useState(Boolean(cloud))
+  const [recoveryError, setRecoveryError] = useState('')
+  const [recoveryCopy, setRecoveryCopy] = useState<AppData | undefined>(() => baseStorageKey ? readLatestCloudRecovery(baseStorageKey) : undefined)
+  const [viewGeneration, setViewGeneration] = useState(0)
+  const blocked = useRef(Boolean(workspace?.failed || (storageKey && readPendingCloudSave(storageKey)?.blocked)))
+  const storageRecovered = useRef(false)
+  const inputDirty = useRef(false)
+  const inputEpoch = useRef(0)
+  const currentData = useRef(data)
+  useLayoutEffect(() => { currentData.current = data }, [data])
+  const protectConflict = useCallback(() => {
+    blocked.current = true
+    setCloudSyncStatus('conflict')
+    if (storageKey) { try { blockCloudSave(storageKey) } catch { /* Keep the in-memory copy blocked even if storage is full. */ } }
+  }, [storageKey])
+  const [runCloudWrite] = useState(() => {
+    const queue = createCloudWriteQueue()
+    return async <T,>(operation: () => Promise<T>): Promise<T> => {
+      try { return await queue(operation) }
+      catch (reason) { if (isCloudRevisionConflict(reason)) protectConflict(); throw reason }
+    }
+  })
   const cloudSaveRunning = useRef(false)
   const cloudRefreshRunning = useRef(false)
   const cloudRetryTimer = useRef<number | undefined>(undefined)
@@ -135,37 +167,36 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       cloudRetryTimer.current = window.setTimeout(() => { void flushCloudSave.current() }, delay)
     }
     refreshRemoteData.current = async () => {
+      if (blocked.current) return
       if (cloudSaveRunning.current || cloudRefreshRunning.current || readPendingCloudSave(storageKey)) {
         remoteRefreshPending.current = true
         return
       }
       cloudRefreshRunning.current = true
+      setCheckingRemote(true)
       try {
         const remoteData = await runCloudWrite(() => cloud.loadAppData())
+        if (blocked.current) return
         if (!remoteData) return
         const remote = hydrateData(remoteData, fallback())
         const pendingAfterLoad = readPendingCloudSave(storageKey)
-        if (pendingAfterLoad) {
-          const local = loadData(storageKey, fallback())
-          const baseline = readCloudSyncBaseline(storageKey)
-          const resolved = baseline
-            ? mergeConcurrentPendingAppData(remote, local, baseline, fallback(), cloud.user.id)
-            : mergePendingAppData(remote, local, fallback(), cloud.user.id)
-          saveData(resolved, storageKey)
-          markCloudSavePending(storageKey)
-          skipNextCloudSave.current = resolved
-          setData(resolved)
-          void flushCloudSave.current()
+        if (pendingAfterLoad || (inputDirty.current && JSON.stringify(remote) !== JSON.stringify(currentData.current))) {
+          protectConflict()
           return
         }
         writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
         skipNextCloudSave.current = remote
         setData(remote)
+      } catch (reason) {
+        protectConflict()
+        throw reason
       } finally {
         cloudRefreshRunning.current = false
+        setCheckingRemote(false)
       }
     }
     flushCloudSave.current = async () => {
+      if (blocked.current) return
       if (cloudSaveRunning.current) return
       const pending = readPendingCloudSave(storageKey)
       if (!pending) {
@@ -182,18 +213,21 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       let retryImmediately = false
       let refreshAfterSave = false
       try {
-        const bound = bindCloudSaveSnapshot(storageKey, pending.mutationId, loadData(storageKey, fallback()))
+        const bound = bindCloudSaveSnapshot(storageKey, pending.mutationId, currentData.current)
         if (!bound?.snapshot) { retryImmediately = true; return }
         const dataToSave = bound.snapshot
+        const inputAtSave = inputEpoch.current
         await runCloudWrite(() => cloud.saveAppData(dataToSave, pending.mutationId))
+        if (blocked.current) return
         writeCloudSyncBaseline(storageKey, dataToSave, cloud.user.id)
-        const latest = loadData(storageKey, fallback())
+        const latest = currentData.current
         const sameSnapshot = JSON.stringify(latest) === JSON.stringify(dataToSave)
         if (!sameSnapshot && readPendingCloudSave(storageKey)?.mutationId === pending.mutationId) {
           markCloudSavePending(storageKey)
         }
         const cleared = sameSnapshot && clearCloudSavePending(storageKey, pending.mutationId)
         if (cleared) {
+          if (inputEpoch.current === inputAtSave) inputDirty.current = false
           setCloudSyncStatus('synced')
           refreshAfterSave = remoteRefreshPending.current
           remoteRefreshPending.current = false
@@ -203,27 +237,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         }
       } catch (reason) {
         if (isCloudRevisionConflict(reason)) {
-          try {
-            const remoteData = await cloud.loadAppData()
-            // New movements may have been saved while the remote read was in flight.
-            const localData = loadData(storageKey, fallback())
-            const baseline = readCloudSyncBaseline(storageKey)
-            const resolved = remoteData
-              ? baseline
-                ? mergeConcurrentPendingAppData(remoteData, localData, baseline, fallback(), cloud.user.id)
-                : mergePendingAppData(remoteData, localData, fallback(), cloud.user.id)
-              : localData
-            saveData(resolved, storageKey)
-            skipNextCloudSave.current = resolved
-            setData(resolved)
-            markCloudSavePending(storageKey)
-            setCloudSyncStatus('pending')
-            retryImmediately = true
-          } catch {
-            const failed = recordCloudSaveFailure(storageKey, pending.mutationId)
-            setCloudSyncStatus(browserIsOffline() ? 'offline' : 'error')
-            scheduleRetry(cloudSaveRetryDelay(failed?.attempts ?? 1))
-          }
+          protectConflict()
         } else {
           const failed = recordCloudSaveFailure(storageKey, pending.mutationId)
           setCloudSyncStatus(browserIsOffline() ? 'offline' : 'error')
@@ -238,7 +252,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       }
     }
     return () => window.clearTimeout(cloudRetryTimer.current)
-  }, [cloud, runCloudWrite, storageKey])
+  }, [cloud, runCloudWrite, storageKey, protectConflict])
   useEffect(() => {
     if (!cloud || !storageKey) return
     let cancelled = false
@@ -248,16 +262,15 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       if (cancelled) return
       const localData = loadData(storageKey, fallback)
       const pending = readPendingCloudSave(storageKey)
-      const baseline = readCloudSyncBaseline(storageKey)
       const importKey = cloudImportKey(cloud.familyId, cloud.user.id)
       const shouldImportLocal = !localStorage.getItem(importKey) && hasMeaningfulUserData(localData, cloud.user.id)
-      const resolved = remoteData
-        ? (pending
-            ? baseline
-              ? mergeConcurrentPendingAppData(remoteData, localData, baseline, fallback, cloud.user.id)
-              : mergePendingAppData(remoteData, localData, fallback, cloud.user.id)
-            : shouldImportLocal ? mergeAppData(remoteData, localData, fallback) : hydrateData(remoteData, fallback))
-        : localData
+      if (blocked.current || pending?.blocked || (remoteData && (pending || shouldImportLocal))) {
+        setCloudDataReady(true)
+        setCheckingRemote(false)
+        protectConflict()
+        return
+      }
+      const resolved = remoteData ? hydrateData(remoteData, fallback) : localData
 
       // A merged snapshot is a new mutation, never a retry with a changed payload.
       const needsSave = Boolean(pending || !remoteData || shouldImportLocal)
@@ -269,31 +282,45 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       skipNextCloudSave.current = resolved
       setData(resolved)
       setCloudDataReady(true)
+      setCheckingRemote(false)
       setCloudSyncStatus(needsSave ? 'pending' : 'synced')
       if (needsSave) void flushCloudSave.current()
     }
     void sync().catch(() => {
       if (cancelled) return
       setCloudDataReady(true)
-      setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'error')
+      setCheckingRemote(false)
+      protectConflict()
       setToast('Cloud non raggiungibile: i dati restano salvati su questo dispositivo')
     })
     return () => { cancelled = true }
-  }, [cloud, runCloudWrite, storageKey])
+  }, [cloud, runCloudWrite, storageKey, protectConflict])
   useLayoutEffect(() => {
-    if (storageKey) saveData(data, storageKey)
-    else saveData(data)
-    if (!cloud || !cloudDataReady || !storageKey) return
-    if (skipNextCloudSave.current === data) {
+    try {
+      if (workspace?.failed && !storageRecovered.current) throw new Error('workspace_storage_unavailable')
+      if (storageKey) saveData(data, storageKey)
+      else saveData(data)
+      if (!cloud || !cloudDataReady || !storageKey) return
+      if (blocked.current) return
+      if (skipNextCloudSave.current === data) {
+        skipNextCloudSave.current = null
+        return
+      }
       skipNextCloudSave.current = null
-      return
+      markCloudSavePending(storageKey)
+      const timer = window.setTimeout(() => { void flushCloudSave.current() }, 0)
+      return () => window.clearTimeout(timer)
+    } catch {
+      if (cloud) {
+        blocked.current = true
+        queueMicrotask(() => {
+          protectConflict()
+          setCheckingRemote(false)
+          setRecoveryError('Spazio locale non disponibile: scarica la copia locale prima di chiudere la pagina. I salvataggi sono sospesi.')
+        })
+      }
     }
-    skipNextCloudSave.current = null
-    markCloudSavePending(storageKey)
-    setCloudSyncStatus(navigator.onLine === false ? 'offline' : 'pending')
-    const timer = window.setTimeout(() => { void flushCloudSave.current() }, 0)
-    return () => window.clearTimeout(timer)
-  }, [cloud, cloudDataReady, data, storageKey])
+  }, [cloud, cloudDataReady, data, storageKey, workspace, protectConflict])
   useEffect(() => {
     if (!cloud || !storageKey) return
     const synchronize = () => {
@@ -817,8 +844,46 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         + detailTransfers.reduce((sum, transfer) => sum + (modal.transferAmount?.(transfer) ?? 0), 0)
     : 0
   const detailDates = [...detailMovements.map((movement) => movement.date), ...detailTransfers.map((transfer) => transfer.date)].toSorted()
+  const downloadLocalCopy = (snapshot: AppData = currentData.current) => {
+    const blob = new Blob([JSON.stringify({ savedAt: new Date().toISOString(), data: snapshot }, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url; anchor.download = `skey-copia-locale-${todayISO()}.json`; anchor.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  const recoverLatest = async () => {
+    if (!cloud || !storageKey || checkingRemote) return
+    setCheckingRemote(true); setRecoveryError('')
+    const previous = currentData.current
+    const pending = readPendingCloudSave(storageKey)
+    try {
+      preserveCloudRecovery(storageKey, previous)
+      setRecoveryCopy(previous)
+      const remoteData = await runCloudWrite(() => cloud.loadAppData())
+      if (!remoteData || currentData.current !== previous) throw new Error('recovery_not_ready')
+      const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
+      const remote = hydrateData(remoteData, fallback)
+      // Never discard a newer pending mutation or replace the copy if recovery failed.
+      if (pending && !clearCloudSavePending(storageKey, pending.mutationId)) throw new Error('recovery_changed')
+      saveData(remote, storageKey)
+      if (baseStorageKey) sessionStorage.setItem(`${baseStorageKey}:workspace`, storageKey)
+      writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
+      localStorage.setItem(cloudImportKey(cloud.familyId, cloud.user.id), '1')
+      skipNextCloudSave.current = remote
+      cloud.resumeSnapshotWrites?.()
+      storageRecovered.current = true
+      blocked.current = false; inputDirty.current = false
+      setData(remote); setModal(null); setViewGeneration((value) => value + 1)
+      setCloudSyncStatus('synced')
+    } catch {
+      protectConflict()
+      setRecoveryError('Non è stato possibile caricare i dati o conservare la copia di recupero. Nessun invio automatico: riprova quando la connessione e lo spazio locale sono disponibili.')
+    } finally { setCheckingRemote(false) }
+  }
   return <>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <SyncProtection conflict={cloudSyncStatus === 'conflict'} checking={Boolean(cloud && checkingRemote)} error={recoveryError} onDownload={() => downloadLocalCopy()} onReload={() => void recoverLatest()} />
+    <div key={viewGeneration} inert={Boolean(cloud && (checkingRemote || cloudSyncStatus === 'conflict')) || undefined} onInputCapture={() => { inputDirty.current = true; inputEpoch.current++ }}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onDownloadRecovery={recoveryCopy ? () => downloadLocalCopy(recoveryCopy) : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.recurringId ? 'Conferma movimento ricorrente' : modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={modal.recurringId ? undefined : deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}
@@ -827,6 +892,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     {modal?.type === 'details' ? <Modal title={modal.title} onClose={() => setModal(null)} wide><div className="movement-detail-summary"><span>{modal.accountId ? 'Saldo calcolato' : 'Totale'} <strong>{formatMoney(detailTotal)}</strong></span>{detailDates.length ? <span>dal <strong>{formatDate(detailDates[0])}</strong></span> : null}</div><Suspense fallback={<FeatureLoading compact />}><MovementList data={data} movements={detailMovements} transfers={detailTransfers} transferAmount={modal.transferAmount} accountId={modal.accountId} compact user={user} onEdit={(movement) => setModal({ type: 'movement', movement, returnTo: modal })} onDelete={deleteMovement} onEditTransfer={modal.accountId || modal.transferFilter ? (transfer) => setModal({ type: 'transfer', transfer, returnTo: modal }) : undefined} onDeleteTransfer={modal.accountId || modal.transferFilter ? deleteTransfer : undefined} /></Suspense></Modal> : null}
     {bankInstitutionRequest ? <BankInstitutionPrompt account={bankInstitutionRequest.account} onConfirm={confirmBankInstitution} onCancel={cancelBankInstitution} /> : null}
     {toast ? <div className="toast" role="status"><CheckCircle2 />{toast}</div> : null}
+    </div>
   </>
 }
 

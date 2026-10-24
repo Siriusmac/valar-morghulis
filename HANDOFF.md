@@ -1,6 +1,137 @@
 # Handoff — sKey
 
-Aggiornato il 22 ottobre 2026.
+Aggiornato il 24 ottobre 2026.
+
+## Rilascio web protezione dati — 24 ottobre 2026
+
+L’utente ha autorizzato commit/push/deploy web e confermato specificamente la
+sola migrazione 20261022120000 sul progetto ufficiale jjmrdnhvjircbakpthii.
+Migrazione eseguita con successo tramite dashboard, lock_timeout 5s e
+statement_timeout 60s, con registrazione della versione nella stessa transazione.
+Nessun movimento riscritto o cancellato. Il frontend v2 va pubblicato subito
+dopo; le vecchie schede devono ricaricare per salvare. Client Apple invariato.
+Il progetto Cloudflare corrente si chiama skey e mantiene i domini esistenti
+valar-morghulis-web.pages.dev e www.skeyapp.com; nessun Git Provider collegato.
+339 test, lint, cloudflare:check e diff-check ripetuti con successo; Git allineato
+a origin/main prima del commit. Le sezioni sotto registrano sviluppo e collaudi
+precedenti: le indicazioni “non pubblicato” descrivono lo stato storico.
+Verifica online e identificativo del rilascio da registrare dopo il deploy.
+
+## Registro sviluppo protezione dati — collaudata su skey-test
+
+Checkout ATTIVO per questo sviluppo:
+/Users/simone/Documents/Codex/2026-10-23/skey-data-protection, clone locale
+persistente da 6ad9176. Origin GitHub corretto; nessun nuovo commit/push/deploy.
+La copia temporanea /tmp/skey-security-publish.DjVBig contiene una prima versione
+intermedia: non usarla per il prossimo rilascio. Il checkout originale con
+modifiche aziendali/admin/email resta intatto. Online è ancora il rilascio MFA
+6ad9176 verificato su www.skeyapp.com e 55632f37.valar-morghulis-web.pages.dev.
+
+Nuova migration preparata 20261022120000_guard_obsolete_snapshot_writers.sql:
+introduce save_app_data_snapshot_v2 con controllo MFA esplicito e delega alla
+transazione revisionata/idempotente preesistente; revoca scritture dirette
+su user_app_data/family_user_app_data e chiamate client alle vecchie RPC
+save_app_data_snapshot e sync_family_shared_records. Nessuna riscrittura o
+cancellazione di dati. Vecchie schede e client nativo devono aggiornarsi:
+non mantenere un canale legacy capace di sovrascrivere l’archivio.
+
+Frontend: cache e coda persistenti distinte per ogni istanza della pagina;
+nessun merge automatico preferenziale della copia locale dopo conflitto o
+riapertura con operazioni pendenti. Il conflitto sospende nuovi invii e lascia
+la copia locale scaricabile. I moduli aperti restano montati ma non interattivi.
+Al ritorno nella pagina si verifica il server, bloccando l’interazione durante
+la lettura; se un modulo è stato modificato e i dati remoti differiscono, viene
+richiesta revisione esplicita. Campi non confermati non inclusi nell’export:
+l’avviso lo dichiara prima della chiusura del modulo.
+
+“Carica dati aggiornati” conserva prima una copia locale immutabile di recupero,
+poi legge il server; non invia la copia vecchia e non forza il conflitto.
+Se spazio locale/connessione non consentono l’operazione, resta bloccato.
+Ultima copia di recupero scaricabile dal pulsante in alto anche dopo reload,
+limitata all’utente/spazio corrente. Nessun ripristino automatico da questi
+JSON e nessun upload di essi. Le copie nel browser non sono cifrate e occupano
+spazio: esportarle/conservarle in modo sicuro. Non eliminarle automaticamente
+se contengono lavoro pendente. Spazio esaurito sospende i salvataggi anziché
+mostrare una falsa conferma. Risposte tardive non rimuovono una protezione.
+
+Verifiche: 339 test in 43 file, lint, build cloud e diff-check riusciti. Prova SQL
+incorporata PGlite: tutte le 34 migration del checkout + 14 verifiche, ruoli e
+claim sintetici; revisioni obsolete, scritture legacy, idempotenza, isolamento
+utente e MFA AAL1/AAL2. Non è un test HTTP con JWT reali né un servizio ospitato.
+Chrome/Playwright (Browser plugin non disponibile): due schede stessa origine,
+modifica nella A e bozza nella B; B sospesa, bozza conservata, recupero esplicito
+senza scrittura aggiuntiva sul server fittizio. Viewport 1280/390, nessun
+overflow/overlay/errore console. Script/evidenze in /tmp/skey-security-qa.bJ7YeR:
+data-protection-db.mjs, data-protection-browser.mjs, data-conflict-1280/390.png.
+Errori iniziali del simulatore (familyContacts async ed attesa badge nascosto
+su mobile) corretti; test ripetuti con successo.
+
+Collaudo ospitato completato il 23 ottobre su autorizzazione esplicita limitata
+a skey-test (njjesruyafxdizupjicq). Applicata e registrata solo la migration
+20261022120000 tramite dashboard, in transazione con lock_timeout 5s e
+statement_timeout 60s. Verificati permessi: v2 autenticati=true, anon=false;
+scritture dirette personali/familiari=false; vecchie RPC snapshot/shared=false.
+Produzione invariata, nessun nuovo commit/push/deploy, nessun invio email/push.
+
+Webapp locale http://localhost:5192 collegata ESCLUSIVAMENTE a skey-test,
+configFile/envDir disabilitati per non leggere gli env di produzione del checkout.
+Server /tmp/skey-security-qa.bJ7YeR/serve-staging-app.mjs ora punta a questo
+checkout persistente; processo avviato nella sessione 68236. Il vecchio server
+è stato identificato sulla porta 5192 e terminato in modo ordinato.
+Con sessione reale già autenticata di collaudo@example.invalid, due schede:
+A salva “COLLAUDO CONCORRENZA A — dato fittizio”, 7,20 EUR, categoria Alimentari,
+beneficiario di collaudo, conto Contanti, data 23/10/2026. B contiene il modulo
+non confermato “COLLAUDO BOZZA B — non inviare”, 3,50 EUR. Riprendendo B compare
+la protezione, modulo ancora montato e non interattivo. Recupero esplicito:
+B vede il movimento A e il comando per scaricare l’ultima copia di recupero.
+Il movimento fittizio A è rimasto nel solo account di prova; non è stato eliminato.
+
+Verifica HTTP con normale SDK/sessione reale (nessuna estrazione token):
+v2 con revisione precedente HTTP 400 app_data_revision_conflict; vecchie RPC
+snapshot/shared e PATCH diretta senza destinatari HTTP 403 / 42501.
+Lettura prima/dopo: revisione 49/49 e JSON identico; movimento A presente una
+volta, bozza B assente. Probe temporaneo limitato all’esatto account di prova,
+nessun codice di QA aggiunto al repository. Console della scheda senza errori
+o warning catturati; risposte 400/403 previste come esito dei test negativi.
+UI reale 553px e 1280px, contenuto e controlli presenti, nessun overlay framework.
+Browser plugin non disponibile: CUA del browser integrato usata per il provider
+e questi passaggi manuali, oltre al Playwright sintetico già documentato.
+Evidenze nella cartella QA: staging-real-conflict.png, staging-real-recovered.png,
+staging-real-http-checks.png.
+
+Collaudo familiare reale completato il 24 ottobre. L’utente ha creato direttamente
+collaudo2@example.invalid e ne ha eseguito il login senza condividere credenziali.
+Su conferma specifica creata in skey-test la sola famiglia “Collaudo protezione
+dati”, collaudo amministratore e collaudo2 membro, senza inviti/email/notifiche.
+Sessioni isolate per origine localhost:5192 (A) e 127.0.0.1:5192 (B).
+A salva spesa condivisa “COLLAUDO FAMIGLIA A — dato fittizio”, 4,80 EUR;
+B con bozza aperta viene protetto e recupera esplicitamente la versione remota.
+Poi B salva “COLLAUDO FAMIGLIA B — dato fittizio”, 2,40 EUR. Entrambi, anche
+dopo reload completo, vedono due movimenti, totale 7,20 EUR, saldo reciproco
+coerente di 1,20 EUR. Conti personali separati: A -12,00 EUR (include il proprio
+precedente movimento privato 7,20), B -2,40 EUR. Famiglia e fixture conservate
+soltanto su skey-test, nessuna eliminazione automatica.
+
+Probe HTTP con i due JWT reali attraverso normale SDK/UI, nessuna estrazione
+token: ciascuno legge zero righe dell’archivio privato e dello snapshot familiare
+dell’altro; entrambi leggono due record condivisi (A e B una volta ciascuno),
+zero record per la bozza “COLLAUDO FAMIGLIA BOZZA B — non inviare”. Chiamata v2
+con revisione familiare precedente: HTTP 400 app_data_revision_conflict per
+entrambi; snapshot personali/familiari e revisioni identici prima/dopo.
+Console di entrambe le schede senza errori/warning catturati. Restano limiti
+generali: non è una certificazione su dispositivi/PWA reali, disconnessioni
+prolungate reali o tutte le possibili operazioni familiari. Il flusso di
+conflitto, recupero, conservazione dei due autori e isolamento è stato provato
+con backend ospitato, oltre ai test sintetici già elencati.
+Evidenze QA aggiuntive: staging-family-members.png, staging-family-conflict.png,
+staging-family-isolation-A.png e staging-family-isolation-B.png.
+
+Prossimo passo: autorizzazione separata per commit/push e modifica backend/deploy
+coordinati di produzione. Prima migrazione testata, poi frontend v2; le schede vecchie
+avranno salvataggi negati fino al ricaricamento. Non distribuire solo il nuovo
+frontend senza RPC v2. Non revocare indiscriminatamente tutte le sessioni e non
+riaprire le vecchie scritture per aggirare un errore. Non è stato aggiunto un
+timeout delle sessioni: il problema viene affrontato al livello dei dati.
 
 ## Attivazione backend completata — rilascio web del 22 ottobre
 

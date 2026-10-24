@@ -3,12 +3,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict,
-  markCloudSavePending, readCloudSyncBaseline, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline,
+  createCloudWorkspace, markCloudSavePending, preserveCloudRecovery, readCloudSyncBaseline, readLatestCloudRecovery, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline,
 } from './cloudSync'
 import { createStarterData } from './seed'
 
 describe('persistent cloud sync state', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear() })
+
+  it('isolates two live workspace caches and blocks inherited pending writes', () => {
+    localStorage.setItem('workspace', JSON.stringify({ version: 3 }))
+    const first = createCloudWorkspace('workspace')
+    markCloudSavePending(first, 'first-write')
+    const second = createCloudWorkspace('workspace')
+    expect(first).not.toBe(second)
+    expect(readPendingCloudSave(second)?.blocked).toBe(true)
+    markCloudSavePending(second, 'second-write')
+    expect(readPendingCloudSave(first)?.mutationId).toBe('first-write')
+    expect(readPendingCloudSave(second)?.mutationId).toBe('second-write')
+    localStorage.setItem(second, 'second-copy')
+    expect(localStorage.getItem(first)).not.toBe('second-copy')
+  })
+
+  it('recovers only the current user/workspace archive after reloading, without resubmitting it', () => {
+    const first = createCloudWorkspace('own-workspace')
+    const data = createStarterData('user-1', [])
+    preserveCloudRecovery(first, data)
+    createCloudWorkspace('own-workspace')
+    expect(readLatestCloudRecovery('own-workspace')).toEqual(data)
+    expect(readLatestCloudRecovery('other-user')).toBeUndefined()
+  })
 
   it('keeps a pending mutation until the matching save is acknowledged', () => {
     markCloudSavePending('workspace', 'mutation-one', '2026-09-05T12:00:00.000Z')

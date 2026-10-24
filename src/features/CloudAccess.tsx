@@ -4,6 +4,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createAuthSecurityApi, passkeysEnabled, type AuthSecurityApi } from '../lib/authSecurity'
 import { MfaGate } from './MfaGate'
+import { isCloudRevisionConflict } from '../lib/cloudSync'
 import type { Session } from '@supabase/supabase-js'
 import { Brand } from '../components/Brand'
 import { buildCloudPersistence, mergeCloudPersistence, mergePrivateCloudData, type SharedRecord } from '../lib/cloudData'
@@ -48,6 +49,7 @@ export interface FamilySession {
   deleteAccount: () => Promise<void>
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData, mutationId?: string) => Promise<void>
+  resumeSnapshotWrites?: () => void
   deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   subscribeToContactData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
@@ -277,6 +279,7 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
   const [loading, setLoading] = useState(!needsPasswordSetup && !inviteToken && !contactInviteToken)
   const [error, setError] = useState('')
   const [dataRevisions] = useState(() => new Map<string, { personalRevision: number; familyRevision: number }>())
+  const [blockedSnapshots] = useState(() => new Set<string>())
 
   const load = useCallback(async (preferredFamilyId?: string) => {
     setLoading(true); setError('')
@@ -626,10 +629,12 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         })),
       }), snapshot.profile.id, snapshot.members)
     },
+    resumeSnapshotWrites: () => { blockedSnapshots.delete(revisionKey) },
     saveAppData: async (appData, mutationId) => {
+      if (blockedSnapshots.has(revisionKey)) throw new Error('app_data_revision_conflict')
       const payload = buildCloudPersistence(appData, snapshot.profile.id, snapshot.members)
       const revisions = dataRevisions.get(revisionKey) ?? { personalRevision: 0, familyRevision: 0 }
-      const { data: syncResult, error: syncError } = await supabase.rpc('save_app_data_snapshot', {
+      const { data: syncResult, error: syncError } = await supabase.rpc('save_app_data_snapshot_v2', {
         target_family_id: activeFamilyId ?? null,
         personal_snapshot: payload.privateData,
         family_snapshot: payload.familyPrivateData,
@@ -639,7 +644,10 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         expected_family_revision: revisions.familyRevision,
         client_mutation_id: mutationId ?? globalThis.crypto.randomUUID(),
       })
-      if (syncError) throw syncError
+      if (syncError) {
+        if (isCloudRevisionConflict(syncError)) blockedSnapshots.add(revisionKey)
+        throw syncError
+      }
       const nextRevisions = syncResult as { personalRevision?: number; familyRevision?: number | null } | null
       if (!nextRevisions || typeof nextRevisions.personalRevision !== 'number') throw new Error('invalid_sync_revision')
       dataRevisions.set(revisionKey, {

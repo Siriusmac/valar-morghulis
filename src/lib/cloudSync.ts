@@ -1,12 +1,52 @@
 import type { AppData, UserId } from '../types'
 
-export type CloudSyncStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'error'
+export type CloudSyncStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'error' | 'conflict'
 
 export interface PendingCloudSave {
   mutationId: string
   createdAt: string
   attempts: number
   snapshot?: AppData
+  blocked?: boolean
+}
+
+/** Each mounted workspace owns its cache: two tabs never share a pending write. */
+export function createCloudWorkspace(baseKey: string) {
+  const previous = sessionStorage.getItem(`${baseKey}:workspace`) ?? baseKey
+  const key = `${baseKey}:tab:${crypto.randomUUID()}`
+  const cached = localStorage.getItem(previous)
+  if (cached) localStorage.setItem(key, cached)
+  const pending = readPendingCloudSave(previous)
+  if (pending) localStorage.setItem(pendingCloudSaveKey(key), JSON.stringify({ ...pending, blocked: true }))
+  sessionStorage.setItem(`${baseKey}:workspace`, key)
+  return key
+}
+
+export function blockCloudSave(storageKey: string) {
+  const pending = readPendingCloudSave(storageKey) ?? markCloudSavePending(storageKey)
+  localStorage.setItem(pendingCloudSaveKey(storageKey), JSON.stringify({ ...pending, blocked: true }))
+}
+
+/** Must succeed before replacing the local copy. Never overwrites an earlier recovery. */
+export function preserveCloudRecovery(storageKey: string, data: AppData) {
+  const key = `${storageKey}:recovery:${crypto.randomUUID()}`
+  localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), data, pending: readPendingCloudSave(storageKey) }))
+  return key
+}
+
+export function readLatestCloudRecovery(baseKey: string): AppData | undefined {
+  let latest: { savedAt: string; data: AppData } | undefined
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index)
+      if (!key?.startsWith(`${baseKey}:tab:`) || !key.includes(':recovery:')) continue
+      try {
+        const item = JSON.parse(localStorage.getItem(key)!)
+        if (typeof item.savedAt === 'string' && item.data?.version === 3 && (!latest || item.savedAt > latest.savedAt)) latest = item
+      } catch { /* Ignore incomplete recovery metadata; never send it to the server. */ }
+    }
+  } catch { return undefined }
+  return latest?.data
 }
 
 export type CloudSyncBaseline = Pick<AppData, 'movements' | 'scheduledPayments' | 'recurringMovements' | 'transfers'>
@@ -62,7 +102,8 @@ export function readPendingCloudSave(storageKey: string): PendingCloudSave | nul
     const parsed = JSON.parse(raw) as Partial<PendingCloudSave>
     if (!parsed.mutationId || !parsed.createdAt || typeof parsed.attempts !== 'number') return null
     return { mutationId: parsed.mutationId, createdAt: parsed.createdAt, attempts: parsed.attempts,
-      ...(parsed.snapshot?.version === 3 ? { snapshot: parsed.snapshot } : {}) }
+      ...(parsed.snapshot?.version === 3 ? { snapshot: parsed.snapshot } : {}),
+      ...(parsed.blocked ? { blocked: true } : {}) }
   } catch {
     return null
   }
