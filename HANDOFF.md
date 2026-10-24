@@ -15,7 +15,19 @@ valar-morghulis-web.pages.dev e www.skeyapp.com; nessun Git Provider collegato.
 339 test, lint, cloudflare:check e diff-check ripetuti con successo; Git allineato
 a origin/main prima del commit. Le sezioni sotto registrano sviluppo e collaudi
 precedenti: le indicazioni “non pubblicato” descrivono lo stato storico.
-Verifica online e identificativo del rilascio da registrare dopo il deploy.
+Commit funzionale cdb9d913942b021bd7698c1706f07ce63ff52093 inviato a origin/main.
+Deploy web completato: https://0c897cd9.valar-morghulis-web.pages.dev.
+Dominio ufficiale https://www.skeyapp.com HTTP 200: gli asset di ingresso JS/CSS
+corrispondono byte per byte alla build locale e al deploy. Entry index-L9qxQItx.js
+include save_app_data_snapshot_v2. Pagina anonima di accesso renderizzata senza
+errori/warning console catturati; nessun movimento reale creato o modificato
+per verificare il rilascio. Smoke autenticato produzione/dispositivi non eseguito.
+Verifica SQL post-migrazione: versione registrata, v2 per authenticated=true e
+anon=false; vecchie RPC snapshot/shared=false; UPDATE diretto su snapshot
+personali/familiari=false. Evidenze QA production-data-protection-permissions.png
+e production-data-release-login.png; script verify-data-release.mjs confronta
+gli asset pubblici (corrette due imperfezioni iniziali del solo script di QA:
+parentesi e prefisso relativo ./assets). Nessun segreto o fixture QA commesso.
 
 ## Registro sviluppo protezione dati — collaudata su skey-test
 

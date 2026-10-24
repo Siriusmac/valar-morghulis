@@ -13,7 +13,7 @@ aggiornano automaticamente quote e saldi fra i membri della famiglia.
 
 ## Funzioni della prima versione
 
-Protezione dagli archivi obsoleti, collaudata su skey-test e predisposta per il rilascio web:
+Protezione dagli archivi obsoleti, collaudata su skey-test e rilasciata nella webapp:
 salvataggi versionati obbligatori, isolamento delle schede e revisione esplicita
 dei conflitti con copia locale di recupero. Stato e ordine di rilascio nel
 [passaggio di consegne](HANDOFF.md).
