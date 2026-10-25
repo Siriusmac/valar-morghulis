@@ -2,13 +2,23 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, createCloudWriteQueue, isCloudRevisionConflict,
+  bindCloudSaveSnapshot, clearCloudSavePending, cloudSaveRetryDelay, cloudSnapshotsEqual, createCloudWriteQueue, isCloudRevisionConflict,
   createCloudWorkspace, markCloudSavePending, preserveCloudRecovery, readCloudSyncBaseline, readLatestCloudRecovery, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline,
 } from './cloudSync'
 import { createStarterData } from './seed'
 
 describe('persistent cloud sync state', () => {
   beforeEach(() => { localStorage.clear(); sessionStorage.clear() })
+
+  it('ignores JSON object key order but never ignores changed financial values', () => {
+    const original = createStarterData('user-1', [])
+    const reordered = JSON.parse(JSON.stringify(original, (_key, value: unknown) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.entries(value).reverse()) : value))
+    expect(cloudSnapshotsEqual(original, reordered)).toBe(true)
+    reordered.accounts[0].openingBalance += 1
+    expect(cloudSnapshotsEqual(original, reordered)).toBe(false)
+  })
 
   it('isolates two live workspace caches and blocks inherited pending writes', () => {
     localStorage.setItem('workspace', JSON.stringify({ version: 3 }))

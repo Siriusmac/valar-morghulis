@@ -627,10 +627,10 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
           .eq('family_id', activeFamilyId).eq('user_id', snapshot.profile.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       ])
       if (privateResult.error || familyPrivateResult.error) throw privateResult.error ?? familyPrivateResult.error
-      dataRevisions.set(revisionKey, {
+      const loadedRevisions = {
         personalRevision: Number(privateResult.data?.revision ?? 0),
         familyRevision: Number(familyPrivateResult.data?.revision ?? 0),
-      })
+      }
       const [sharedResult, changeRequestsResult] = activeFamilyId ? await Promise.all([
         supabase.from('family_shared_records')
           .select('record_type, record_id, data').eq('family_id', activeFamilyId),
@@ -644,7 +644,10 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         familyPrivateResult.data?.data as Partial<AppData> | null,
         snapshot.profile.id,
       )
-      if (!privateData && !sharedResult.data.length) return null
+      if (!privateData && !sharedResult.data.length) {
+        dataRevisions.set(revisionKey, loadedRevisions)
+        return null
+      }
       const merged = mergeCloudPersistence(
         privateData,
         sharedResult.data as SharedRecord[],
@@ -659,13 +662,17 @@ function FamilyBootstrap({ session, children }: { session: Session; children: (c
         date: row.proposed_date ?? undefined,
         selectedAccountId: row.proposed_account_id ?? undefined,
       } as ReimbursementChangeRequest]))
-      return reconcileConfirmedLoanPurchases(reconcilePurchaseReimbursementMovements({
+      const resolved = reconcileConfirmedLoanPurchases(reconcilePurchaseReimbursementMovements({
         ...merged,
         reimbursements: merged.reimbursements.map((reimbursement) => ({
           ...reimbursement,
           changeRequest: requests.get(reimbursement.id),
         })),
       }), snapshot.profile.id, snapshot.members)
+      // Never advance the write revision on a partial/failed read: it could let
+      // an old local snapshot overwrite data the user has not actually loaded.
+      dataRevisions.set(revisionKey, loadedRevisions)
+      return resolved
     },
     resumeSnapshotWrites: () => { blockedSnapshots.delete(revisionKey) },
     saveAppData: async (appData, mutationId) => {

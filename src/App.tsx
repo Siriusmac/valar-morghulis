@@ -11,7 +11,7 @@ import { createPersonalStarterData, createStarterData, users } from './lib/seed'
 import { hasMeaningfulUserData, hydrateData, loadData, saveData } from './lib/storage'
 import { deleteMovementData, saveMovementData, type MovementAdditions } from './lib/movements'
 import { changeInstallmentAccount } from './lib/scheduled'
-import { bindCloudSaveSnapshot, blockCloudSave, clearCloudSavePending, cloudSaveRetryDelay, createCloudWorkspace, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, preserveCloudRecovery, readLatestCloudRecovery, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
+import { bindCloudSaveSnapshot, blockCloudSave, clearCloudSavePending, cloudSaveRetryDelay, cloudSnapshotsEqual, createCloudWorkspace, createCloudWriteQueue, isCloudRevisionConflict, markCloudSavePending, preserveCloudRecovery, readLatestCloudRecovery, readPendingCloudSave, recordCloudSaveFailure, writeCloudSyncBaseline, type CloudSyncStatus } from './lib/cloudSync'
 import { SyncProtection } from './components/SyncProtection'
 import { deleteDirectoryData, type DirectoryDeletionKind } from './lib/directories'
 import { deleteAccountData, type AccountDeletionMode } from './lib/accounts'
@@ -136,6 +136,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   const storageRecovered = useRef(false)
   const inputDirty = useRef(false)
   const inputEpoch = useRef(0)
+  useLayoutEffect(() => { if (!modal) inputDirty.current = false }, [modal])
   const currentData = useRef(data)
   useLayoutEffect(() => { currentData.current = data }, [data])
   const protectConflict = useCallback(() => {
@@ -173,26 +174,42 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         return
       }
       cloudRefreshRunning.current = true
-      setCheckingRemote(true)
+      const beforeLoad = currentData.current
       try {
-        const remoteData = await runCloudWrite(() => cloud.loadAppData())
-        if (blocked.current) return
-        if (!remoteData) return
-        const remote = hydrateData(remoteData, fallback())
-        const pendingAfterLoad = readPendingCloudSave(storageKey)
-        if (pendingAfterLoad || (inputDirty.current && JSON.stringify(remote) !== JSON.stringify(currentData.current))) {
-          protectConflict()
-          return
-        }
-        writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
-        skipNextCloudSave.current = remote
-        setData(remote)
+        await runCloudWrite(async () => {
+          const remoteData = await cloud.loadAppData()
+          if (blocked.current) return
+          if (!remoteData) {
+            // A missing snapshot is not permission to upload a cached archive.
+            if (hasMeaningfulUserData(beforeLoad, cloud.user.id)) protectConflict()
+            else setCloudSyncStatus('synced')
+            return
+          }
+          const remote = hydrateData(remoteData, fallback())
+          const pendingAfterLoad = readPendingCloudSave(storageKey)
+          const remoteChanged = !cloudSnapshotsEqual(remote, beforeLoad)
+          const localChanged = Boolean(pendingAfterLoad || inputDirty.current || !cloudSnapshotsEqual(currentData.current, beforeLoad))
+          if (remoteChanged && localChanged) {
+            protectConflict()
+            return
+          }
+          writeCloudSyncBaseline(storageKey, remote, cloud.user.id)
+          // An unchanged response must not replace work entered during the request.
+          if (!remoteChanged) {
+            setCloudSyncStatus(pendingAfterLoad ? 'pending' : 'synced')
+            return
+          }
+          skipNextCloudSave.current = remote
+          setData(remote)
+          setCloudSyncStatus('synced')
+        })
       } catch (reason) {
-        protectConflict()
+        // Keep the last acknowledged revision: the server still rejects stale writes.
+        // A temporary read failure is not evidence of another session or a conflict.
+        if (!blocked.current) setCloudSyncStatus(browserIsOffline() ? 'offline' : 'error')
         throw reason
       } finally {
         cloudRefreshRunning.current = false
-        setCheckingRemote(false)
       }
     }
     flushCloudSave.current = async () => {
@@ -217,7 +234,10 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         if (!bound?.snapshot) { retryImmediately = true; return }
         const dataToSave = bound.snapshot
         const inputAtSave = inputEpoch.current
-        await runCloudWrite(() => cloud.saveAppData(dataToSave, pending.mutationId))
+        await runCloudWrite(() => {
+          if (blocked.current) throw new Error('app_data_revision_conflict')
+          return cloud.saveAppData(dataToSave, pending.mutationId)
+        })
         if (blocked.current) return
         writeCloudSyncBaseline(storageKey, dataToSave, cloud.user.id)
         const latest = currentData.current
@@ -264,16 +284,24 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       const pending = readPendingCloudSave(storageKey)
       const importKey = cloudImportKey(cloud.familyId, cloud.user.id)
       const shouldImportLocal = !localStorage.getItem(importKey) && hasMeaningfulUserData(localData, cloud.user.id)
-      if (blocked.current || pending?.blocked || (remoteData && (pending || shouldImportLocal))) {
+      const resolved = remoteData ? hydrateData(remoteData, fallback) : localData
+      // Lost acknowledgements and old protection markers need no review when the
+      // complete local archive is already identical to the acknowledged server copy.
+      const alreadyAcknowledged = Boolean(remoteData && cloudSnapshotsEqual(localData, resolved))
+      if ((blocked.current || pending?.blocked || (remoteData && (pending || shouldImportLocal))) && !alreadyAcknowledged) {
         setCloudDataReady(true)
         setCheckingRemote(false)
         protectConflict()
         return
       }
-      const resolved = remoteData ? hydrateData(remoteData, fallback) : localData
+      if (alreadyAcknowledged) {
+        if (pending && !clearCloudSavePending(storageKey, pending.mutationId)) throw new Error('pending_changed')
+        if (blocked.current || pending?.blocked) cloud.resumeSnapshotWrites?.()
+        blocked.current = false
+      }
 
       // A merged snapshot is a new mutation, never a retry with a changed payload.
-      const needsSave = Boolean(pending || !remoteData || shouldImportLocal)
+      const needsSave = !alreadyAcknowledged && Boolean(pending || !remoteData || shouldImportLocal)
       saveData(resolved, storageKey)
       if (needsSave) markCloudSavePending(storageKey)
       // Only acknowledged remote data is a baseline; local additions are still pending.
@@ -857,12 +885,14 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     const previous = currentData.current
     const pending = readPendingCloudSave(storageKey)
     try {
+      const remoteData = await runCloudWrite(() => cloud.loadAppData())
+      if (currentData.current !== previous) throw new Error('recovery_not_ready')
+      const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
+      // A successful null response means no saved snapshot, not a failed request.
+      // Preserve the local archive, show the empty server state, never re-upload it.
+      const remote = hydrateData(remoteData ?? fallback, fallback)
       preserveCloudRecovery(storageKey, previous)
       setRecoveryCopy(previous)
-      const remoteData = await runCloudWrite(() => cloud.loadAppData())
-      if (!remoteData || currentData.current !== previous) throw new Error('recovery_not_ready')
-      const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
-      const remote = hydrateData(remoteData, fallback)
       // Never discard a newer pending mutation or replace the copy if recovery failed.
       if (pending && !clearCloudSavePending(storageKey, pending.mutationId)) throw new Error('recovery_changed')
       saveData(remote, storageKey)
@@ -875,6 +905,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       blocked.current = false; inputDirty.current = false
       setData(remote); setModal(null); setViewGeneration((value) => value + 1)
       setCloudSyncStatus('synced')
+      if (!remoteData) setToast('Nessun archivio sul server. La copia locale è conservata per il recupero.')
     } catch {
       protectConflict()
       setRecoveryError('Non è stato possibile caricare i dati o conservare la copia di recupero. Nessun invio automatico: riprova quando la connessione e lo spazio locale sono disponibili.')
@@ -882,8 +913,8 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }
   return <>
     <SyncProtection conflict={cloudSyncStatus === 'conflict'} checking={Boolean(cloud && checkingRemote)} error={recoveryError} onDownload={() => downloadLocalCopy()} onReload={() => void recoverLatest()} />
-    <div key={viewGeneration} inert={Boolean(cloud && (checkingRemote || cloudSyncStatus === 'conflict')) || undefined} onInputCapture={() => { inputDirty.current = true; inputEpoch.current++ }}>
-    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onDownloadRecovery={recoveryCopy ? () => downloadLocalCopy(recoveryCopy) : undefined} onRetrySync={() => { void flushCloudSave.current() }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
+    <div key={viewGeneration} inert={Boolean(cloud && (checkingRemote || cloudSyncStatus === 'conflict')) || undefined} onInputCapture={(event) => { if ((event.target as Element).closest('[role="dialog"]')) { inputDirty.current = true; inputEpoch.current++ } }}>
+    <AppShell page={page} user={user} registeredUserCount={cloud ? undefined : appUsers.length} contactsEnabled={Boolean(cloud)} syncStatus={cloud ? cloudSyncStatus : undefined} onDownloadRecovery={recoveryCopy ? () => downloadLocalCopy(recoveryCopy) : undefined} onRetrySync={() => { if (storageKey && readPendingCloudSave(storageKey)) void flushCloudSave.current(); else void refreshRemoteData.current().catch(() => { remoteRefreshPending.current = true }) }} onPageChange={setPage} onAddMovement={() => setModal({ type: 'movement' })} onLogout={logout}>
       <Suspense fallback={<FeatureLoading />}>{content}</Suspense>
     </AppShell>
     {modal?.type === 'movement' ? <Modal title={modal.recurringId ? 'Conferma movimento ricorrente' : modal.movement ? 'Modifica movimento' : 'Nuovo movimento'} onClose={() => setModal(modal.returnTo ?? null)} wide compactChoice={!modal.movement && !modal.initialType && !modal.initialComposerType}><Suspense fallback={<FeatureLoading compact />}><MovementForm data={data} user={user} memberCount={appUsers.length} familyName={cloud?.familyName} initial={modal.movement} initialType={modal.initialType} initialComposerType={modal.initialComposerType} defaultAccountId={modal.movement ? undefined : defaultMovementAccountId} personalOnly={cloud?.personalMode} contacts={contacts} members={appUsers} onCommissionedPurchase={modal.movement ? undefined : submitCommissionedPurchase} onSelectTransfer={modal.movement ? undefined : () => setModal({ type: 'transfer' })} onRequireBankInstitution={requestBankInstitution} onSave={saveMovement} onDelete={modal.recurringId ? undefined : deleteMovement} onCancel={() => setModal(modal.returnTo ?? null)} /></Suspense></Modal> : null}

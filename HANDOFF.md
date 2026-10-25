@@ -1,6 +1,30 @@
 # Handoff — sKey
 
-Aggiornato il 24 ottobre 2026.
+Aggiornato il 25 ottobre 2026.
+
+## Sessioni lunghe — rilascio web autorizzato il 25 ottobre 2026
+
+L’utente ha approvato la riduzione degli avvisi invasivi e la correzione del
+ciclo di recupero. Nessuna scadenza aggiunta alla sessione: polling ancora ogni
+30 secondi in sottofondo, senza riquadro o blocco dei campi. Dopo il caricamento
+iniziale un errore di lettura mostra soltanto il badge riprovabile; non crea
+un falso conflitto. Il primo caricamento e un vero conflitto restano protetti.
+Filtri esterni ai dialoghi e moduli chiusi senza salvare non restano marcati
+come bozze. Confronto degli snapshot indipendente dall’ordine delle chiavi JSON.
+Un vecchio blocco viene rimosso automaticamente solo se l’intero archivio locale
+coincide con quello letto dal server, senza inviare dati. Recupero esplicito:
+una risposta riuscita senza snapshot non genera più il ciclo; conserva la copia
+locale e mostra lo stato iniziale del server, senza reinviare il vecchio archivio.
+Una lettura fallita non aggiunge copie di recupero a ogni tentativo. Spazio
+locale insufficiente o lettura fallita durante un vero conflitto restano bloccanti.
+Le revisioni diventano utilizzabili per scrivere solo dopo la lettura completa;
+controllo e decisione di blocco sono serializzati prima dei salvataggi accodati.
+Backend, migrazioni e client Apple invariati. L’utente ha autorizzato commit,
+push e deploy della correzione web dopo il collaudo. Recupero password precedente pubblicato con c895713 su
+https://a1e99c2f.valar-morghulis-web.pages.dev e www.skeyapp.com (hash verificati).
+Collaudo locale: 363 test in 45 file; Chrome con API fittizie a 1280 e 390 pixel,
+conflitto tra due schede e recupero da risposta nulla senza ciclo alla riapertura.
+Dettagli e limiti: docs/sincronizzazione-sessioni.md.
 
 ## Recupero password — collaudo completato e rilascio web autorizzato
 

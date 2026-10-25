@@ -6,7 +6,7 @@ import type { FamilySession } from './features/CloudAccess'
 import type { AppData, Movement } from './types'
 import type { MovementAdditions } from './lib/movements'
 import { createPersonalStarterData, users } from './lib/seed'
-import { markCloudSavePending, readPendingCloudSave, writeCloudSyncBaseline } from './lib/cloudSync'
+import { blockCloudSave, markCloudSavePending, readPendingCloudSave, writeCloudSyncBaseline } from './lib/cloudSync'
 import App from './App'
 
 const context = vi.hoisted(() => ({ cloud: null as FamilySession | null }))
@@ -195,6 +195,7 @@ describe('cloud save lifecycle on mobile', () => {
     expect(readPendingCloudSave(activeKey())?.blocked).toBe(true)
     expect(save).toHaveBeenCalledTimes(1)
     expect(context.cloud?.resumeSnapshotWrites).not.toHaveBeenCalled()
+    expect(Object.keys(localStorage).filter((key) => key.includes(':recovery:'))).toHaveLength(0)
   })
 
   it('does not clear pending work if saving the recovery copy runs out of space', async () => {
@@ -210,7 +211,7 @@ describe('cloud save lifecycle on mobile', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Carica dati aggiornati' }))
     await screen.findByText(/Non è stato possibile caricare i dati o conservare/)
-    expect(load).toHaveBeenCalledTimes(1)
+    expect(load).toHaveBeenCalledTimes(2)
     expect(readPendingCloudSave(activeKey())?.blocked).toBe(true)
     expect(readLocal().movements).toHaveLength(1)
     expect(context.cloud?.resumeSnapshotWrites).not.toHaveBeenCalled()
@@ -242,5 +243,133 @@ describe('cloud save lifecycle on mobile', () => {
     await screen.findByText('Salvataggi sospesi per proteggere i dati')
     expect(screen.getByRole('button', { name: 'Scarica copia locale' })).toBeTruthy()
     expect(save).not.toHaveBeenCalled()
+  })
+
+  it('checks in the background without locking or closing an open form', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    const read = deferred<Partial<AppData>>()
+    load.mockImplementationOnce(() => read.promise)
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('Verifica dei dati aggiornati…')).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aggiungi movimento' })[0])
+    const field = await screen.findByLabelText('Bozza non confermata')
+    expect(field.closest('[inert]')).toBeNull()
+    fireEvent.input(field, { target: { value: 'Scrivo durante il controllo' } })
+    await act(async () => read.resolve(structuredClone(remote)))
+    expect((field as HTMLInputElement).value).toBe('Scrivo durante il controllo')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('shows a retryable badge, not a conflict, when a background read fails', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    load.mockRejectedValueOnce(new Error('temporary network failure'))
+    fireEvent(window, new Event('focus'))
+    await screen.findByText('Sincronizzazione non riuscita')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova sincronizzazione' }))
+    await screen.findByText('Sincronizzato')
+    expect(load).toHaveBeenCalledTimes(3)
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('resumes after several days without an age-based warning when there is no unsaved work', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      remote = { ...remote, tags: [{ id: 'after-days', name: 'Aggiornato', scope: 'personal', color: '#123456' }] }
+      fireEvent(window, new Event('focus'))
+      await waitFor(() => expect(readLocal().tags.some((tag) => tag.id === 'after-days')).toBe(true))
+      expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+      expect(screen.queryByText('Verifica dei dati aggiornati…')).toBeNull()
+      expect(save).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('does not mistake an abandoned form for an unsaved draft on a later refresh', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aggiungi movimento' })[0])
+    fireEvent.input(await screen.findByLabelText('Bozza non confermata'), { target: { value: 'Annullata' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }))
+    remote = { ...remote, tags: [{ id: 'after-cancel', name: 'Aggiornato', scope: 'personal', color: '#123456' }] }
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(readLocal().tags.some((tag) => tag.id === 'after-cancel')).toBe(true))
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('clears an inherited block automatically only when the complete cache matches the server', async () => {
+    blockCloudSave(storageKey)
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('recovers from a successful empty snapshot without looping or uploading the old archive', async () => {
+    save.mockRejectedValueOnce(new Error('app_data_revision_conflict'))
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    await add(1)
+    await screen.findByText('Salvataggi sospesi per proteggere i dati')
+    load.mockResolvedValueOnce(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Carica dati aggiornati' }))
+    await screen.findByText('Sincronizzato')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    expect(readLocal().movements).toHaveLength(0)
+    const recoveryKey = Object.keys(localStorage).find((key) => key.includes(':recovery:'))!
+    expect(JSON.parse(localStorage.getItem(recoveryKey)!).data.movements[0].id).toBe('phone-1')
+    expect(save).toHaveBeenCalledTimes(1)
+    cleanup()
+    load.mockResolvedValueOnce(null)
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(readLocal().movements).toHaveLength(0)
+    // Reopening an empty server can create an empty snapshot, never the old movement.
+    expect(save.mock.calls.slice(1).every(([snapshot]) => snapshot.movements.length === 0)).toBe(true)
+  })
+
+  it('allows saving during an unchanged background read without a false conflict', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    const read = deferred<Partial<AppData>>()
+    load.mockImplementationOnce(() => read.promise)
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    await add(1)
+    await waitFor(() => expect(readPendingCloudSave(activeKey())).not.toBeNull())
+    await act(async () => read.resolve(structuredClone(remote)))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    await screen.findByText('Sincronizzato')
+    expect(remote.movements[0].id).toBe('phone-1')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+  })
+
+  it('blocks a queued save before it can overwrite changes discovered during a background read', async () => {
+    render(<App />)
+    await screen.findByText('Sincronizzato')
+    const read = deferred<Partial<AppData>>()
+    load.mockImplementationOnce(() => read.promise)
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    await add(1)
+    await waitFor(() => expect(readPendingCloudSave(activeKey())).not.toBeNull())
+    remote = { ...remote, tags: [{ id: 'new-elsewhere', name: 'Altro dispositivo', scope: 'personal', color: '#123456' }] }
+    await act(async () => read.resolve(structuredClone(remote)))
+    await screen.findByText('Salvataggi sospesi per proteggere i dati')
+    expect(save).not.toHaveBeenCalled()
+    expect(readLocal().movements[0].id).toBe('phone-1')
+    expect(remote.movements).toHaveLength(0)
+    expect(readPendingCloudSave(activeKey())?.blocked).toBe(true)
   })
 })

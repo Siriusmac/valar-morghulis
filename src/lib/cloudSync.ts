@@ -2,6 +2,15 @@ import type { AppData, UserId } from '../types'
 
 export type CloudSyncStatus = 'synced' | 'syncing' | 'pending' | 'offline' | 'error' | 'conflict'
 
+/** JSON object key order is not a financial change; array order is preserved. */
+export function cloudSnapshotsEqual(left: AppData, right: AppData) {
+  const serialize = (data: AppData) => JSON.stringify(data, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+      : value)
+  return serialize(left) === serialize(right)
+}
+
 export interface PendingCloudSave {
   mutationId: string
   createdAt: string
