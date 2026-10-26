@@ -1,6 +1,47 @@
 # Handoff — sKey
 
-Aggiornato il 25 ottobre 2026.
+Aggiornato il 26 ottobre 2026.
+
+## Memoria locale esaurita su iPhone — rilascio web autorizzato il 26 ottobre
+
+Screenshot IMG_5549.HEIC: il blocco specifica “Spazio locale non disponibile”,
+non un conteggio delle sessioni. L’utente conferma la presenza del file scaricato
+nell’app File. Nessun dato del telefono acquisito, cancellato o modificato.
+Checkout pulito di partenza: 234e69c, pubblicato il 25 ottobre su www.skeyapp.com.
+
+Preparata una riparazione ESPLICITA, non automatica: aprire “Ripara lo spazio
+locale”, confermare file conservato e altre schede sKey chiuse su questo
+dispositivo, quindi “Archivia le copie e ripara”. Prima legge completamente il
+server, poi conserva TUTTE le copie raw dello spazio famiglia/utente corrente,
+inclusi pending, baseline, copie diverse e recuperi, in IndexedDB. Attende commit
+e rilettura integrale identica prima di liberare le sole chiavi archiviate.
+Se rileva chiavi nuove o cambiate durante l’archiviazione, si interrompe prima
+della pulizia. Token Auth, altre famiglie e altri utenti restano esclusi.
+Nessun vecchio movimento viene inviato al server. Le copie restano esportabili
+dopo il reload da “Scarica ultima copia di recupero” (JSON di archivio completo;
+non è un ripristino automatico dei vecchi movimenti).
+
+Ridotta la duplicazione: reload riusa la propria chiave; nuove schede restano
+isolate. Nessuna copia completa prima della lettura iniziale, nessuna nuova
+baseline inutilizzata dal salvataggio v2, recuperi identici non duplicati.
+I riavvii identificati come nuove navigazioni possono ancora creare una chiave:
+non si riusano alla cieca chiavi di schede potenzialmente ancora aperte.
+
+Il nuovo avviso distingue spazio locale e conflitto; quando manca spazio non
+ripropone “Carica dati aggiornati” come soluzione. Riparazione non disponibile
+finché non si confermano le precauzioni. In caso di IndexedDB non disponibile,
+quota anche lì esaurita o errore di lettura, nessuna pulizia viene avviata.
+Se fallisce la scrittura della nuova cache DOPO l’archiviazione, l’archivio già
+verificato resta disponibile; i salvataggi restano protetti e va conservato il file.
+
+Verifiche: 371 test / 46 file, lint, build cloud e diff-check. Chrome con API
+fittizie e IndexedDB reale: quota simulata piena, fallimento archivio senza
+pulizia, successiva riparazione, copie uniche/pending conservati, token e altro
+workspace intatti, export dopo reload e zero invii finanziari. Layout 1280/390.
+Browser plugin assente, usato Playwright; Safari/PWA iPhone reale non collaudati.
+Nessuna migrazione o variazione Auth. L’utente ha autorizzato commit, push e
+deploy di questa correzione web dopo il collaudo locale. La riparazione sul
+telefono resta un’azione esplicita dell’utente, non viene eseguita dal deploy.
 
 ## Sessioni lunghe — rilascio web autorizzato il 25 ottobre 2026
 

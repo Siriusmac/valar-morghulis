@@ -34,6 +34,26 @@ describe('persistent cloud sync state', () => {
     expect(localStorage.getItem(first)).not.toBe('second-copy')
   })
 
+  it('reuses a replaced document on reload without allocating duplicate snapshots', () => {
+    localStorage.setItem('workspace', JSON.stringify({ version: 3 }))
+    const first = createCloudWorkspace('workspace')
+    markCloudSavePending(first, 'unsent')
+    const count = localStorage.length
+    for (let index = 0; index < 20; index++) expect(createCloudWorkspace('workspace', true)).toBe(first)
+    expect(localStorage.length).toBe(count)
+    expect(readPendingCloudSave(first)?.mutationId).toBe('unsent')
+    expect(createCloudWorkspace('workspace')).not.toBe(first)
+  })
+
+  it('does not allocate another identical recovery copy on repeated attempts', () => {
+    const data = createStarterData('user-1', [])
+    markCloudSavePending('workspace', 'unsent')
+    const first = preserveCloudRecovery('workspace', data)
+    expect(preserveCloudRecovery('workspace', structuredClone(data))).toBe(first)
+    expect(Object.keys(localStorage).filter((key) => key.includes(':recovery:'))).toEqual([first])
+    expect(preserveCloudRecovery('workspace', { ...data, tags: [{ id: 'changed', name: 'Different', scope: 'personal', color: '#123456' }] })).not.toBe(first)
+  })
+
   it('recovers only the current user/workspace archive after reloading, without resubmitting it', () => {
     const first = createCloudWorkspace('own-workspace')
     const data = createStarterData('user-1', [])

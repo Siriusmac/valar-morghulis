@@ -10,6 +10,12 @@ import { blockCloudSave, markCloudSavePending, readPendingCloudSave, writeCloudS
 import App from './App'
 
 const context = vi.hoisted(() => ({ cloud: null as FamilySession | null }))
+const archiveApi = vi.hoisted(() => ({ persist: vi.fn(), read: vi.fn() }))
+vi.mock('./lib/localRecoveryArchive', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./lib/localRecoveryArchive')>(),
+  persistLocalRecoveryArchive: archiveApi.persist,
+  readLocalRecoveryArchives: archiveApi.read,
+}))
 vi.mock('./lib/supabase', () => ({ cloudAuthEnabled: true }))
 vi.mock('./features/CloudAccess', () => ({
   CloudAccess: ({ children }: { children: (cloud: FamilySession) => ReactNode }) => children(context.cloud!),
@@ -46,6 +52,8 @@ describe('cloud save lifecycle on mobile', () => {
   beforeEach(() => {
     localStorage.clear()
     sessionStorage.clear()
+    archiveApi.persist.mockReset().mockResolvedValue(undefined)
+    archiveApi.read.mockReset().mockResolvedValue([])
     window.history.replaceState({}, '', '/?page=accounts')
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     remote = createPersonalStarterData('simone')
@@ -230,9 +238,9 @@ describe('cloud save lifecycle on mobile', () => {
       return original.call(this, key, value)
     })
     await add(2)
-    await screen.findByText('Salvataggi sospesi per proteggere i dati')
+    await screen.findByText('Spazio locale da ripristinare')
     await act(async () => write.resolve())
-    expect(screen.getByText('Salvataggi sospesi per proteggere i dati')).toBeTruthy()
+    expect(screen.getByText('Spazio locale da ripristinare')).toBeTruthy()
     expect(readPendingCloudSave(activeKey())?.blocked).toBe(true)
     expect(screen.queryByText('Sincronizzato')).toBeNull()
   })
@@ -240,8 +248,83 @@ describe('cloud save lifecycle on mobile', () => {
   it('shows a protected local copy instead of crashing when a new tab cache cannot be allocated', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError') })
     render(<App />)
-    await screen.findByText('Salvataggi sospesi per proteggere i dati')
+    await screen.findByText('Spazio locale da ripristinare')
     expect(screen.getByRole('button', { name: 'Scarica copia locale' })).toBeTruthy()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  const fillOldWorkspaceCopies = () => {
+    const data = structuredClone(remote)
+    data.movements = [{ id: 'unsent-old-phone', type: 'expense', authorId: 'simone', memberId: 'simone', amount: 7.2,
+      date: '2026-10-04', description: 'Da conservare', categoryId: 'alimentari', accountId: 'simone-cash', shared: false, createdAt: '2026-10-05T08:00:00Z' }]
+    localStorage.setItem(storageKey, JSON.stringify(data))
+    markCloudSavePending(storageKey, 'pending-old-phone')
+    localStorage.setItem(`${storageKey}:tab:closed-one`, JSON.stringify({ ...data, tags: [{ id: 'older-unique', name: 'Da conservare', scope: 'personal', color: '#123456' }] }))
+    localStorage.setItem(`${storageKey}:tab:closed-two`, JSON.stringify(data))
+    localStorage.setItem('sb-auth-token', 'untouched')
+    const capacity = Object.keys(localStorage).reduce((sum, key) => sum + key.length + localStorage.getItem(key)!.length, 0) + 128
+    const original = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (this === localStorage) {
+        const used = Object.keys(localStorage).filter((existing) => existing !== key)
+          .reduce((sum, existing) => sum + existing.length + localStorage.getItem(existing)!.length, 0)
+        if (used + key.length + value.length > capacity) throw new DOMException('Full', 'QuotaExceededError')
+      }
+      return original.call(this, key, value)
+    })
+    return data
+  }
+
+  const confirmRepair = async () => {
+    await screen.findByText('Spazio locale non disponibile: scarica la copia locale prima di chiudere la pagina. I salvataggi sono sospesi.')
+    fireEvent.click(screen.getByText('Ripara lo spazio locale'))
+    const button = screen.getByRole('button', { name: 'Archivia le copie e ripara' }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ho conservato il file scaricato/ }))
+    expect(button.disabled).toBe(false)
+    fireEvent.click(button)
+  }
+
+  it('archives all unique raw copies before reclaiming quota and never uploads the old archive', async () => {
+    fillOldWorkspaceCopies()
+    render(<App />)
+    await confirmRepair()
+    await screen.findByText('Sincronizzato')
+    expect(archiveApi.persist).toHaveBeenCalledTimes(1)
+    const archive = archiveApi.persist.mock.calls[0][0]
+    expect(archive.activeData.movements[0].id).toBe('unsent-old-phone')
+    expect(archive.entries.some(([, raw]: [string, string]) => raw.includes('older-unique'))).toBe(true)
+    expect(archive.entries.some(([key, raw]: [string, string]) => key.endsWith(':cloud-sync-pending') && raw.includes('pending-old-phone'))).toBe(true)
+    expect(readLocal().movements).toHaveLength(0)
+    expect(localStorage.getItem(`${storageKey}:tab:closed-one`)).toBeNull()
+    expect(localStorage.getItem('sb-auth-token')).toBe('untouched')
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Scarica ultima copia di recupero' })).toBeTruthy()
+  })
+
+  it('does not clear any old copies if the durable archive fails', async () => {
+    fillOldWorkspaceCopies()
+    archiveApi.persist.mockRejectedValueOnce(new Error('archive verification failed'))
+    const copies = localStorage.getItem(`${storageKey}:tab:closed-one`)
+    render(<App />)
+    await confirmRepair()
+    await screen.findByText(/Riparazione non completata/)
+    expect(localStorage.getItem(`${storageKey}:tab:closed-one`)).toBe(copies)
+    expect(localStorage.getItem(storageKey)).toContain('unsent-old-phone')
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.getByText('Spazio locale da ripristinare')).toBeTruthy()
+  })
+
+  it('does not start archival or cleanup if the complete server read fails', async () => {
+    fillOldWorkspaceCopies()
+    render(<App />)
+    await screen.findByText('Spazio locale da ripristinare')
+    load.mockRejectedValueOnce(new Error('offline'))
+    await confirmRepair()
+    await screen.findByText(/Riparazione non completata/)
+    expect(archiveApi.persist).not.toHaveBeenCalled()
+    expect(localStorage.getItem(storageKey)).toContain('unsent-old-phone')
     expect(save).not.toHaveBeenCalled()
   })
 

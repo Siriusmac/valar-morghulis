@@ -20,8 +20,10 @@ export interface PendingCloudSave {
 }
 
 /** Each mounted workspace owns its cache: two tabs never share a pending write. */
-export function createCloudWorkspace(baseKey: string) {
+export function createCloudWorkspace(baseKey: string, reuseOnReload = false) {
   const previous = sessionStorage.getItem(`${baseKey}:workspace`) ?? baseKey
+  // A reload replaces this document; a new/duplicated tab still gets an isolated key.
+  if (reuseOnReload && previous.startsWith(`${baseKey}:tab:`) && localStorage.getItem(previous)) return previous
   const key = `${baseKey}:tab:${crypto.randomUUID()}`
   const cached = localStorage.getItem(previous)
   if (cached) localStorage.setItem(key, cached)
@@ -38,8 +40,17 @@ export function blockCloudSave(storageKey: string) {
 
 /** Must succeed before replacing the local copy. Never overwrites an earlier recovery. */
 export function preserveCloudRecovery(storageKey: string, data: AppData) {
+  const pending = readPendingCloudSave(storageKey)
+  for (let index = 0; index < localStorage.length; index++) {
+    const existingKey = localStorage.key(index)
+    if (!existingKey?.startsWith(`${storageKey}:recovery:`)) continue
+    try {
+      const existing = JSON.parse(localStorage.getItem(existingKey)!)
+      if (JSON.stringify(existing.pending) === JSON.stringify(pending) && cloudSnapshotsEqual(existing.data, data)) return existingKey
+    } catch { /* Preserve unrecognized archives, never overwrite them. */ }
+  }
   const key = `${storageKey}:recovery:${crypto.randomUUID()}`
-  localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), data, pending: readPendingCloudSave(storageKey) }))
+  localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), data, pending }))
   return key
 }
 

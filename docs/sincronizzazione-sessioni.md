@@ -1,5 +1,52 @@
 # Sessioni lunghe e aggiornamento dei dati
 
+## Aggiornamento locale del 26 ottobre: spazio del browser
+
+Una segnalazione reale iPhone mostra il messaggio “Spazio locale non disponibile”.
+La scrittura locale può fallire per quota o indisponibilità della memoria del
+browser: non prova che esistano più sessioni né che il disco dell’iPhone sia pieno.
+L’accumulo di copie complete per scheda è una causa plausibile, non misurata sul
+telefono. L’utente ha autorizzato il rilascio web della correzione dopo il
+collaudo locale; la riparazione sul telefono richiede comunque conferma esplicita.
+
+- Un reload riusa l’archivio di quel documento invece di duplicarlo. Una nuova
+  scheda resta isolata. Le nuove navigazioni non vengono considerate reload.
+- Tolte le baseline complete non più lette dal percorso di salvataggio v2;
+  quelle storiche restano archiviate nella riparazione, non eliminate a caso.
+- Nessuna scrittura dell’intero archivio prima della lettura iniziale del server.
+- Tentativi di recupero identici riusano la copia già conservata.
+
+In caso di spazio insufficiente, il riquadro “Spazio locale da ripristinare”
+offre “Ripara lo spazio locale”. È necessario conservare il file scaricato,
+annotare i campi non confermati e chiudere le altre schede sKey su quel dispositivo.
+L’utente conferma esplicitamente queste condizioni prima della riparazione.
+
+La procedura legge il server, cattura i dati in memoria e tutte le stringhe raw
+della sola famiglia/utente corrente, comprese copie differenti, metadati dei
+salvataggi pendenti e recuperi. Le salva in un archivio IndexedDB immutabile,
+attende il commit e rilegge l’archivio completo per verificarne l’identità.
+Solo dopo verifica che le chiavi non siano cambiate e libera quelle archiviate,
+ricreando la cache con i dati del server. Non cancella movimenti sul server e
+non reinvia vecchie copie. Non tocca token di autenticazione, altri utenti o
+altre famiglie. L’archivio resta esportabile dopo la riapertura con “Scarica
+ultima copia di recupero”; il nuovo JSON include le copie raw e non è un’importazione
+automatica nell’app. È un file finanziario riservato, da conservare con cura.
+
+Se il browser non consente nemmeno di conservare/verificare l’archivio separato,
+la pulizia non inizia. Se fallisce una successiva operazione, le copie già
+archiviate restano in IndexedDB e i salvataggi restano bloccati. La disponibilità
+di spazio su IndexedDB non è garantita: non cancellare indiscriminatamente i
+dati del sito. La chiusura delle altre schede è una precauzione necessaria,
+non un controllo globale delle sessioni su tutti i dispositivi.
+
+Collaudo: test automatici e Chrome con IndexedDB reale, quota localStorage
+simulata, errore deliberato di archiviazione prima della pulizia, riparazione
+riuscita, zero scritture finanziarie al server, copie uniche e pending conservati,
+export dopo reload, token e altro workspace intatti. Desktop 1280 e mobile 390.
+Non ancora verificato su Safari/iPhone reale; nessun intervento sul telefono.
+
+## Rilascio precedente del 25 ottobre
+
 Correzione web del 25 ottobre 2026; commit, push e deploy autorizzati dall’utente
 dopo il collaudo locale. Nessuna nuova migrazione o modifica al client Apple.
 
