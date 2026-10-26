@@ -92,6 +92,7 @@ export default function App() {
 }
 
 function FinanceApp({ cloud }: { cloud?: FamilySession }) {
+  const cloudEnabled = Boolean(cloud)
   const appUsers = cloud?.members ?? users
   const baseStorageKey = cloud ? `skey:family:${cloud.familyId}:user:${cloud.user.id}:v3` : undefined
   const [workspace] = useState(() => {
@@ -165,6 +166,8 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   })
   const cloudSaveRunning = useRef(false)
   const cloudRefreshRunning = useRef(false)
+  const cloudInitialized = useRef(false)
+  const lastPersistedData = useRef(data)
   const cloudRetryTimer = useRef<number | undefined>(undefined)
   const flushCloudSave = useRef<() => Promise<void>>(async () => undefined)
   const refreshRemoteData = useRef<() => Promise<void>>(async () => undefined)
@@ -180,7 +183,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       cloudRetryTimer.current = window.setTimeout(() => { void flushCloudSave.current() }, delay)
     }
     refreshRemoteData.current = async () => {
-      if (blocked.current) return
+      if (!cloudInitialized.current || blocked.current) return
       if (cloudSaveRunning.current || cloudRefreshRunning.current || readPendingCloudSave(storageKey)) {
         remoteRefreshPending.current = true
         return
@@ -285,6 +288,12 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }, [cloud, runCloudWrite, storageKey, protectConflict])
   useEffect(() => {
     if (!cloud || !storageKey) return
+    // Auth refreshes recreate the context object, not the financial workspace.
+    // After bootstrap they must use the ordinary, draft-aware background refresh.
+    if (cloudInitialized.current) {
+      void refreshRemoteData.current().catch(() => { remoteRefreshPending.current = true })
+      return
+    }
     let cancelled = false
     const sync = async () => {
       const fallback = cloud.personalMode ? createPersonalStarterData(cloud.user.id) : createStarterData(cloud.user.id, cloud.sharedAccounts)
@@ -299,6 +308,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       // complete local archive is already identical to the acknowledged server copy.
       const alreadyAcknowledged = Boolean(!workspace?.failed && remoteData && cloudSnapshotsEqual(localData, resolved))
       if ((blocked.current || pending?.blocked || (remoteData && (pending || shouldImportLocal))) && !alreadyAcknowledged) {
+        cloudInitialized.current = true
         setCloudDataReady(true)
         setCheckingRemote(false)
         protectConflict()
@@ -317,6 +327,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       localStorage.setItem(importKey, '1')
       skipNextCloudSave.current = resolved
       setData(resolved)
+      cloudInitialized.current = true
       setCloudDataReady(true)
       setCheckingRemote(false)
       setCloudSyncStatus(needsSave ? 'pending' : 'synced')
@@ -324,6 +335,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     }
     void sync().catch(() => {
       if (cancelled) return
+      cloudInitialized.current = true
       setCloudDataReady(true)
       setCheckingRemote(false)
       protectConflict()
@@ -333,23 +345,27 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
   }, [cloud, runCloudWrite, storageKey, protectConflict, workspace])
   useLayoutEffect(() => {
     // Do not allocate another full cache before the initial server read has completed.
-    if (cloud && !cloudDataReady) return
+    if (cloudEnabled && !cloudDataReady) return
     try {
       if (workspace?.failed && !storageRecovered.current) throw new Error('workspace_storage_unavailable')
+      const changed = !cloudSnapshotsEqual(lastPersistedData.current, data)
       if (storageKey) saveData(data, storageKey)
       else saveData(data)
-      if (!cloud || !cloudDataReady || !storageKey) return
+      lastPersistedData.current = data
+      if (!cloudEnabled || !cloudDataReady || !storageKey) return
       if (blocked.current) return
       if (skipNextCloudSave.current === data) {
         skipNextCloudSave.current = null
         return
       }
       skipNextCloudSave.current = null
+      // A render or an equivalent derived object is not a financial mutation.
+      if (!changed) return
       markCloudSavePending(storageKey)
       const timer = window.setTimeout(() => { void flushCloudSave.current() }, 0)
       return () => window.clearTimeout(timer)
     } catch {
-      if (cloud) {
+      if (cloudEnabled) {
         blocked.current = true
         queueMicrotask(() => {
           protectConflict()
@@ -359,7 +375,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
         })
       }
     }
-  }, [cloud, cloudDataReady, data, storageKey, workspace, protectConflict])
+  }, [cloudEnabled, cloudDataReady, data, storageKey, workspace, protectConflict])
   useEffect(() => {
     if (!cloud || !storageKey) return
     const synchronize = () => {

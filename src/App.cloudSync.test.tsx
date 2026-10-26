@@ -346,6 +346,96 @@ describe('cloud save lifecycle on mobile', () => {
     expect(save).not.toHaveBeenCalled()
   })
 
+  it('does not create a pending financial mutation when the authenticated context is refreshed', async () => {
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    context.cloud = { ...context.cloud! }
+    view.rerender(<App />)
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    await act(async () => { await Promise.resolve() })
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+  })
+
+  it('refreshes newer server data silently after an auth-context refresh with no local changes', async () => {
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    remote = { ...remote, tags: [{ id: 'resume-server', name: 'Aggiornato', scope: 'personal', color: '#123456' }] }
+    context.cloud = { ...context.cloud! }
+    view.rerender(<App />)
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(readLocal().tags.some((tag) => tag.id === 'resume-server')).toBe(true))
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('preserves an open draft across repeated auth-context and visibility refreshes', async () => {
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aggiungi movimento' })[0])
+    const field = await screen.findByLabelText('Bozza non confermata')
+    fireEvent.input(field, { target: { value: 'Bozza mentre cambio app' } })
+    for (let index = 0; index < 4; index++) {
+      context.cloud = { ...context.cloud! }
+      view.rerender(<App />)
+      fireEvent(document, new Event('visibilitychange'))
+      fireEvent(window, new Event('focus'))
+      await act(async () => { await Promise.resolve() })
+      expect(readPendingCloudSave(activeKey())).toBeNull()
+      expect((field as HTMLInputElement).value).toBe('Bozza mentre cambio app')
+      expect(field.closest('[inert]')).toBeNull()
+    }
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+  })
+
+  it('still protects a dirty draft when auth refresh discovers actual server changes', async () => {
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aggiungi movimento' })[0])
+    const field = await screen.findByLabelText('Bozza non confermata')
+    fireEvent.input(field, { target: { value: 'Non perdere questa bozza' } })
+    remote = { ...remote, tags: [{ id: 'server-during-draft', name: 'Altrove', scope: 'personal', color: '#123456' }] }
+    context.cloud = { ...context.cloud! }
+    view.rerender(<App />)
+    await screen.findByText('Salvataggi sospesi per proteggere i dati')
+    expect((field as HTMLInputElement).value).toBe('Non perdere questa bozza')
+    expect(field.closest('[inert]')).not.toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('keeps the same pending mutation when auth refresh occurs during an in-flight save', async () => {
+    const write = deferred<void>()
+    save.mockImplementationOnce(async (data) => { await write.promise; remote = structuredClone(data) })
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    await add(1)
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    const mutation = readPendingCloudSave(activeKey())?.mutationId
+    context.cloud = { ...context.cloud! }
+    view.rerender(<App />)
+    fireEvent(window, new Event('focus'))
+    expect(readPendingCloudSave(activeKey())?.mutationId).toBe(mutation)
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    await act(async () => write.resolve())
+    await screen.findByText('Sincronizzato')
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    expect(remote.movements[0].id).toBe('phone-1')
+  })
+
+  it('keeps transient resume failures non-blocking after the authenticated context changes', async () => {
+    const view = render(<App />)
+    await screen.findByText('Sincronizzato')
+    load.mockRejectedValueOnce(new Error('temporary resume network failure'))
+    context.cloud = { ...context.cloud! }
+    view.rerender(<App />)
+    await screen.findByText('Sincronizzazione non riuscita')
+    expect(screen.queryByText('Salvataggi sospesi per proteggere i dati')).toBeNull()
+    expect(readPendingCloudSave(activeKey())).toBeNull()
+    expect(save).not.toHaveBeenCalled()
+  })
+
   it('shows a retryable badge, not a conflict, when a background read fails', async () => {
     render(<App />)
     await screen.findByText('Sincronizzato')

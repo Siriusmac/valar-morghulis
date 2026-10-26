@@ -2,6 +2,40 @@
 
 Aggiornato il 26 ottobre 2026.
 
+## Rientro dal background — rilascio web autorizzato il 26 ottobre
+
+L’utente conferma che la riparazione dello spazio ha tolto il blocco, ma segnala
+un nuovo avviso a ogni ripresa dopo pochi secondi, risolto premendo “Carica dati
+aggiornati”. Ultimo rilascio ufficiale: 47c7aab su www.skeyapp.com, deployment
+https://8c20ed32.valar-morghulis-web.pages.dev (hash verificati nel rilascio).
+
+Riproduzione PRIMA della correzione: due test falliscono quando il contesto
+autenticato viene ricreato senza modifiche finanziarie. L’effetto di persistenza
+dipendeva dall’intero oggetto cloud e creava un nuovo pending sul semplice render;
+il bootstrap ripartiva e poteva trattarlo come conflitto con dati aggiornati.
+È una causa software dimostrata in test, non una traccia dell’evento Auth reale
+del telefono, che non è stata acquisita.
+
+Correzione locale: la persistenza dipende dalla presenza del cloud, non dall’identità
+dell’oggetto sessione; crea pending solo se il contenuto dei dati cambia. Dopo
+il primo bootstrap, i nuovi contesti usano il refresh silenzioso già previsto,
+con controllo delle bozze; non ricominciano la procedura iniziale. Prima del
+bootstrap gli eventi di refresh non avviano letture concorrenti inutili.
+Nessuna variazione a durata token, MFA, controlli di revisione server, riparazione
+della memoria o regole finanziarie. Un vecchio blocco con dati divergenti non
+viene scartato automaticamente: se già presente può richiedere un ultimo recupero.
+
+377 test / 46 file, lint, build cloud e diff-check superati. Test aggiunti:
+contesto rinnovato senza pending, dati nuovi caricati silenziosamente, bozze
+preservate per più rientri, conflitto reale ancora bloccato, identico mutationId
+durante un salvataggio, errore di rete non bloccante dopo il rinnovo del contesto.
+Chrome/Playwright con API fittizie e contesto/visibilità simulati: sei rientri,
+zero invii finanziari, dati server aggiornati senza avviso, bozza intatta e vero
+conflitto fermato; 1280/390 pixel, nessun errore console, overlay o overflow.
+Browser plugin assente. Safari/PWA iPhone reale resta da verificare.
+L’utente ha autorizzato commit, push e deploy di questa ulteriore correzione
+web dopo il collaudo. Nessuna migrazione o modifica del client Apple.
+
 ## Memoria locale esaurita su iPhone — rilascio web autorizzato il 26 ottobre
 
 Screenshot IMG_5549.HEIC: il blocco specifica “Spazio locale non disponibile”,

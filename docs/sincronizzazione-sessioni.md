@@ -1,5 +1,28 @@
 # Sessioni lunghe e aggiornamento dei dati
 
+## Ulteriore correzione locale: ripresa dal background
+
+Dopo la riparazione dello spazio, l’utente segnala un avviso a ogni ripresa.
+Riprodotto un falso conflitto: ricreare il contesto autenticato attivava l’effetto
+di salvataggio, che marcava un pending anche con dati invariati, e riavviava il
+bootstrap. Non serve aumentare una scadenza di sessione: questo percorso deve
+restare un controllo in sottofondo.
+
+La correzione marca come pendenti soltanto dati effettivamente diversi e passa
+al refresh silenzioso dopo il primo caricamento, anche se il contesto Auth cambia.
+Non modifica token, MFA o il blocco server delle revisioni obsolete. Le bozze
+aperte restano protette quando il server cambia realmente; i semplici rinnovi
+non le cancellano. Un salvataggio già in corso mantiene lo stesso mutationId.
+Un eventuale blocco precedente con dati divergenti richiede ancora revisione,
+non viene cancellato alla cieca.
+
+Collaudo: 377 test / 46 file; sei rientri con contesto e visibilità simulati
+su Chrome/Playwright, desktop e mobile 390, dati fittizi. Zero scritture al server
+durante i semplici rientri, nuovi dati acquisiti senza avviso, vero conflitto
+ancora fermato e bozze conservate. Non è un collaudo reale su Safari/iPhone.
+L’utente ha autorizzato commit, push e deploy web dopo il collaudo locale.
+Nessuna migrazione o modifica delle impostazioni Auth è necessaria.
+
 ## Aggiornamento locale del 26 ottobre: spazio del browser
 
 Una segnalazione reale iPhone mostra il messaggio “Spazio locale non disponibile”.
