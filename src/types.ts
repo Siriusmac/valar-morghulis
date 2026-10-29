@@ -330,6 +330,7 @@ export interface AppData {
   deletedBeneficiaryIds?: string[]
   deletedSenderIds?: string[]
   tags: Tag[]
+  deletedTagIds?: string[]
   tagReportIds: string[]
   searchReports: SearchReport[]
   movements: Movement[]

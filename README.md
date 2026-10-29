@@ -60,6 +60,7 @@ configurare una riserva su un altro dispositivo sicuro. Limiti e collaudi in
 - creazione del beneficiario direttamente dal modulo del movimento, con validazione del nome;
 - bilancio e grafico delle spese per ogni tag;
 - righe di riepilogo della pagina Tag configurabili senza nascondere i tag dai movimenti;
+- tag eliminabili con conferma dal menu a tre puntini: si rimuovono i collegamenti da movimenti, parziali, rate e ricorrenze e il relativo riepilogo, conservando importi, storico e altri tag;
 - pagina “Ricerca e report” per impostare descrizione o commenti, intervallo di date, tipo, beneficiario o mittente, categoria e tag e avviare esplicitamente la ricerca; risultati e comando di creazione compaiono soltanto dopo “Cerca”, quindi il report mensile mostra totale ed elenco dei movimenti, consente di modificarli o eliminarli soltanto dal report oppure dall’intero storico, e può essere salvato, riaperto, modificato o eliminato;
 - spese in 3 o 5 rate, anche suddivise in più categorie, con prima rata immediata, anteprima delle scadenze modificabili e pagamenti successivi programmati;
 - modifica di un piano rateale basata sull'importo totale dell'acquisto, con la stessa struttura della creazione e conservazione di categorie, acquisti per conto terzi e date delle rate;

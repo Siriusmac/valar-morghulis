@@ -1,7 +1,8 @@
 import type { AppData } from '../types'
+import { movementTagIds } from './calculations'
 
-export type DirectoryDeletionKind = 'category' | 'beneficiary' | 'sender'
-export type CounterpartyKind = Exclude<DirectoryDeletionKind, 'category'>
+export type DirectoryDeletionKind = 'category' | 'beneficiary' | 'sender' | 'tag'
+export type CounterpartyKind = Exclude<DirectoryDeletionKind, 'category' | 'tag'>
 
 export function deleteDirectoryData(
   data: AppData,
@@ -9,6 +10,23 @@ export function deleteDirectoryData(
   itemId: string,
   replacementId?: string,
 ): AppData {
+  if (kind === 'tag') {
+    const removeTag = <T extends { tagId?: string; tagIds?: string[] }>(item: T): T => {
+      if (!movementTagIds(item).includes(itemId)) return item
+      const tagIds = movementTagIds(item).filter((id) => id !== itemId)
+      return { ...item, tagId: tagIds[0], tagIds }
+    }
+    return {
+      ...data,
+      tags: data.tags.filter((item) => item.id !== itemId),
+      deletedTagIds: [...new Set([...(data.deletedTagIds ?? []), itemId])],
+      tagReportIds: data.tagReportIds.filter((id) => id !== itemId),
+      movements: data.movements.map((movement) => ({ ...removeTag(movement), splits: movement.splits?.map(removeTag) })),
+      scheduledPayments: data.scheduledPayments.map((payment) => ({ ...removeTag(payment), splits: payment.splits?.map(removeTag) })),
+      recurringMovements: data.recurringMovements.map(removeTag),
+      // Preserve saved tag filters: clearing them would silently broaden reports.
+    }
+  }
   if (kind === 'category') {
     return {
       ...data,

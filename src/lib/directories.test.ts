@@ -73,3 +73,34 @@ describe('category deletion', () => {
     expect(hydrated.movements.find((item) => item.id === 'seed-1')?.categoryId).toBe('')
   })
 })
+
+
+describe('tag deletion', () => {
+  it('removes legacy and multiple tags from movements, partials, installments and recurrences without deleting money', () => {
+    const data = structuredClone(defaultData)
+    const tagged = { tagId: 'casa-2026', tagIds: ['casa-2026', 'vacanza-parigi'] }
+    Object.assign(data.movements[0], tagged, { splits: [{ id: 'partial', amount: 10, categoryId: 'alimentari', shared: false, ...tagged }] })
+    Object.assign(data.scheduledPayments[0], tagged, { splits: [{ id: 'future-partial', amount: 5, categoryId: 'alimentari', shared: false, ...tagged }] })
+    data.recurringMovements = [{ ...data.movements[0], frequency: 'monthly', nextDate: '2099-01-01', amountMode: 'fixed', status: 'active', ...tagged }]
+    data.searchReports = [{ id: 'report', ownerId: 'simone', name: 'Casa', filters: { query: '', dateFrom: '', dateTo: '', movementType: 'all', tagId: 'casa-2026' }, createdAt: '', updatedAt: '' }]
+    const updated = deleteDirectoryData(data, 'tag', 'casa-2026')
+    for (const item of [updated.movements[0], updated.movements[0].splits![0], updated.scheduledPayments[0], updated.scheduledPayments[0].splits![0], updated.recurringMovements[0]]) {
+      expect(item.tagId).toBe('vacanza-parigi')
+      expect(item.tagIds).toEqual(['vacanza-parigi'])
+    }
+    expect(updated.movements.map((item) => [item.id, item.amount, item.accountId])).toEqual(data.movements.map((item) => [item.id, item.amount, item.accountId]))
+    expect(updated.tags.some((item) => item.id === 'casa-2026')).toBe(false)
+    expect(updated.tagReportIds).not.toContain('casa-2026')
+    expect(updated.searchReports).toEqual(data.searchReports)
+    expect(data.movements[0].tagId).toBe('casa-2026')
+  })
+
+  it('does not restore a deleted starter tag on reload and clears a sole legacy tag', () => {
+    const updated = deleteDirectoryData(structuredClone(defaultData), 'tag', 'casa-2026')
+    const hydrated = hydrateData(updated, structuredClone(defaultData))
+    expect(hydrated.tags.some((item) => item.id === 'casa-2026')).toBe(false)
+    expect(hydrated.tagReportIds).not.toContain('casa-2026')
+    expect(hydrated.movements.find((item) => item.id === 'seed-3')).toMatchObject({ tagIds: [] })
+    expect(hydrated.movements.find((item) => item.id === 'seed-3')?.tagId).toBeUndefined()
+  })
+})

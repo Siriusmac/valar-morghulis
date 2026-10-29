@@ -228,6 +228,16 @@ describe('family cloud persistence', () => {
     expect(merged.movements.find((item) => item.id === 'seed-1')?.beneficiaryId).toBe('eurospar')
   })
 
+  it('applies shared tag deletions even to stale private copies and starter tags', () => {
+    const data = structuredClone(defaultData)
+    const records: SharedRecord[] = [{ record_type: 'directory_redirect', record_id: 'tag:casa-2026', data: { kind: 'tag', oldId: 'casa-2026' } }]
+    const merged = mergeCloudPersistence(data, records, structuredClone(defaultData))
+    expect(merged.tags.some((tag) => tag.id === 'casa-2026')).toBe(false)
+    expect(merged.tagReportIds).not.toContain('casa-2026')
+    expect(merged.movements.find((item) => item.id === 'seed-3')?.tagId).toBeUndefined()
+    expect(merged.movements.length).toBeGreaterThan(0)
+  })
+
   it('resolves chained directory deletions to the final empty value', () => {
     const records: SharedRecord[] = [
       {

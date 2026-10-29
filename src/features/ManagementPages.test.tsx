@@ -30,7 +30,7 @@ describe('Directory ordering', () => {
     expect(directoryNames()).toEqual(expectedNames(data.categories))
 
     cleanup()
-    render(<TagsPage data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
+    render(<TagsPage onDelete={vi.fn()} data={data} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
     expect(directoryNames()).toEqual(expectedNames(data.tags))
 
     cleanup()
@@ -43,8 +43,26 @@ describe('Directory ordering', () => {
 })
 
 describe('TagsPage', () => {
+  it('asks for confirmation, supports cancellation and deletes only the selected tag', () => {
+    const onDelete = vi.fn()
+    render(<TagsPage data={defaultData} user={users[0]} onDelete={onDelete} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
+    const tag = defaultData.tags[0]
+    const openDeletion = () => {
+      fireEvent.click(screen.getByRole('button', { name: `Azioni per ${tag.name}` }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Elimina' }))
+    }
+    openDeletion()
+    expect(screen.getByText(/I movimenti e gli altri tag saranno conservati/)).toBeTruthy()
+    expect(onDelete).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla' }))
+    expect(onDelete).not.toHaveBeenCalled()
+    openDeletion()
+    fireEvent.click(screen.getByRole('button', { name: 'Elimina' }))
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith(tag.id)
+  })
+
   it('mostra i comandi dei riepiloghi prima dell’elenco dei tag', () => {
-    render(<TagsPage data={defaultData} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
+    render(<TagsPage onDelete={vi.fn()} data={defaultData} user={users[0]} onAdd={vi.fn()} onUpdate={vi.fn()} onAddReport={vi.fn()} onRemoveReport={vi.fn()} onShowMovements={vi.fn()} />)
 
     const toolbar = screen.getByRole('heading', { name: 'Righe di riepilogo' }).closest('.tag-report-toolbar')!
     const tagList = document.querySelector('.directory-grid')!

@@ -63,6 +63,7 @@ export function hydrateData(data: Partial<AppData>, fallbackData: AppData = defa
 function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultData): AppData {
   const base = structuredClone(fallbackData)
   const accounts = mergeMissingById(data.accounts, base.accounts)
+  const deletedTagIds = data.deletedTagIds ?? []
   const deletedCategoryIds = data.deletedCategoryIds ?? []
   const deletedBeneficiaryIds = data.deletedBeneficiaryIds ?? []
   const deletedSenderIds = data.deletedSenderIds ?? []
@@ -78,8 +79,9 @@ function normalizeData(data: Partial<AppData>, fallbackData: AppData = defaultDa
     senders: mergeMissingById(data.senders, base.senders).filter((item) => !deletedSenderIds.includes(item.id)),
     deletedBeneficiaryIds,
     deletedSenderIds,
-    tags: mergeMissingById(data.tags, base.tags),
-    tagReportIds: data.tagReportIds ?? base.tagReportIds,
+    tags: mergeMissingById(data.tags, base.tags).filter((item) => !deletedTagIds.includes(item.id)),
+    deletedTagIds,
+    tagReportIds: (data.tagReportIds ?? base.tagReportIds).filter((id) => !deletedTagIds.includes(id)),
     searchReports: data.searchReports ?? base.searchReports,
     movements: data.movements ?? [],
     scheduledPayments: data.scheduledPayments ?? [],
@@ -124,6 +126,7 @@ export function mergeAppData(remote: Partial<AppData>, local: AppData, fallbackD
     deletedBeneficiaryIds: [...new Set([...(local.deletedBeneficiaryIds ?? []), ...(remoteData.deletedBeneficiaryIds ?? [])])],
     deletedSenderIds: [...new Set([...(local.deletedSenderIds ?? []), ...(remoteData.deletedSenderIds ?? [])])],
     tags: mergePreferredById(local.tags, remoteData.tags),
+    deletedTagIds: [...new Set([...(local.deletedTagIds ?? []), ...(remoteData.deletedTagIds ?? [])])],
     tagReportIds: [...new Set([...local.tagReportIds, ...remoteData.tagReportIds])],
     searchReports: mergePreferredById(local.searchReports, remoteData.searchReports),
     movements: mergePreferredById(local.movements, remoteData.movements),

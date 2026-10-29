@@ -341,15 +341,18 @@ export function BeneficiariesPage({
   </DirectoryPage>
 }
 
-export function TagsPage({ data, user, personalOnly = false, onAdd, onUpdate, onAddReport, onRemoveReport, onShowMovements }: BaseProps & {
+export function TagsPage({ data, user, personalOnly = false, onAdd, onUpdate, onDelete, onAddReport, onRemoveReport, onShowMovements }: BaseProps & {
   onAdd: (tag: Tag) => void
   onUpdate: (tag: Tag) => void
+  onDelete: (tagId: string) => void
   onAddReport: (tagId: string) => void
   onRemoveReport: (tagId: string) => void
 }) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [scope, setScope] = useState<'family' | 'personal'>(personalOnly ? 'personal' : 'family')
+  const [deletingId, setDeletingId] = useState('')
+  const deletingTag = data.tags.find((tag) => tag.id === deletingId)
   const [editingId, setEditingId] = useState('')
   const [editingName, setEditingName] = useState('')
   const [showReportForm, setShowReportForm] = useState(false)
@@ -391,11 +394,15 @@ export function TagsPage({ data, user, personalOnly = false, onAdd, onUpdate, on
   )
   return <DirectoryPage title="Tag" subtitle="Misura il costo o il risultato di progetti ed eventi." addLabel="Nuovo tag" showForm={showForm} setShowForm={setShowForm}>
     {showForm ? <InlineForm title="Nuovo tag" onSubmit={submit} onCancel={() => setShowForm(false)}><label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Vacanza a Parigi" autoFocus /></label><ScopeSelect value={scope} onChange={setScope} personalOnly={personalOnly} /></InlineForm> : null}
+    {deletingTag ? <form className="directory-delete-form" onSubmit={(event) => { event.preventDefault(); onDelete(deletingTag.id); setDeletingId('') }}>
+      <div><strong>Elimina {deletingTag.name}</strong><p>Il tag verrà rimosso dai movimenti, dai parziali, dalle rate e dalle ricorrenze, insieme alla sua riga di riepilogo. I movimenti e gli altri tag saranno conservati.</p><p>I report salvati che filtrano questo tag non mostreranno risultati finché non ne modifichi il filtro.</p></div>
+      <div><button type="button" className="button button--ghost" onClick={() => setDeletingId('')}>Annulla</button><button type="submit" className="button button--danger"><Trash2 />Elimina</button></div>
+    </form> : null}
     <div className="tag-report-toolbar"><div><h2>Righe di riepilogo</h2><p>I tag restano sempre disponibili nei nuovi movimenti.</p></div><button className="button button--ghost" onClick={() => setShowReportForm(true)}><Plus />Aggiungi riepilogo</button></div>
     <div className="directory-grid">{tags.map((tag) => <article className="directory-selectable" key={tag.id} tabIndex={0} onClick={() => editingId !== tag.id && showTagMovements(tag)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && editingId !== tag.id) showTagMovements(tag) }}>
       <span className="directory-icon"><TagIcon /></span>
       <div>{editingId === tag.id ? <input aria-label={`Nome tag ${tag.name}`} className="directory-edit-input" value={editingName} onClick={(event) => event.stopPropagation()} onChange={(event) => setEditingName(event.target.value)} onKeyDown={(event) => { event.stopPropagation(); if (event.key === 'Enter') saveName(tag) }} autoFocus /> : <strong>{tag.name}</strong>}<small>{tag.scope === 'family' ? <><Share2 /> Famiglia</> : <><LockKeyhole /> Personale</>}</small></div>
-      <div className="directory-actions" onClick={(event) => event.stopPropagation()}>{editingId === tag.id ? <div className="directory-inline-actions"><button type="button" onClick={() => saveName(tag)}>Salva</button><button type="button" onClick={() => setEditingId('')}>Annulla</button></div> : <ActionMenu label={`Azioni per ${tag.name}`} items={[{ label: 'Modifica', onSelect: () => { setEditingId(tag.id); setEditingName(tag.name) } }]} />}<button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${tag.name}`} onClick={() => showTagMovements(tag)}><ChevronRight /></button></div>
+      <div className="directory-actions" onClick={(event) => event.stopPropagation()}>{editingId === tag.id ? <div className="directory-inline-actions"><button type="button" onClick={() => saveName(tag)}>Salva</button><button type="button" onClick={() => setEditingId('')}>Annulla</button></div> : <ActionMenu label={`Azioni per ${tag.name}`} items={[{ label: 'Modifica', onSelect: () => { setDeletingId(''); setEditingId(tag.id); setEditingName(tag.name) } }, { label: 'Elimina', danger: true, onSelect: () => { setDeletingId(tag.id); setEditingId('') } }]} />}<button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${tag.name}`} onClick={() => showTagMovements(tag)}><ChevronRight /></button></div>
     </article>)}</div>
     {showReportForm ? <form className="report-picker" onSubmit={addReport}><CreatableLookup label="Tag da mostrare" value={reportTagQuery} options={availableReports} placeholder="Inserisci tag" onChange={(value) => { setReportTagQuery(value); setReportTagId(availableReports.find((item) => item.name.toLocaleLowerCase('it-IT') === value.trim().toLocaleLowerCase('it-IT'))?.id ?? '') }} /><button className="button button--ghost" type="button" onClick={() => setShowReportForm(false)}>Annulla</button><button className="button button--primary" type="submit"><Plus />Aggiungi riga</button></form> : null}
     <div className="tag-reports">{reportTags.map((tag) => { const tagged = visible.filter((item) => movementAllocations(item).some((allocation) => allocation.tagIds.includes(tag.id))); const expenses = tagged.filter((item) => item.type === 'expense'); const incomes = tagged.filter((item) => item.type === 'income'); const amountForTag = (item: AppData['movements'][number]) => movementAllocations(item).filter((allocation) => allocation.tagIds.includes(tag.id) && !allocation.excludeFromReports).reduce((sum, allocation) => sum + allocation.amount, 0); const spent = expenses.reduce((sum, item) => sum + amountForTag(item), 0); const earned = incomes.reduce((sum, item) => sum + amountForTag(item), 0); return <section key={tag.id}><div className="tag-report__heading"><span className="directory-icon"><TagIcon /></span><div><h2>{tag.name}</h2><p>Bilancio {formatMoney(earned - spent)} · Spese {formatMoney(spent)}</p></div><div className="tag-report__actions"><ActionMenu label={`Azioni riepilogo ${tag.name}`} items={[{ label: 'Rimuovi riepilogo', danger: true, onSelect: () => onRemoveReport(tag.id) }]} /><button className="row-disclosure" type="button" aria-label={`Vedi movimenti di ${tag.name}`} onClick={() => showTagMovements(tag)}><ChevronRight /></button></div></div><DonutChart title="Spese per categoria" data={tagTotalsByCategory(data, expenses, tag.id)} tone="expense" compact /></section> })}</div>

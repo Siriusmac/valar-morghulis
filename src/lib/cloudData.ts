@@ -321,7 +321,7 @@ export function mergeCloudPersistence(
     if (record.record_type === 'sender') shared.senders.push(record.data as Sender)
     if (record.record_type === 'directory_redirect') {
       const redirect = record.data as { kind?: DirectoryDeletionKind; oldId?: string; replacementId?: string }
-      if ((redirect.kind === 'category' || redirect.kind === 'beneficiary' || redirect.kind === 'sender') && redirect.oldId) {
+      if ((redirect.kind === 'category' || redirect.kind === 'beneficiary' || redirect.kind === 'sender' || redirect.kind === 'tag') && redirect.oldId) {
         shared.redirects.push({ kind: redirect.kind, oldId: redirect.oldId, replacementId: redirect.replacementId })
       }
     }

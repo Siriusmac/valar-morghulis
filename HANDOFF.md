@@ -2,6 +2,26 @@
 
 Aggiornato il 26 ottobre 2026.
 
+## Eliminazione tag — rilascio web autorizzato il 29 ottobre 2026
+
+Nuovo comando “Elimina” nel menu di ogni tag, con conferma e annullamento.
+Rimuove soltanto il tag e i suoi collegamenti (compatibilità tagId/tagIds,
+parziali, rate e ricorrenze), conservando i movimenti, gli importi e gli altri tag.
+Elimina anche la riga di riepilogo; i filtri dei report salvati restano espliciti:
+se usano il tag eliminato non restituiscono risultati finché non vengono modificati,
+senza allargare silenziosamente la ricerca. Tombstone deletedTagIds impedisce
+che i tag predefiniti ricompaiano dopo hydrate/import; viene conservato negli
+snapshot privati già versionati. Gestiti anche i redirect familiari di tipo tag.
+La RPC esistente delete_family_directory_record supporta già questo tipo
+(migration 20260816020000): nessuna nuova migration prevista.
+
+L’utente ha autorizzato commit, push e deploy web. Verifiche prima del rilascio:
+381 test / 46 file, compilazione, lint e diff-check superati. Chrome/Playwright
+con dati demo a 1280 e 390 pixel: conferma, annullamento, eliminazione,
+ricaricamento e importi conservati; nessun errore console, overlay o overflow.
+Nessuna cancellazione reale o chiamata al backend di produzione nel collaudo. Browser plugin assente; Safari/iPhone e due account
+familiari reali non collaudati.
+
 ## Rientro dal background — rilascio web autorizzato il 26 ottobre
 
 L’utente conferma che la riparazione dello spazio ha tolto il blocco, ma segnala

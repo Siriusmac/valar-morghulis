@@ -51,7 +51,7 @@ export interface FamilySession {
   loadAppData: () => Promise<Partial<AppData> | null>
   saveAppData: (data: AppData, mutationId?: string) => Promise<void>
   resumeSnapshotWrites?: () => void
-  deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender', recordId: string, replacementId?: string) => Promise<void>
+  deleteSharedDirectory?: (recordType: 'category' | 'beneficiary' | 'sender' | 'tag', recordId: string, replacementId?: string) => Promise<void>
   subscribeToSharedData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   subscribeToContactData?: (onChange: () => void, onStatus?: (status: string, error?: unknown) => void) => () => void
   createSharedAccount: (account: Account, familyId: string) => Promise<void>

@@ -496,14 +496,14 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
     setToast('Movimento eliminato e saldi aggiornati')
   }
   const deleteDirectory = (kind: DirectoryDeletionKind, id: string, replacementId?: string) => {
-    const items = kind === 'category' ? data.categories : kind === 'beneficiary' ? data.beneficiaries : data.senders
+    const items = kind === 'category' ? data.categories : kind === 'beneficiary' ? data.beneficiaries : kind === 'tag' ? data.tags : data.senders
     const item = items.find((entry) => entry.id === id)
     setData((current) => deleteDirectoryData(current, kind, id, replacementId))
     if (cloud && item?.scope === 'family' && cloud.deleteSharedDirectory) {
       void cloud.deleteSharedDirectory(kind, id, replacementId)
         .catch(() => setToast('Anagrafica eliminata sul dispositivo, ma non ancora sincronizzata'))
     }
-    setToast(`${kind === 'category' ? 'Categoria' : kind === 'beneficiary' ? 'Beneficiario' : 'Mittente'} eliminato`)
+    setToast(kind === 'tag' ? 'Tag eliminato' : `${kind === 'category' ? 'Categoria eliminata' : kind === 'beneficiary' ? 'Beneficiario eliminato' : 'Mittente eliminato'}`)
   }
   const registerReimbursement = async (submissions: ReimbursementSubmission[]) => {
     const balance = sharedBalance(data, user.id, appUsers.map((member) => member.id))
@@ -880,7 +880,7 @@ function FinanceApp({ cloud }: { cloud?: FamilySession }) {
       setData((current) => ({ ...current, senders: current.senders.map((item) => item.id === sender.id ? sender : item) }))
       setToast('Mittente aggiornato in tutti i movimenti')
     }} onDeleteSender={(id, replacementId) => deleteDirectory('sender', id, replacementId)} />
-    : page === 'tags' ? <TagsPage {...common} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onUpdate={(tag) => setData((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? tag : item) }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
+    : page === 'tags' ? <TagsPage {...common} onDelete={(id) => deleteDirectory('tag', id)} onAdd={(tag) => setData((current) => ({ ...current, tags: [...current.tags, tag] }))} onUpdate={(tag) => setData((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? tag : item) }))} onAddReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.includes(tagId) ? current.tagReportIds : [...current.tagReportIds, tagId] }))} onRemoveReport={(tagId) => setData((current) => ({ ...current, tagReportIds: current.tagReportIds.filter((id) => id !== tagId) }))} />
     : page === 'search-reports' ? <SearchReportsPage data={data} user={user} onEditMovement={(movement) => setModal({ type: 'movement', movement })} onDeleteMovement={deleteMovement} onDeleteReport={(reportId) => setData((current) => ({ ...current, searchReports: current.searchReports.filter((report) => report.id !== reportId) }))} onSaveReport={(report) => setData((current) => ({ ...current, searchReports: current.searchReports.some((item) => item.id === report.id) ? current.searchReports.map((item) => item.id === report.id ? report : item) : [...current.searchReports, report] }))} />
     : page === 'contacts' && cloud ? <ContactsPage data={data} user={user} contacts={contacts} invitations={contactData.invitations} purchases={contactData.purchases} onInvite={sendContactInvite} onWithdrawInvitation={withdrawContactInvite} onRemove={deleteContact} onRespond={respondToPurchase} onShowMovements={showMovements} />
     : page === 'guide' ? <GuidePage />
